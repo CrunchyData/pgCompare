@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: com.crunchydata.ConferoDC
+Class-Path: postgresql-42.2.5.jar
+

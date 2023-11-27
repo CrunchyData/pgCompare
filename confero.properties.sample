@@ -1,0 +1,67 @@
+##################################
+# system
+##################################
+batch-fetch-size = 2000
+batch-commit-size = 2000
+batch-load-size = 1000000
+observer-throttle = true
+observer-throttle-size = 2000000
+observer-vacuum = true
+same-rdbms-optimization = true
+log-destination = stdout
+log-level = INFO
+
+##################################
+# repository
+##################################
+repo-host=myrepohost
+repo-port=5432
+repo-dbname=confero
+repo-user=postgres
+repo-password=welcome1
+repo-schema=datagate
+
+##################################
+# source
+##################################
+# Oracle Example
+source-name=orasource
+source-type=oracle
+source-host=myorahost
+source-port=1521
+source-dbname=hr
+source-user=appuser
+source-password=welcome1
+source-version=21
+# Postgres Example
+#source-name=pgsource
+#source-type=postgres
+#source-host=localhost
+#source-port=5432
+#source-dbname=hr
+#source-user=postgres
+#source-password=welcome1
+#source-version=15
+
+##################################
+# target
+##################################
+# Postgres Example
+target-name=pgtarget
+target-type=postgres
+target-host=mynewhost
+target-port=5432
+target-dbname=hr
+target-user=postgres
+target-password=welcome1
+target-version=15
+# Oracle Example
+#target-name=orasource
+#target-type=oracle
+#target-host=myorahost
+#target-port=1521
+#target-dbname=hr
+#target-user=appuser
+#target-password=welcome1
+#target-version=21
+
