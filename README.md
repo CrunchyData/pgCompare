@@ -131,5 +131,9 @@ By default, the data is normalized and the hash performed by the Java code.  Whe
 ## Processes
 Each comparison involves at least three threads: one for the observer and two for the source and target loader processes. By specifying a mod_column in the dc_tables and increasing parallel_degree, the number of threads can be increased to speed up comparison. Tuning between batch sizes, commit rates, and parallel degree is essential for optimal performance.
 
+# Design Principles
+The following list outlines some principles that drives the design of this solution:
+- Avoid the need to create any database object in the source or target host.
+- Compare rows in batches instead of row by row or column by column approach.
 
 Confero project source code is available subject to the [Apache 2.0 license](LICENSE.md).
