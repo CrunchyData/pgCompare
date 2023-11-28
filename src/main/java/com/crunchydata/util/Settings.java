@@ -6,7 +6,7 @@ import java.util.Properties;
 
 public class Settings {
     public static Properties Props;
-    public static String version = "2023.11.09";
+    public static String version = "0.1.0";
 
     static {
         Properties configProperties = setDefaults();

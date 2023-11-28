@@ -1,6 +1,5 @@
-<h1 align="center">Confero: Data Compare</h1>
 <p align="center">
-  <img width="150" src="docs/static/logos/icons_multidb.svg" alt="Confero: Data Compare Utility"/>
+  <img width="500" src="docs/static/logos/confero_logo.jpg" alt="Confero: Data Compare Utility"/>
 </p>
 
 [![License](https://img.shields.io/github/license/CrunchyData/postgres-operator)](LICENSE.md)
