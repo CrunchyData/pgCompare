@@ -32,6 +32,9 @@ public class Settings {
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","1000000");
         defaultProps.setProperty("observer-vacuum","true");
+        defaultProps.setProperty("same-rdbms-optimization","true");
+        defaultProps.setProperty("log-destination","stdout");
+        defaultProps.setProperty("log-level","INFO");
 
         return defaultProps;
     }
