@@ -194,8 +194,9 @@ public class ConferoDC {
                 ////////////////////////////////////////
                 // Prepare Data Compare Table
                 ////////////////////////////////////////
+
                 if (!check) {
-                    Logging.write("info", "main", "Clearing data compare staging tables");
+                    Logging.write("info", "main", "Clearing data compare findings");
                     RepoController.deleteDataCompare(repoConn, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
                     RepoController.deleteDataCompare(repoConn, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
                 }
@@ -211,7 +212,8 @@ public class ConferoDC {
                         sameRDBMSOptimization,
                         startStopWatch,
                         check,
-                        crsTable.getInt("batch_nbr"));
+                        crsTable.getInt("batch_nbr"),
+                        crsTable.getInt("tid"));
                 RepoController.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
 
                 runResult.put(actionResult);

@@ -16,6 +16,7 @@
 
 package com.crunchydata.services;
 
+import com.crunchydata.controller.RepoController;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
@@ -35,6 +36,8 @@ public class dbReconcileObserver extends Thread  {
     String threadName;
     Integer threadNbr;
     Integer batchNbr;
+    String stagingTableSource;
+    String stagingTableTarget;
 
     ThreadSync ts;
 
@@ -42,13 +45,15 @@ public class dbReconcileObserver extends Thread  {
     // Configuration Settings
     /////////////////////////////////////////////////
 
-    public dbReconcileObserver(String schemaName, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr) {
+    public dbReconcileObserver(String schemaName, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr, String stagingTableSource, String stagingTableTarget) {
         this.schemaName = schemaName;
         this.tableName = tableName;
         this.cid = cid;
         this.ts = ts;
         this.threadNbr = threadNbr;
         this.batchNbr = batchNbr;
+        this.stagingTableSource = stagingTableSource;
+        this.stagingTableTarget = stagingTableTarget;
     }
 
     public void run() {
@@ -109,6 +114,8 @@ public class dbReconcileObserver extends Thread  {
                                  """;
 
         try {
+            sqlClearMatch = sqlClearMatch.replaceAll("dc_target",stagingTableTarget).replaceAll("dc_source",stagingTableSource);
+
             PreparedStatement stmtSU = repoConn.prepareStatement(sqlClearMatch);
 
             while (lastRun <= 1) {
@@ -142,8 +149,7 @@ public class dbReconcileObserver extends Thread  {
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
-                            dbPostgres.simpleUpdate(repoConn, "vacuum dc_target_t" + threadNbr, binds, false);
-                            dbPostgres.simpleUpdate(repoConn, "vacuum dc_source_t" + threadNbr, binds, false);
+                            dbPostgres.simpleUpdate(repoConn, "vacuum " + stagingTableSource + "," + stagingTableTarget, binds, false);
                             repoConn.setAutoCommit(false);
                         }
                     }
@@ -152,18 +158,25 @@ public class dbReconcileObserver extends Thread  {
                 ///////////////////////////////////////////////////////
                 // Update and Check Status
                 ///////////////////////////////////////////////////////
-                if (ts.sourceComplete && ts.targetComplete) {
-                    if (tmpRowCount == 0) {
-                        lastRun++;
-                    }
+                if (ts.sourceComplete && ts.targetComplete && tmpRowCount == 0) {
+                    lastRun++;
                 }
 
                 if ( tmpRowCount == 0 ) {
+                    if (Props.getProperty("database-sort").equals("false") && cntEqual == 0) { ts.ObserverNotify(); } ;
                     Thread.sleep(sleepTime);
                 }
             }
 
             stmtSU.close();
+
+            Logging.write("info", threadName, "Staging table cleanup");
+
+            RepoController.loadFindings(repoConn, "source", stagingTableSource);
+            RepoController.loadFindings(repoConn, "target", stagingTableTarget);
+            RepoController.dropStagingTable(repoConn, stagingTableSource);
+            RepoController.dropStagingTable(repoConn, stagingTableTarget);
+
 
         } catch (Exception e) {
             Logging.write("severe", threadName, "Error in observer process: " + e.getMessage());

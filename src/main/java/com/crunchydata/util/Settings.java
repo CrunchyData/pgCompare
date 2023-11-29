@@ -54,6 +54,7 @@ public class Settings {
         defaultProps.setProperty("same-rdbms-optimization","true");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
+        defaultProps.setProperty("database-sort","true");
 
         return defaultProps;
     }

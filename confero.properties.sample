@@ -10,6 +10,7 @@ observer-vacuum = true
 same-rdbms-optimization = true
 log-destination = stdout
 log-level = INFO
+database-sort = true
 
 ##################################
 # repository

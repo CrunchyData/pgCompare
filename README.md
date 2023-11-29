@@ -136,4 +136,17 @@ The following list outlines some principles that drives the design of this solut
 - Avoid the need to create any database object in the source or target host.
 - Compare rows in batches instead of row by row or column by column approach.
 
+# Performance
+
+## Repository Database
+The repository database will have a measurable amount of load during the compare process.  To ensure optimal performance, consider the following recommendations:
+
+- Database Host:
+  - Minimal vCPUs for database host should be:  2 + (max(parallel_degree)*2)
+  - Memory should be a minimal of 8GB
+- Minimal Postgres parameter settings:
+  - shared_buffers = 2048MB
+  - work_mem = 256MB
+  - maintenance_work_mem = 512MB
+
 Confero project source code is available subject to the [Apache 2.0 license](LICENSE.md).

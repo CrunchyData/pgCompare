@@ -32,7 +32,7 @@ import static com.crunchydata.util.Settings.Props;
 
 public class ReconcileController {
 
-    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, Boolean sameRDBMSOptimization, long rid, Boolean check, Integer batchNbr) {
+    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, Boolean sameRDBMSOptimization, long rid, Boolean check, Integer batchNbr, Integer tid) {
 
         /////////////////////////////////////////////////
         // Variables
@@ -95,23 +95,20 @@ public class ReconcileController {
         ////////////////////////////////////////
         // Set Source & Target Variables
         ////////////////////////////////////////
-        String sqlSource = "";
-        String sqlTarget = "";
-
-        sqlSource = switch (Props.getProperty("source-type")) {
+        String sqlSource = switch (Props.getProperty("source-type")) {
             case "postgres" ->
                     dbPostgres.buildLoadSQL(sameRDBMSOptimization, sourceSchema, sourceTable, ci.pgPK, ci.pkJSON, ci.pgColumn, tableFilter);
             case "oracle" ->
                     dbOracle.buildLoadSQL(sameRDBMSOptimization, sourceSchema, sourceTable, ci.oraPK, ci.pkJSON, ci.oraColumn, tableFilter);
-            default -> sqlSource;
+            default -> "";
         };
 
-        sqlTarget = switch (Props.getProperty("target-type")) {
+        String sqlTarget = switch (Props.getProperty("target-type")) {
             case "postgres" ->
                     dbPostgres.buildLoadSQL(sameRDBMSOptimization, targetSchema, targetTable, ci.pgPK, ci.pkJSON, ci.pgColumn, tableFilter);
             case "oracle" ->
                     dbOracle.buildLoadSQL(sameRDBMSOptimization, targetSchema, targetTable, ci.oraPK, ci.pkJSON, ci.oraColumn, tableFilter);
-            default -> sqlTarget;
+            default -> "";
         };
 
         Logging.write("info", "reconcile-controller", "Source Compare Hash SQL: " + sqlSource);
@@ -134,14 +131,18 @@ public class ReconcileController {
                 Logging.write("info", "reconcile-controller", "Starting compare hash threads");
 
                 for (Integer i = 0; i < parallelDegree; i++) {
+                    Logging.write("info", "reconcile-controller", "Creating data compare staging tables");
+                    String stagingTableSource = RepoController.createStagingTable(repoConn, "source", tid, batchNbr, i);
+                    String stagingTableTarget = RepoController.createStagingTable(repoConn, "target", tid, batchNbr, i);
+                    Logging.write("info", "reconcile-controller", "Starting compare thread " + i);
                     ts = new ThreadSync();
-                    rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr);
+                    rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
                     rot.start();
                     observerList.add(rot);
-                    cst = new dbReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ci.nbrColumns, ci.nbrPKColumns, cid, ts, ci.pkList, sameRDBMSOptimization, batchNbr);
+                    cst = new dbReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ci.nbrColumns, ci.nbrPKColumns, cid, ts, ci.pkList, sameRDBMSOptimization, batchNbr, tid, stagingTableSource);
                     cst.start();
                     compareList.add(cst);
-                    ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ci.nbrColumns, ci.nbrPKColumns, cid, ts, ci.pkList, sameRDBMSOptimization, batchNbr);
+                    ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ci.nbrColumns, ci.nbrPKColumns, cid, ts, ci.pkList, sameRDBMSOptimization, batchNbr, tid, stagingTableTarget);
                     ctt.start();
                     compareList.add(ctt);
                     try {

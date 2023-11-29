@@ -42,6 +42,30 @@ public class RepoController {
         dbPostgres.simpleUpdate(conn, sql, binds, true);
     }
 
+    public static String createStagingTable(Connection conn, String location, Integer tid, Integer batchNbr, Integer threadNbr) {
+        String sql = """
+                CREATE UNLOGGED TABLE dc_source (
+                	table_name varchar(30) NULL,
+                	thread_nbr int4 NULL,
+                	batch_nbr int4 NULL,
+                	pk_hash varchar(40) NULL,
+                	column_hash varchar(40) NULL,
+                	pk jsonb NULL,
+                	compare_result bpchar(1) NULL
+                ) with (autovacuum_enabled=false)
+                """;
+
+        String stagingTable = "dc_" + location + "_" + tid + "_" + threadNbr;
+
+        sql = sql.replaceAll("dc_source",stagingTable);
+
+        dropStagingTable(conn, stagingTable);
+
+        dbPostgres.simpleExecute(conn, sql);
+
+        return stagingTable;
+    }
+
     public static void deleteDataCompare(Connection conn, String location, String  table, Integer batchNbr) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,table);
@@ -49,9 +73,29 @@ public class RepoController {
 
         String sql = "DELETE from dc_" + location +" WHERE table_name=? and batch_nbr=?";
 
-        dbPostgres.simpleUpdate(conn, sql, binds, true);
+        try {
+            dbPostgres.simpleUpdate(conn, sql, binds, true);
+
+            boolean currentAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(true);
+            binds.clear();
+            dbPostgres.simpleUpdate(conn, "vacuum dc_" + location, binds, false);
+            conn.setAutoCommit(currentAutoCommit);
+        } catch (Exception e) {
+            System.out.println("Error clearing staging tables");
+            e.printStackTrace();
+            System.exit(1);
+        }
 
     }
+
+    public static void dropStagingTable(Connection conn, String stagingTable) {
+        String sql = "DROP TABLE IF EXISTS " + stagingTable;
+
+        dbPostgres.simpleExecute(conn, sql);
+
+    }
+
 
     public static CachedRowSet getTables(Connection conn, Integer batchNbr, String table, Boolean check) {
         ArrayList<Object> binds = new ArrayList<>();
@@ -91,10 +135,10 @@ public class RepoController {
 
     }
 
-    public static void loadDataCompare (Connection conn, String location,List<DataCompare> list) {
+    public static void loadDataCompare (Connection conn, String stagingTable,List<DataCompare> list) {
         try {
                 int cnt = 0;
-                String sql = "INSERT INTO dc_" + location + " (table_name, pk_hash, column_hash, pk, thread_nbr, batch_nbr) VALUES (?,?,?,(?)::jsonb,?,?)";
+                String sql = "INSERT INTO " + stagingTable + " (table_name, pk_hash, column_hash, pk, thread_nbr, batch_nbr) VALUES (?,?,?,(?)::jsonb,?,?)";
                 conn.setAutoCommit(false);
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 for (DataCompare dc: list) {
@@ -122,6 +166,16 @@ public class RepoController {
         } catch (Exception e) {
             Logging.write("severe", "repo-controller", "Error loading compare data into repo " + e.getMessage());
         }
+    }
+
+    public static void loadFindings (Connection conn, String location, String stagingTable) {
+        ArrayList<Object> binds = new ArrayList<>();
+        String sqlLoadFindings = """
+                INSERT INTO dc_source (table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr FROM stagingtable)
+                """;
+
+        String sqlFinal = sqlLoadFindings.replaceAll("dc_source", "dc_"+location).replaceAll("stagingtable", stagingTable);
+        dbPostgres.simpleUpdate(conn, sqlFinal, binds, true);
     }
 
     public static void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {

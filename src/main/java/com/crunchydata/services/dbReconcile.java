@@ -48,9 +48,11 @@ public class dbReconcile extends Thread {
 
     String pkList;
 
+    Integer tid;
+    String stagingTable;
     Boolean sameRDBMSOptimization;
 
-    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean sameRDBMSOptimization, Integer batchNbr) {
+    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean sameRDBMSOptimization, Integer batchNbr, Integer tid, String stagingTable) {
         this.modColumn = modColumn;
         this.parallelDegree = parallelDegree;
         this.schemaName = schemaName;
@@ -66,6 +68,8 @@ public class dbReconcile extends Thread {
         this.pkList = pkList;
         this.sameRDBMSOptimization = sameRDBMSOptimization;
         this.batchNbr = batchNbr;
+        this.tid = tid;
+        this.stagingTable = stagingTable;
     }
 
     public void run() {
@@ -115,7 +119,7 @@ public class dbReconcile extends Thread {
             sql += " AND mod(" + modColumn + "," + parallelDegree +")="+threadNumber;
         }
 
-        if (!pkList.isEmpty()) {
+        if (!pkList.isEmpty() && Props.getProperty("database-sort").equals("true")) {
             sql += " ORDER BY " + pkList;
         }
 
@@ -143,7 +147,7 @@ public class dbReconcile extends Thread {
                 totalRows++;
 
                 if (totalRows % loadRowCount == 0) {
-                    RepoController.loadDataCompare(repoConn, targetType, dataCompareList);
+                    RepoController.loadDataCompare(repoConn, stagingTable, dataCompareList);
                     dataCompareList.clear();
                     Logging.write("info", threadName, "Loaded " + totalRows + " rows");
                 }
@@ -172,7 +176,7 @@ public class dbReconcile extends Thread {
 
             // Loading Remaining
             if (cntRecord > 0) {
-                RepoController.loadDataCompare(repoConn, targetType, dataCompareList);
+                RepoController.loadDataCompare(repoConn, stagingTable, dataCompareList);
                 RepoController.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
                 dataCompareList.clear();
             }
