@@ -27,19 +27,21 @@ public class Settings {
     public static Properties Props;
     public static String version = "0.1.0";
 
+    static String paramFile = (System.getenv("CONFERO_CONFIG") == null) ? "confero.properties" : System.getenv("CONFERO_CONFIG");
+
     static {
-        Properties configProperties = setDefaults();
-        try {
-            InputStream stream = new FileInputStream("confero.properties");
+            Properties configProperties = setDefaults();
+            try {
+                InputStream stream = new FileInputStream(paramFile);
 
-            configProperties.load(stream);
-            stream.close();
+                configProperties.load(stream);
+                stream.close();
 
-        } catch (Exception e) {
-            System.out.println("Error reading config file " + e);
-            System.exit(1);
-        }
-        Props = configProperties;
+            } catch (Exception e) {
+                System.out.println("Error reading config file " + e);
+                System.exit(1);
+            }
+            Props = configProperties;
     }
 
     public static Properties setDefaults() {

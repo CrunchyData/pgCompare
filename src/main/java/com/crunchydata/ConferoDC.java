@@ -103,6 +103,7 @@ public class ConferoDC {
             System.exit(0);
         }
 
+
         // Capture Argument Values
         Integer batchParameter = Integer.parseInt(cmd.getOptionValue("batch"));
         boolean check = cmd.hasOption("check");

@@ -64,6 +64,8 @@ INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, 
 ### Create `confero.properties`
 Copy the `confero.properties.sample`` file to confero.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
 
+By default, the application looks for the properties file in the execution directory.  This can be overriden by using the CONFERO_CONFIG environment variable to point to a file in a different location.
+
 ### Perform Data Compare
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
 
