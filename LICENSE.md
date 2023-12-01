@@ -176,7 +176,7 @@ TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
 END OF TERMS AND CONDITIONS
 
-Copyright 2017 - 2023 Crunchy Data Solutions, Inc.
+Copyright 2023 Crunchy Data Solutions, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
