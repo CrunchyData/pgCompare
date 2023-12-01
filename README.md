@@ -1,12 +1,25 @@
 <p align="center">
-  <img width="500" src="docs/static/logos/confero_logo.jpg" alt="Confero: Data Compare Utility"/>
+  <h1 align="center" style="font-size: 70px;">Confero</h1>
+  <h2 align="center">Data Compare</h2>
 </p>
 
 [![License](https://img.shields.io/github/license/CrunchyData/postgres-operator)](LICENSE.md)
 
 # Data Compare Made Simple
 
-In the dynamic landscape of today's information-driven world, the need for efficient and accurate data management has never been more critical. As organizations replicate data from various sources, ensuring data consistency becomes a paramount challenge. Introducing Confero –  a straightforward utility crafted to simplify the data comparison process, providing a robust solution for comparing data across various database platforms.
+Confero is a Java application designed for use in situations where your replicating data from different sources and need to validate that post-replication data consistency, including:
+
+- **Data migration from Oracle to Postgres:**  Migrating from Oracle to Postgres? Confero can be utilized to compare data between Oracle and Postgres during and/or after the process of data migration.
+
+
+- **Logical replication between same or different database platforms:** Confero exhibits enhanced optimization when comparing similar platforms, reducing the overhead on the source database. The comparison tasks can also be delegated to a physical replication target. Confero not only identifies rows that appear out-of-sync but also offers the capability to revalidate those rows, proving valuable in the process of verifying data on active systems.
+
+
+- **Active-Active replication configuration:**  There are inherent data consistency risks associated with any active-active database setup. To meet verification requirements, Confero Data Compare can be employed regularly to compare either all or specific portions of the data.
+
+At a higher level, Confero reads a row from a table and generates two hash values. The initial hash is executed on the primary key column(s), while the second hash is computed on the remaining columns. When comparing data within similar platforms (e.g., Postgres to Postgres, Oracle to Oracle), the hashing is carried out within the database. In the case of comparisons between different platforms, the Java application performs the hash. These hash values are stored in the Confero repository. Representing the original values as a hash minimizes the required space in the repository database and decreases network traffic when comparing similar platforms. Simultaneously, a parallel process consistently conducts comparisons on sets of data as they are loaded to expedite the comparison process and avoid row-by-row processing. Ultimately, a summary of the comparison results is displayed and stored in the Confero repository.
+
+Confero is an open source project maintained by the team at Crunchy Data and made available under the Apache 2.0 licenses for broader use, testing and feedback.
 
 Why the name Confero? The name is derived from the Latin word "cōnferō," meaning "to bring together."
 
