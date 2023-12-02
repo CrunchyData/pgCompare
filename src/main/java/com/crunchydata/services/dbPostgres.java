@@ -31,11 +31,11 @@ import java.util.Properties;
  */
 public class dbPostgres {
 
-    public static String buildLoadSQL (Boolean sameRDBMSOptimization, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+    public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
         String sql = "SELECT ";
 
-        if (sameRDBMSOptimization) {
-            sql += "md5(concat_ws('|'," + pkColumns + ")) pk_hash, " + pkJSON + " pk, md5(concat_ws('|'," + columns + ")) FROM " + schema + "." + tableName + " WHERE 1=1 ";
+        if (useDatabaseHash) {
+            sql += "md5(concat_ws('|'," + pkColumns + ")) pk_hash, " + pkJSON + " pk, md5(concat_ws(''," + columns + ")) FROM " + schema + "." + tableName + " WHERE 1=1 ";
         } else {
             sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
         }

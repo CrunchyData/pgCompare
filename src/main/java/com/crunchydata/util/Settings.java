@@ -53,10 +53,11 @@ public class Settings {
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","1000000");
         defaultProps.setProperty("observer-vacuum","true");
-        defaultProps.setProperty("same-rdbms-optimization","true");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("database-sort","true");
+        defaultProps.setProperty("source-database-hash","false");
+        defaultProps.setProperty("target-database-hash","false");
 
         return defaultProps;
     }

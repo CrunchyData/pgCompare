@@ -33,7 +33,7 @@ source-port=1521
 source-dbname=hr
 source-user=appuser
 source-password=welcome1
-source-version=21
+source-database-hash=false
 # Postgres Example
 #source-name=pgsource
 #source-type=postgres
@@ -42,7 +42,7 @@ source-version=21
 #source-dbname=hr
 #source-user=postgres
 #source-password=welcome1
-#source-version=15
+#source-database-hash=true
 
 ##################################
 # target
@@ -55,7 +55,7 @@ target-port=5432
 target-dbname=hr
 target-user=postgres
 target-password=welcome1
-target-version=15
+target-database-hash=true
 # Oracle Example
 #target-name=orasource
 #target-type=oracle
@@ -64,5 +64,4 @@ target-version=15
 #target-dbname=hr
 #target-user=appuser
 #target-password=welcome1
-#target-version=21
-
+#target-database-hash=true

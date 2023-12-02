@@ -32,7 +32,7 @@ import static com.crunchydata.util.Settings.Props;
 
 public class ReconcileController {
 
-    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, Boolean sameRDBMSOptimization, long rid, Boolean check, Integer batchNbr, Integer tid) {
+    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, long rid, Boolean check, Integer batchNbr, Integer tid) {
 
         /////////////////////////////////////////////////
         // Variables
@@ -86,9 +86,12 @@ public class ReconcileController {
         result.put("status","failed");
         result.put("compareStatus","failed");
 
-        ColumnInfo ci = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, sameRDBMSOptimization);
+        // TODO: Reconcile column list between source and target instead of using only target
+        ColumnInfo ciSource = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, (check) ? false : Boolean.parseBoolean(Props.getProperty("source-database-hash")));
+        ColumnInfo ciTarget = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, (check) ? false : Boolean.parseBoolean(Props.getProperty("target-database-hash")));
 
-        Logging.write("info", "reconcile-controller", "Columns: " + ci.columnList);
+        Logging.write("info", "reconcile-controller", "Source Columns: " + ciSource.columnList);
+        Logging.write("info", "reconcile-controller", "Target Columns: " + ciTarget.columnList);
 
         Integer cid = RepoController.dcrCreate(repoConn, targetTable, rid);
 
@@ -97,17 +100,17 @@ public class ReconcileController {
         ////////////////////////////////////////
         String sqlSource = switch (Props.getProperty("source-type")) {
             case "postgres" ->
-                    dbPostgres.buildLoadSQL(sameRDBMSOptimization, sourceSchema, sourceTable, ci.pgPK, ci.pkJSON, ci.pgColumn, tableFilter);
+                    dbPostgres.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pgPK, ciSource.pkJSON, ciSource.pgColumn, tableFilter);
             case "oracle" ->
-                    dbOracle.buildLoadSQL(sameRDBMSOptimization, sourceSchema, sourceTable, ci.oraPK, ci.pkJSON, ci.oraColumn, tableFilter);
+                    dbOracle.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.oraPK, ciSource.pkJSON, ciSource.oraColumn, tableFilter);
             default -> "";
         };
 
         String sqlTarget = switch (Props.getProperty("target-type")) {
             case "postgres" ->
-                    dbPostgres.buildLoadSQL(sameRDBMSOptimization, targetSchema, targetTable, ci.pgPK, ci.pkJSON, ci.pgColumn, tableFilter);
+                    dbPostgres.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pgPK, ciTarget.pkJSON, ciTarget.pgColumn, tableFilter);
             case "oracle" ->
-                    dbOracle.buildLoadSQL(sameRDBMSOptimization, targetSchema, targetTable, ci.oraPK, ci.pkJSON, ci.oraColumn, tableFilter);
+                    dbOracle.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.oraPK, ciTarget.pkJSON, ciTarget.oraColumn, tableFilter);
             default -> "";
         };
 
@@ -116,12 +119,12 @@ public class ReconcileController {
 
 
         if (check) {
-            dbReconcileCheck.recheckRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceSchema, sourceTable, targetSchema, targetTable, ci, sameRDBMSOptimization, batchNbr, cid);
+            dbReconcileCheck.recheckRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceSchema, sourceTable, targetSchema, targetTable, ciSource, ciTarget, batchNbr, cid);
         } else {
             ////////////////////////////////////////
             // Execute Compare SQL on Source and Target
             ////////////////////////////////////////
-            if (ci.pkList.isBlank() || ci.pkList.isEmpty()) {
+            if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty()) {
                 Logging.write("warning", "reconcile-controller", "Table " + targetTable + " has no Primary Key, skipping reconciliation");
                 result.put("status", "skipped");
                 binds.clear();
@@ -139,10 +142,10 @@ public class ReconcileController {
                     rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
                     rot.start();
                     observerList.add(rot);
-                    cst = new dbReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ci.nbrColumns, ci.nbrPKColumns, cid, ts, ci.pkList, sameRDBMSOptimization, batchNbr, tid, stagingTableSource);
+                    cst = new dbReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ciSource.nbrColumns, ciSource.nbrPKColumns, cid, ts, ciSource.pkList, Boolean.parseBoolean(Props.getProperty("source-database-hash")), batchNbr, tid, stagingTableSource);
                     cst.start();
                     compareList.add(cst);
-                    ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ci.nbrColumns, ci.nbrPKColumns, cid, ts, ci.pkList, sameRDBMSOptimization, batchNbr, tid, stagingTableTarget);
+                    ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ciTarget.nbrColumns, ciTarget.nbrPKColumns, cid, ts, ciTarget.pkList, Boolean.parseBoolean(Props.getProperty("target-database-hash")), batchNbr, tid, stagingTableTarget);
                     ctt.start();
                     compareList.add(ctt);
                     try {

@@ -30,11 +30,11 @@ import java.util.Properties;
 
 public class dbOracle {
 
-    public static String buildLoadSQL (Boolean sameRDBMSOptimization, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+    public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
         String sql = "SELECT ";
 
-        if (sameRDBMSOptimization) {
-            sql += "ORA_HASH(" + pkColumns + ") pk_hash, " + pkJSON + " pk, ORA_HASH(" + columns + ") FROM " + schema + "." + tableName + " WHERE 1=1 ";
+        if (useDatabaseHash) {
+            sql += "LOWER(STANDARD_HASH(" + pkColumns + ",'MD5')) pk_hash, " + pkJSON + " pk, LOWER(STANDARD_HASH(" + columns + ",'MD5')) column_hash FROM " + schema + "." + tableName + " WHERE 1=1 ";
         } else {
             sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
         }

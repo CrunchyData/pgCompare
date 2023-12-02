@@ -28,7 +28,7 @@ import java.sql.Connection;
  */
 public class DatabaseUtility {
 
-    public static ColumnInfo getColumnInfo(String targetType, Connection conn, String targetSchema, String targetTable, Boolean sameRDBMSOptimization) {
+    public static ColumnInfo getColumnInfo(String targetType, Connection conn, String targetSchema, String targetTable, Boolean useDatabaseHash) {
 
         CachedRowSet crsColumns;
 
@@ -117,8 +117,8 @@ public class DatabaseUtility {
                 if (dtSupported) {
                     nbrColumns++;
                     if (crsColumns.getString("pk").equals("N")) {
-                        oraColumn.append((sameRDBMSOptimization) ? crsColumns.getString("column_name") + "||" : oraTemp + " as " + crsColumns.getString("column_name") + ",");
-                        pgColumn.append((sameRDBMSOptimization) ? crsColumns.getString("column_name") + "," : pgTemp + " as " + crsColumns.getString("column_name") + ",");
+                        oraColumn.append((useDatabaseHash) ? oraTemp  + "||" : oraTemp + " as " + crsColumns.getString("column_name") + ",");
+                        pgColumn.append((useDatabaseHash) ? pgTemp + "," : pgTemp + " as " + crsColumns.getString("column_name") + ",");
                     } else {
                         nbrPKColumns++;
                         oraPK.append(oraTemp).append("||'.'||");
@@ -137,10 +137,10 @@ public class DatabaseUtility {
             columnList = new StringBuilder(columnList.substring(0, columnList.length() - 1));
 
             if (oraColumn.isEmpty()) {
-                oraColumn = new StringBuilder((sameRDBMSOptimization) ? "'0'" : " '0' c1");
-                pgColumn = new StringBuilder((sameRDBMSOptimization) ? "'0'" : " '0' c1");
+                oraColumn = new StringBuilder((useDatabaseHash) ? "'0'" : " '0' c1");
+                pgColumn = new StringBuilder((useDatabaseHash) ? "'0'" : " '0' c1");
             } else {
-                oraColumn = new StringBuilder(oraColumn.substring(0, oraColumn.length() - ((sameRDBMSOptimization) ? 2 : 1)));
+                oraColumn = new StringBuilder(oraColumn.substring(0, oraColumn.length() - ((useDatabaseHash) ? 2 : 1)));
                 pgColumn = new StringBuilder(pgColumn.substring(0, pgColumn.length() - 1));
             }
 
