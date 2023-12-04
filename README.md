@@ -12,12 +12,12 @@ Confero is a Java application designed for use in situations where your replicat
 - **Data migration from Oracle to Postgres:**  Migrating from Oracle to Postgres? Confero can be utilized to compare data between Oracle and Postgres during and/or after the process of data migration.
 
 
-- **Logical replication between same or different database platforms:** Confero exhibits enhanced optimization when comparing similar platforms, reducing the overhead on the source database. The comparison tasks can also be delegated to a physical replication target. Confero not only identifies rows that appear out-of-sync but also offers the capability to revalidate those rows, proving valuable in the process of verifying data on active systems.
+- **Logical replication between same or different database platforms:** Confero exhibits enhanced optimization when comparing data, reducing the overhead on the source and target databases. The comparison tasks can also be delegated to a physical replication target. Confero not only identifies rows that appear out-of-sync but also offers the capability to revalidate those rows, proving valuable in the process of verifying data on active systems.
 
 
 - **Active-Active replication configuration:**  There are inherent data consistency risks associated with any active-active database setup. To meet verification requirements, Confero Data Compare can be employed regularly to compare either all or specific portions of the data.
 
-At a higher level, Confero reads a row from a table and generates two hash values. The initial hash is executed on the primary key column(s), while the second hash is computed on the remaining columns. When comparing data within similar platforms (e.g., Postgres to Postgres, Oracle to Oracle), the hashing is carried out within the database. In the case of comparisons between different platforms, the Java application performs the hash. These hash values are stored in the Confero repository. Representing the original values as a hash minimizes the required space in the repository database and decreases network traffic when comparing similar platforms. Simultaneously, a parallel process consistently conducts comparisons on sets of data as they are loaded to expedite the comparison process and avoid row-by-row processing. Ultimately, a summary of the comparison results is displayed and stored in the Confero repository.
+At a higher level, Confero reads a row from a table and generates two hash values. The initial hash is executed on the primary key column(s), while the second hash is computed on the remaining columns. The hash can be calculated by the database or by the application. These hash values are stored in the Confero repository. Representing the original values as a hash minimizes the required space in the repository database and decreases network traffic. A parallel process consistently conducts comparisons on sets of data as they are loaded to expedite the comparison process and avoid row-by-row processing. Ultimately, a summary of the comparison results is displayed and stored in the Confero repository.
 
 Confero is an open source project maintained by the team at Crunchy Data and made available under the Apache 2.0 licenses for broader use, testing and feedback.
 
@@ -75,9 +75,9 @@ INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, 
 ```
 
 ### Create `confero.properties`
-Copy the `confero.properties.sample`` file to confero.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
+Copy the `confero.properties.sample` file to confero.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
 
-By default, the application looks for the properties file in the execution directory.  This can be overriden by using the CONFERO_CONFIG environment variable to point to a file in a different location.
+By default, the application looks for the properties file in the execution directory.  This can be overriden by using the CONFERODC_CONFIG environment variable to point to a file in a different location.
 
 ### Perform Data Compare
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
@@ -108,7 +108,6 @@ Properties are categorized into four sections: system, repository, source, and t
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
-- same-rdbms-optimization: When the source and target are the same RDBMS, use optimization available to the database platform.  Note, using same RDBMS optimization has minimal version requirements on the target platform.
 
 ### repository
 - repo-host: Host name of server hosting the Postgres repository database.
@@ -126,6 +125,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - source-dbname:  Database or service name.
 - source-user:   Database username.
 - source-password:  Database password.
+- source-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 
 ### target
 - target-name:  User defined name for the target.
@@ -135,13 +135,13 @@ Properties are categorized into four sections: system, repository, source, and t
 - target-dbname:  Database or service name.
 - target-user:  Database username.
 - target-password:  Database password.
-
+- target-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 
 # Data Compare
 Confero stores a hash representation of primary key columns and other table columns, reducing row size and storage demands. The utility optimizes network traffic and speeds up the process by using hash functions when comparing similar platforms.
 
 ## Hash Options
-By default, the data is normalized and the hash performed by the Java code.  When comparing like platforms (oracel to oracle or postgres to postgres), hash functions are used in the database to reduce the amount of network traffic and to speed up the process.
+By default, the data is normalized and the hash performed by the Java code.  For supported platforms (Oracle 12.1 or higher and Postgres 11 or higher), the progrom will leverage database functions to perform the hash.  Allowing the database to perform the hash does increase CPU load on the hosting server, but reduces network traffic, increases speed, and reduces memory requirements of Confero.
 
 ## Processes
 Each comparison involves at least three threads: one for the observer and two for the source and target loader processes. By specifying a mod_column in the dc_tables and increasing parallel_degree, the number of threads can be increased to speed up comparison. Tuning between batch sizes, commit rates, and parallel degree is essential for optimal performance.

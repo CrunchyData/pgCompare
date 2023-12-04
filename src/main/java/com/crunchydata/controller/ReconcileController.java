@@ -75,8 +75,6 @@ public class ReconcileController {
                                             AND NOT EXISTS (SELECT 1 FROM dc_target t WHERE t.table_name=? AND s.pk_hash=t.pk_hash)
                                       """;
 
-
-
         /////////////////////////////////////////////////
         // Get Column Info
         /////////////////////////////////////////////////
@@ -87,8 +85,8 @@ public class ReconcileController {
         result.put("compareStatus","failed");
 
         // TODO: Reconcile column list between source and target instead of using only target
-        ColumnInfo ciSource = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, (check) ? false : Boolean.parseBoolean(Props.getProperty("source-database-hash")));
-        ColumnInfo ciTarget = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, (check) ? false : Boolean.parseBoolean(Props.getProperty("target-database-hash")));
+        ColumnInfo ciSource = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
+        ColumnInfo ciTarget = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
 
         Logging.write("info", "reconcile-controller", "Source Columns: " + ciSource.columnList);
         Logging.write("info", "reconcile-controller", "Target Columns: " + ciTarget.columnList);
@@ -100,17 +98,17 @@ public class ReconcileController {
         ////////////////////////////////////////
         String sqlSource = switch (Props.getProperty("source-type")) {
             case "postgres" ->
-                    dbPostgres.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pgPK, ciSource.pkJSON, ciSource.pgColumn, tableFilter);
+                    dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pgPK, ciSource.pkJSON, ciSource.pgColumn, tableFilter);
             case "oracle" ->
-                    dbOracle.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.oraPK, ciSource.pkJSON, ciSource.oraColumn, tableFilter);
+                    dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.oraPK, ciSource.pkJSON, ciSource.oraColumn, tableFilter);
             default -> "";
         };
 
         String sqlTarget = switch (Props.getProperty("target-type")) {
             case "postgres" ->
-                    dbPostgres.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pgPK, ciTarget.pkJSON, ciTarget.pgColumn, tableFilter);
+                    dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pgPK, ciTarget.pkJSON, ciTarget.pgColumn, tableFilter);
             case "oracle" ->
-                    dbOracle.buildLoadSQL((check) ? false : Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.oraPK, ciTarget.pkJSON, ciTarget.oraColumn, tableFilter);
+                    dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.oraPK, ciTarget.pkJSON, ciTarget.oraColumn, tableFilter);
             default -> "";
         };
 
@@ -119,7 +117,7 @@ public class ReconcileController {
 
 
         if (check) {
-            dbReconcileCheck.recheckRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceSchema, sourceTable, targetSchema, targetTable, ciSource, ciTarget, batchNbr, cid);
+            dbReconcileCheck.recheckRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
         } else {
             ////////////////////////////////////////
             // Execute Compare SQL on Source and Target
@@ -127,7 +125,6 @@ public class ReconcileController {
             if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty()) {
                 Logging.write("warning", "reconcile-controller", "Table " + targetTable + " has no Primary Key, skipping reconciliation");
                 result.put("status", "skipped");
-                binds.clear();
                 binds.add(0,cid);
                 dbPostgres.simpleUpdate(repoConn,"UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?",binds, true);
             } else {
@@ -135,8 +132,8 @@ public class ReconcileController {
 
                 for (Integer i = 0; i < parallelDegree; i++) {
                     Logging.write("info", "reconcile-controller", "Creating data compare staging tables");
-                    String stagingTableSource = RepoController.createStagingTable(repoConn, "source", tid, batchNbr, i);
-                    String stagingTableTarget = RepoController.createStagingTable(repoConn, "target", tid, batchNbr, i);
+                    String stagingTableSource = RepoController.createStagingTable(repoConn, "source", tid, i);
+                    String stagingTableTarget = RepoController.createStagingTable(repoConn, "target", tid, i);
                     Logging.write("info", "reconcile-controller", "Starting compare thread " + i);
                     ts = new ThreadSync();
                     rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);

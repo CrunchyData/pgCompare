@@ -49,15 +49,19 @@ public class Settings {
 
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
-        defaultProps.setProperty("batch-load-size","500000");
+        defaultProps.setProperty("batch-load-size","1000000");
         defaultProps.setProperty("observer-throttle","true");
-        defaultProps.setProperty("observer-throttle-size","1000000");
+        defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("database-sort","true");
-        defaultProps.setProperty("source-database-hash","false");
-        defaultProps.setProperty("target-database-hash","false");
+        defaultProps.setProperty("repo-host","localhost");
+        defaultProps.setProperty("repo-port","5432");
+        defaultProps.setProperty("repo-dbname","confero");
+        defaultProps.setProperty("repo-schema","confero");
+        defaultProps.setProperty("source-database-hash","true");
+        defaultProps.setProperty("target-database-hash","true");
 
         return defaultProps;
     }

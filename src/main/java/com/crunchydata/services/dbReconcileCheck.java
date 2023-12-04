@@ -37,7 +37,7 @@ import java.util.Iterator;
  */
 public class dbReconcileCheck {
 
-    public static void recheckRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, ColumnInfo ciSource, ColumnInfo ciTarget, Integer batchNbr, Integer cid) {
+    public static void recheckRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceTable, String targetTable, ColumnInfo ciSource, ColumnInfo ciTarget, Integer batchNbr, Integer cid) {
         /////////////////////////////////////////////////
         // Get Column Info
         /////////////////////////////////////////////////

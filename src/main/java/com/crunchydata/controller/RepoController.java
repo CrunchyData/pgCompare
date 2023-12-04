@@ -42,7 +42,7 @@ public class RepoController {
         dbPostgres.simpleUpdate(conn, sql, binds, true);
     }
 
-    public static String createStagingTable(Connection conn, String location, Integer tid, Integer batchNbr, Integer threadNbr) {
+    public static String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
                 	table_name varchar(30) NULL,
@@ -112,13 +112,11 @@ public class RepoController {
 
         if ( batchNbr > 0 ) {
             binds.add(bindCount, batchNbr);
-            bindCount++;
             sql += " AND batch_nbr=?";
         }
 
         if (!table.isEmpty()) {
             binds.add(bindCount,table);
-            bindCount++;
             sql += " AND target_table=?";
         }
 

@@ -163,7 +163,7 @@ public class dbReconcileObserver extends Thread  {
                 }
 
                 if ( tmpRowCount == 0 ) {
-                    if (Props.getProperty("database-sort").equals("false") && cntEqual == 0) { ts.ObserverNotify(); } ;
+                    if (Props.getProperty("database-sort").equals("false") && cntEqual == 0) { ts.ObserverNotify(); }
                     Thread.sleep(sleepTime);
                 }
             }

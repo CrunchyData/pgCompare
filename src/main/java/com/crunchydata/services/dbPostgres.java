@@ -92,8 +92,6 @@ public class dbPostgres {
         dbProps.setProperty("options","-c search_path="+connectionProperties.getProperty(destType+"-schema")+",public,pg_catalog");
         dbProps.setProperty("reWriteBatchedInserts", "true");
         dbProps.setProperty("ApplicationName", "ConferoDC - " + module);
-        // Added to avoid out of memory
-        // dbProps.setProperty("maxResultBuffer","500M");
 
         try {
             conn = DriverManager.getConnection(url,dbProps);
