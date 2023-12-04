@@ -1,26 +1,88 @@
 ##################################
 # system
 ##################################
+# Number of rows retrieved per database fetch call
+# default: 2000
 batch-fetch-size = 2000
+
+# Size of INSERT array when loading data into repository
+# default: 2000
 batch-commit-size = 2000
+
+# Number of rows to pass to loader process
+# default: 1000000
 batch-load-size = 1000000
+
+# When threshold is reached, observer-throttle-size, pause data loading
+# until cleared by observer process.
+# default: true
 observer-throttle = true
+
+# Number of loads to load before pausing for observer.
+# default: 2000000
 observer-throttle-size = 2000000
+
+# Determines whether observer should perform vacuum of staging tables in the repository.
+# default: true
 observer-vacuum = true
-same-rdbms-optimization = true
+
+# Location to write logging information.  Valid values are stdout or a fully qualified logfile name.
+# default: stdout
 log-destination = stdout
+
+# Default logging level.  Valid values are DEBUG, INFO, WARNING, and ERROR
+# default: INFO
 log-level = INFO
+
+# Determines whether to presort the rows on the source or target database (append ORDER BY to SELECT statement).
+# default: true
 database-sort = true
 
 ##################################
 # repository
 ##################################
+# Host name of Postgres based repository database.
+# default: localhost
 repo-host=myrepohost
+
+# Postgres port
+# default: 5432
 repo-port=5432
+
+# Database name.
+# default: confero
 repo-dbname=confero
+
+# Database user to use for authenitcation to repository database.
 repo-user=postgres
+
+# Database password for authentication.
 repo-password=welcome1
-repo-schema=datagate
+
+# Schema that owns the Confero database objects in the repository.
+# default: confero
+repo-schema=confero
+
+#####
+# Source and Target Parameters
+# source|target-name:
+#      User-defined name for the target.
+#  source|target-type:
+#      Database type.  Valid values are oracle and postgres.
+#  source|target-host:
+#      Host name to use for the database connection string.
+#  source|target-port:
+#      Database port.
+#  source|target-dbname:
+#       Database or service name to use in connection string.
+#  source|target-user:
+#       Database user to use for authentication.
+#  source|target-password:
+#       Database password.
+#  source|target-database-hash:
+#       Determines whether to generate the hash on the database (true) or by the application (false).
+#       Default: true
+#####
 
 ##################################
 # source
@@ -33,7 +95,7 @@ source-port=1521
 source-dbname=hr
 source-user=appuser
 source-password=welcome1
-source-version=21
+source-database-hash=false
 # Postgres Example
 #source-name=pgsource
 #source-type=postgres
@@ -42,7 +104,7 @@ source-version=21
 #source-dbname=hr
 #source-user=postgres
 #source-password=welcome1
-#source-version=15
+#source-database-hash=true
 
 ##################################
 # target
@@ -55,7 +117,7 @@ target-port=5432
 target-dbname=hr
 target-user=postgres
 target-password=welcome1
-target-version=15
+target-database-hash=true
 # Oracle Example
 #target-name=orasource
 #target-type=oracle
@@ -64,5 +126,4 @@ target-version=15
 #target-dbname=hr
 #target-user=appuser
 #target-password=welcome1
-#target-version=21
-
+#target-database-hash=true

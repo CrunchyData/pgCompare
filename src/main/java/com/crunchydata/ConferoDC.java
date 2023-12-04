@@ -179,7 +179,8 @@ public class ConferoDC {
         /////////////////////////////////////////////////
         // Data Reconciliation
         /////////////////////////////////////////////////
-        Boolean sameRDBMSOptimization = (Boolean.parseBoolean(Props.getProperty("same-rdbms-optimization")) && Props.getProperty("source-type").equals(Props.getProperty("target-type")));
+//        Boolean sameRDBMSOptimization = (Boolean.parseBoolean(Props.getProperty("same-rdbms-optimization")) && Props.getProperty("source-type").equals(Props.getProperty("target-type")));
+        Boolean sameRDBMSOptimization = true;
         int tablesProcessed = 0;
         CachedRowSet crsTable = RepoController.getTables(repoConn, batchParameter, table, check);
 
@@ -210,7 +211,6 @@ public class ConferoDC {
                         crsTable.getString("table_filter"),
                         crsTable.getString("mod_column"),
                         crsTable.getInt("parallel_degree"),
-                        sameRDBMSOptimization,
                         startStopWatch,
                         check,
                         crsTable.getInt("batch_nbr"),

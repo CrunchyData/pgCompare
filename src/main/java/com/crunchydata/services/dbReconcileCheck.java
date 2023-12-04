@@ -37,7 +37,7 @@ import java.util.Iterator;
  */
 public class dbReconcileCheck {
 
-    public static void recheckRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, ColumnInfo ci, Boolean sameRDBMSOptimization, Integer batchNbr, Integer cid) {
+    public static void recheckRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceTable, String targetTable, ColumnInfo ciSource, ColumnInfo ciTarget, Integer batchNbr, Integer cid) {
         /////////////////////////////////////////////////
         // Get Column Info
         /////////////////////////////////////////////////
@@ -99,7 +99,7 @@ public class dbReconcileCheck {
                 tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
                 Logging.write("info", "recheck", "Primary Key: " + pk);
 
-                reCheck(repoConn, sourceConn, targetConn, sqlSource, sqlTarget, tableFilter.toString(), ci.pkList, binds, dcRow, cid);
+                reCheck(repoConn, sourceConn, targetConn, sqlSource, sqlTarget, tableFilter.toString(), ciTarget.pkList, binds, dcRow, cid);
 
             }
 

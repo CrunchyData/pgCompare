@@ -50,9 +50,9 @@ public class dbReconcile extends Thread {
 
     Integer tid;
     String stagingTable;
-    Boolean sameRDBMSOptimization;
+    Boolean useDatabaseHash;
 
-    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean sameRDBMSOptimization, Integer batchNbr, Integer tid, String stagingTable) {
+    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable) {
         this.modColumn = modColumn;
         this.parallelDegree = parallelDegree;
         this.schemaName = schemaName;
@@ -66,7 +66,7 @@ public class dbReconcile extends Thread {
         this.cid = cid;
         this.ts = ts;
         this.pkList = pkList;
-        this.sameRDBMSOptimization = sameRDBMSOptimization;
+        this.useDatabaseHash = useDatabaseHash;
         this.batchNbr = batchNbr;
         this.tid = tid;
         this.stagingTable = stagingTable;
@@ -137,12 +137,14 @@ public class dbReconcile extends Thread {
             while (rs.next()) {
                 StringBuilder columnValue = new StringBuilder();
 
-                if (! sameRDBMSOptimization) {
+                if (! useDatabaseHash) {
                     for (int i = 3; i < nbrColumns + 3 - nbrPKColumns; i++) {
                         columnValue.append(rs.getString(i));
                     }
+                } else {
+                    columnValue.append(rs.getString(3));
                 }
-                dataCompareList.add(new DataCompare(tableName, (sameRDBMSOptimization) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),  (sameRDBMSOptimization) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK"),null, threadNumber, batchNbr));
+                dataCompareList.add(new DataCompare(tableName, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),  (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK"),null, threadNumber, batchNbr));
                 cntRecord++;
                 totalRows++;
 
