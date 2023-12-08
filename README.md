@@ -7,7 +7,7 @@
 
 # Data Compare Made Simple
 
-Confero is a Java application designed for use in situations where your replicating data from different sources and need to validate that post-replication data consistency, including:
+Confero is a Java application designed for use in situations where you are replicating data from different sources and need to validate that post-replication data consistency, including:
 
 - **Data migration from Oracle to Postgres:**  Migrating from Oracle to Postgres? Confero can be utilized to compare data between Oracle and Postgres during and/or after the process of data migration.
 
@@ -15,11 +15,11 @@ Confero is a Java application designed for use in situations where your replicat
 - **Logical replication between same or different database platforms:** Confero exhibits enhanced optimization when comparing data, reducing the overhead on the source and target databases. The comparison tasks can also be delegated to a physical replication target. Confero not only identifies rows that appear out-of-sync but also offers the capability to revalidate those rows, proving valuable in the process of verifying data on active systems.
 
 
-- **Active-Active replication configuration:**  There are inherent data consistency risks associated with any active-active database setup. To meet verification requirements, Confero Data Compare can be employed regularly to compare either all or specific portions of the data.
+- **Active-Active replication configuration:**  There are inherent data consistency risks associated with any active-active database setup. To meet verification requirements, Confero can be employed regularly to compare either all or specific portions of the data.
 
 At a higher level, Confero reads a row from a table and generates two hash values. The initial hash is executed on the primary key column(s), while the second hash is computed on the remaining columns. The hash can be calculated by the database or by the application. These hash values are stored in the Confero repository. Representing the original values as a hash minimizes the required space in the repository database and decreases network traffic. A parallel process consistently conducts comparisons on sets of data as they are loaded to expedite the comparison process and avoid row-by-row processing. Ultimately, a summary of the comparison results is displayed and stored in the Confero repository.
 
-Confero is an open source project maintained by the team at Crunchy Data and made available under the Apache 2.0 licenses for broader use, testing and feedback.
+Confero is an open-source project maintained by the team at Crunchy Data and made available under the Apache 2.0 licenses for broader use, testing, and feedback.
 
 Why the name Confero? The name is derived from the Latin word "cōnferō," meaning "to bring together."
 
@@ -29,7 +29,7 @@ Why the name Confero? The name is derived from the Latin word "cōnferō," meani
 Before initiating the build and installation process, ensure the following prerequisites are met:
 
 1. Java version 11 or higher.
-2. Postgres 15 or higher instance to use for the Confero Data Compare repository.
+2. Postgres version 15 or higher (to use for the Confero Data Compare repository).
 3. Necessary JDBC drivers (Postgres and Oracle currently supported).
 
 ### Compile
@@ -95,7 +95,7 @@ If discrepancies are detected, run the comparison with the 'check' option:
 java -jar conferodc --batch=0 --check
 ```
 
-This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a descrepancy.  If the row(s) still does not match, details will be reported.  Otherwise, the row will be cleared and marked in-sync.
+This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a descrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
 
 
 # Properties
