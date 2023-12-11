@@ -1,2 +1,3 @@
 confero.properties
 target/*
+database/local_test.sql
