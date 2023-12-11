@@ -105,7 +105,7 @@ public class ConferoDC {
 
 
         // Capture Argument Values
-        Integer batchParameter = Integer.parseInt(cmd.getOptionValue("batch"));
+        Integer batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("CONFERODC-BATCH") == null ) ? 0 : Integer.parseInt(System.getenv("CONFERODC-BATCH"));
         boolean check = cmd.hasOption("check");
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "" ;
 
