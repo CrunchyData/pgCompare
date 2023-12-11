@@ -65,7 +65,7 @@ CREATE TABLE dc_table_history (
 	tid int8 NOT NULL,
 	action_type varchar(20) NOT NULL,
 	start_dt timestamptz NOT NULL,
-	end_dt timestampytz NULL,
+	end_dt timestamptz NULL,
 	load_id varchar(100) NULL,
 	row_count int8 NULL,
 	action_result jsonb NULL,
