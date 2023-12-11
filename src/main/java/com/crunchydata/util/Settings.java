@@ -38,15 +38,16 @@ public class Settings {
                 stream.close();
 
             } catch (Exception e) {
-                System.out.println("Error reading config file " + e);
-                System.exit(1);
+                System.out.println("Configuration file not found, using defaults and environment variables");
             }
-            Props = configProperties;
+
+            Props = setEnvironment(configProperties);
     }
 
     public static Properties setDefaults() {
         Properties defaultProps = new Properties();
 
+        // System Settings
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-load-size","1000000");
@@ -56,14 +57,48 @@ public class Settings {
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("database-sort","true");
+
+        // Repository
         defaultProps.setProperty("repo-host","localhost");
         defaultProps.setProperty("repo-port","5432");
         defaultProps.setProperty("repo-dbname","confero");
+        defaultProps.setProperty("repo-user","confero");
+        defaultProps.setProperty("repo-password","welcome1");
         defaultProps.setProperty("repo-schema","confero");
+
+        // Source
+        defaultProps.setProperty("source-name","source");
+        defaultProps.setProperty("source-type","postgres");
+        defaultProps.setProperty("source-host","localhost");
+        defaultProps.setProperty("source-port","5432");
+        defaultProps.setProperty("source-dbname","postgres");
+        defaultProps.setProperty("source-user","postgres");
+        defaultProps.setProperty("source-password","welcome1");
         defaultProps.setProperty("source-database-hash","true");
+
+        // Target
+        defaultProps.setProperty("target-name","target");
+        defaultProps.setProperty("target-type","postgres");
+        defaultProps.setProperty("target-host","localhost");
+        defaultProps.setProperty("target-port","5432");
+        defaultProps.setProperty("target-dbname","postgres");
+        defaultProps.setProperty("target-user","postgres");
+        defaultProps.setProperty("target-password","welcome1");
         defaultProps.setProperty("target-database-hash","true");
 
         return defaultProps;
+    }
+
+    public static Properties setEnvironment (Properties prop) {
+
+        System.getenv().forEach((k, v) -> {
+            if (k.contains("CONFERODC-")) {
+                prop.setProperty(k.replace("CONFERODC-","").toLowerCase(),v);
+            }
+        });
+
+        return prop;
+
     }
 
 
