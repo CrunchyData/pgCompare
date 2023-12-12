@@ -40,11 +40,11 @@ public class RepoController {
     public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
-                	table_name varchar(30) NULL,
+                	table_name text NULL,
                 	thread_nbr int4 NULL,
                 	batch_nbr int4 NULL,
-                	pk_hash varchar(40) NULL,
-                	column_hash varchar(40) NULL,
+                	pk_hash varchar(100) NULL,
+                	column_hash varchar(100) NULL,
                 	pk jsonb NULL,
                 	compare_result bpchar(1) NULL
                 ) with (autovacuum_enabled=false)

@@ -23,23 +23,23 @@ CREATE INDEX dc_result_idx1 ON dc_result(table_name, compare_dt);
 
 
 -- dc_source definition
-CREATE UNLOGGED TABLE dc_source (
+CREATE TABLE dc_source (
 	table_name text NULL,
 	thread_nbr int4 NULL,
 	batch_nbr int4 NULL,
-	pk_hash varchar(40) NULL,
-	column_hash varchar(40) NULL,
+	pk_hash varchar(100) NULL,
+	column_hash varchar(100) NULL,
 	pk jsonb NULL,
 	compare_result bpchar(1) NULL
 );
 
 -- dc_target definition
-CREATE UNLOGGED TABLE dc_target (
+CREATE TABLE dc_target (
 	table_name text NULL,
 	thread_nbr int4 NULL,
 	batch_nbr int4 NULL,
-	pk_hash varchar(40) NULL,
-	column_hash varchar(40) NULL,
+	pk_hash varchar(100) NULL,
+	column_hash varchar(100) NULL,
 	pk jsonb NULL,
 	compare_result bpchar(1) NULL
 );
