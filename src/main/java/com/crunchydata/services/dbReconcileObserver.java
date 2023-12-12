@@ -57,6 +57,8 @@ public class dbReconcileObserver extends Thread  {
     }
 
     public void run() {
+        RepoController rpc = new RepoController();
+
         ArrayList<Object> binds = new ArrayList<>();
         int cntEqual = 0;
 
@@ -77,8 +79,12 @@ public class dbReconcileObserver extends Thread  {
             Logging.write("severe", threadName, "Cannot connect to repository database");
             System.exit(1);
         }
-        try { repoConn.setAutoCommit(false); } catch (Exception e) {}
-        try { dbPostgres.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {}
+        try { repoConn.setAutoCommit(false); } catch (Exception e) {
+            // do nothing
+        }
+        try { dbPostgres.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {
+            // do nothing
+        }
 
         /////////////////////////////////////////////////
         // Watch Reconcile Loop
@@ -118,11 +124,14 @@ public class dbReconcileObserver extends Thread  {
 
             PreparedStatement stmtSU = repoConn.prepareStatement(sqlClearMatch);
 
+            repoConn.setAutoCommit(false);
+
+            int tmpRowCount;
+
             while (lastRun <= 1) {
                 ///////////////////////////////////////////////////////
                 // Remove Matching Rows
                 ///////////////////////////////////////////////////////
-                repoConn.setAutoCommit(false);
 
                 stmtSU.setObject(1, tableName);
                 stmtSU.setObject(2, tableName);
@@ -130,7 +139,7 @@ public class dbReconcileObserver extends Thread  {
                 stmtSU.setInt(4, batchNbr);
                 stmtSU.setInt(5, threadNbr);
                 stmtSU.setInt(6, batchNbr);
-                int tmpRowCount = stmtSU.executeUpdate();
+                tmpRowCount = stmtSU.executeUpdate();
 
                 cntEqual = cntEqual + tmpRowCount;
 
@@ -172,22 +181,28 @@ public class dbReconcileObserver extends Thread  {
 
             Logging.write("info", threadName, "Staging table cleanup");
 
-            RepoController.loadFindings(repoConn, "source", stagingTableSource);
-            RepoController.loadFindings(repoConn, "target", stagingTableTarget);
-            RepoController.dropStagingTable(repoConn, stagingTableSource);
-            RepoController.dropStagingTable(repoConn, stagingTableTarget);
+            rpc.loadFindings(repoConn, "source", stagingTableSource);
+            rpc.loadFindings(repoConn, "target", stagingTableTarget);
+            rpc.dropStagingTable(repoConn, stagingTableSource);
+            rpc.dropStagingTable(repoConn, stagingTableTarget);
 
 
         } catch (Exception e) {
             Logging.write("severe", threadName, "Error in observer process: " + e.getMessage());
-            try { repoConn.rollback(); } catch (Exception ee) {}
-            try { repoConn.close(); } catch (Exception ee) {}
+            try { repoConn.rollback(); } catch (Exception ee) {
+                // do nothing
+            }
+            try { repoConn.close(); } catch (Exception ee) {
+                // do nothing
+            }
         }
 
         /////////////////////////////////////////////////
         // Close Connections
         /////////////////////////////////////////////////
-        try { repoConn.close(); } catch (Exception e) {}
+        try { repoConn.close(); } catch (Exception e) {
+            // do nothing
+        }
 
     }
 

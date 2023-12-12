@@ -150,9 +150,13 @@ public class DatabaseUtility {
                 pkList = new StringBuilder(pkList.substring(0, pkList.length() - 1));
                 pkJSON = new StringBuilder("'{' || " + pkJSON.substring(0, pkJSON.length() - 5) + "' || '}'");
             }
+
+            crsColumns.close();
+
         } catch (Exception e) {
             Logging.write("severe", "reconcile-controller", "Error while parsing column list " + e.getMessage());
         }
+
 
         return new ColumnInfo(columnList.toString(), nbrColumns, nbrPKColumns, oraColumn.toString(), oraPK.toString(), pgColumn.toString(), pgPK.toString(), pkList.toString(), pkJSON.toString());
 

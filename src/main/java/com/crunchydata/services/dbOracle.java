@@ -71,6 +71,7 @@ public class dbOracle {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             crs.populate(rs);
+            rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "oracle-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
@@ -109,6 +110,9 @@ public class dbOracle {
             if (crsVersion.next()) {
                 dbVersion = crsVersion.getString("version");
             }
+
+            crsVersion.close();
+
         } catch (Exception e) {
             Logging.write("info", "oracle-service", "Could not retrieve Oracle version " + e.getMessage());
         }
@@ -130,6 +134,7 @@ public class dbOracle {
             }
             rs = stmt.executeQuery();
             crs.populate(rs);
+            rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "oracle-service", "Error executing simple select (" + sql + "): " + e.getMessage());
@@ -153,7 +158,9 @@ public class dbOracle {
             }
         } catch (Exception e) {
             Logging.write("severe", "oracle-service", "Error executing simple update (" + sql + "):  " + e.getMessage());
-            try { conn.rollback(); } catch (Exception ee) {}
+            try { conn.rollback(); } catch (Exception ee) {
+                // do nothing
+            }
             cnt = -1;
         }
         return cnt;

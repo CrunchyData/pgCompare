@@ -37,6 +37,7 @@ public class ReconcileController {
         /////////////////////////////////////////////////
         // Variables
         /////////////////////////////////////////////////
+        RepoController rpc = new RepoController();
         ThreadSync ts;
         List<dbReconcile> compareList = new ArrayList<>();
         List<dbReconcileObserver> observerList = new ArrayList<>();
@@ -91,7 +92,7 @@ public class ReconcileController {
         Logging.write("info", "reconcile-controller", "Source Columns: " + ciSource.columnList);
         Logging.write("info", "reconcile-controller", "Target Columns: " + ciTarget.columnList);
 
-        Integer cid = RepoController.dcrCreate(repoConn, targetTable, rid);
+        Integer cid = rpc.dcrCreate(repoConn, targetTable, rid);
 
         ////////////////////////////////////////
         // Set Source & Target Variables
@@ -130,10 +131,13 @@ public class ReconcileController {
             } else {
                 Logging.write("info", "reconcile-controller", "Starting compare hash threads");
 
+                String stagingTableSource;
+                String stagingTableTarget;
+
                 for (Integer i = 0; i < parallelDegree; i++) {
                     Logging.write("info", "reconcile-controller", "Creating data compare staging tables");
-                    String stagingTableSource = RepoController.createStagingTable(repoConn, "source", tid, i);
-                    String stagingTableTarget = RepoController.createStagingTable(repoConn, "target", tid, i);
+                    stagingTableSource = rpc.createStagingTable(repoConn, "source", tid, i);
+                    stagingTableTarget = rpc.createStagingTable(repoConn, "target", tid, i);
                     Logging.write("info", "reconcile-controller", "Starting compare thread " + i);
                     ts = new ThreadSync();
                     rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
@@ -148,6 +152,7 @@ public class ReconcileController {
                     try {
                         Thread.sleep(2000);
                     } catch (Exception e) {
+                        // do nothing
                     }
                 }
 
@@ -174,7 +179,9 @@ public class ReconcileController {
         ////////////////////////////////////////
         // Summarize Results
         ////////////////////////////////////////
-        try { dbPostgres.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {}
+        try { dbPostgres.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {
+            // do nothing
+        }
         binds.clear();
         binds.add(0,targetTable);
         binds.add(1,targetTable);
@@ -210,6 +217,8 @@ public class ReconcileController {
             while (crsResult.next()) {
                 result.put("equal", crsResult.getInt(1));
             }
+
+            crsResult.close();
 
         } catch (Exception e) {
             Logging.write("severe", "reconcile-controller", "Error analyzing compare: " + e.getMessage());

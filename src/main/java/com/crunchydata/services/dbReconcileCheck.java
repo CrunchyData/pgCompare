@@ -103,6 +103,7 @@ public class dbReconcileCheck {
 
             }
 
+            rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "recheck", "Error performing check of table " + targetTable + ":  " + e.getMessage());

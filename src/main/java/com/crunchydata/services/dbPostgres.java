@@ -73,6 +73,7 @@ public class dbPostgres {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             crs.populate(rs);
+            rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
@@ -91,6 +92,7 @@ public class dbPostgres {
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
         dbProps.setProperty("options","-c search_path="+connectionProperties.getProperty(destType+"-schema")+",public,pg_catalog");
         dbProps.setProperty("reWriteBatchedInserts", "true");
+        dbProps.setProperty("preparedStatementCacheQueries", "5");
         dbProps.setProperty("ApplicationName", "ConferoDC - " + module);
 
         try {
@@ -115,6 +117,9 @@ public class dbPostgres {
             if (crsVersion.next()) {
                 dbVersion = crsVersion.getString("version");
             }
+
+            crsVersion.close();
+
         } catch (Exception e) {
             Logging.write("warning", "postgres-service", "Could not retrieve Postgres version: " + e.getMessage());
         }
@@ -135,6 +140,7 @@ public class dbPostgres {
             }
             rs = stmt.executeQuery();
             crs.populate(rs);
+            rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error executing simple select (" + sql + "):  " + e.getMessage());
@@ -159,7 +165,9 @@ public class dbPostgres {
             }
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error executing simple update (" + sql + "):  " + e.getMessage());
-            try { conn.rollback(); } catch (Exception ee) {}
+            try { conn.rollback(); } catch (Exception ee) {
+                // do nothing
+            }
             cnt = -1;
         }
         return cnt;
@@ -178,12 +186,14 @@ public class dbPostgres {
             }
             ResultSet rs = stmt.executeQuery();
             crs.populate(rs);
-
+            rs.close();
             stmt.close();
             conn.commit();
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error executing simple update with returning (" + sql + "):  " + e.getMessage());
-            try { conn.rollback(); } catch (Exception ee) {}
+            try { conn.rollback(); } catch (Exception ee) {
+                // do nothing
+            }
         }
 
         return crs;
@@ -200,7 +210,9 @@ public class dbPostgres {
             conn.commit();
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error executing simple execute (" + sql + "):  " + e.getMessage());
-            try { conn.rollback(); } catch (Exception ee) {}
+            try { conn.rollback(); } catch (Exception ee) {
+                // do nothing
+            }
         }
     }
 }
