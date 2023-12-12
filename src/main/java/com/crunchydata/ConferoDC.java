@@ -179,10 +179,9 @@ public class ConferoDC {
         /////////////////////////////////////////////////
         // Data Reconciliation
         /////////////////////////////////////////////////
-//        Boolean sameRDBMSOptimization = (Boolean.parseBoolean(Props.getProperty("same-rdbms-optimization")) && Props.getProperty("source-type").equals(Props.getProperty("target-type")));
-        Boolean sameRDBMSOptimization = true;
+        RepoController rpc = new RepoController();
         int tablesProcessed = 0;
-        CachedRowSet crsTable = RepoController.getTables(repoConn, batchParameter, table, check);
+        CachedRowSet crsTable = rpc.getTables(repoConn, batchParameter, table, check);
 
         JSONObject actionResult;
         JSONArray runResult = new JSONArray();
@@ -192,15 +191,15 @@ public class ConferoDC {
                 tablesProcessed++;
 
                 Logging.write("info", "main", "Start reconciliation");
-                RepoController.startTableHistory(repoConn,crsTable.getInt("tid"),"reconcile",crsTable.getInt("batch_nbr"));
+                rpc.startTableHistory(repoConn,crsTable.getInt("tid"),"reconcile",crsTable.getInt("batch_nbr"));
                 ////////////////////////////////////////
                 // Prepare Data Compare Table
                 ////////////////////////////////////////
 
                 if (!check) {
                     Logging.write("info", "main", "Clearing data compare findings");
-                    RepoController.deleteDataCompare(repoConn, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
-                    RepoController.deleteDataCompare(repoConn, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
+                    rpc.deleteDataCompare(repoConn, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
+                    rpc.deleteDataCompare(repoConn, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
                 }
 
                 actionResult = ReconcileController.reconcileData(repoConn,
@@ -215,18 +214,27 @@ public class ConferoDC {
                         check,
                         crsTable.getInt("batch_nbr"),
                         crsTable.getInt("tid"));
-                RepoController.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
+                rpc.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
 
                 runResult.put(actionResult);
 
             }
+
+            crsTable.close();
+
         } catch (Exception e) {
             Logging.write("severe", "main", "Error performing data reconciliation: " + e.getMessage());
         }
 
-        try { repoConn.close(); } catch (Exception e) {}
-        try { targetConn.close(); } catch (Exception e) {}
-        try { sourceConn.close(); } catch (Exception e) {}
+        try { repoConn.close(); } catch (Exception e) {
+            // do nothing
+        }
+        try { targetConn.close(); } catch (Exception e) {
+            // do nothing
+        }
+        try { sourceConn.close(); } catch (Exception e) {
+            // do nothing
+        }
 
         /////////////////////////////////////////////////
         // Print Summary

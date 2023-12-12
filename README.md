@@ -1,7 +1,8 @@
-<p align="center">
-  <h1 align="center" style="font-size: 70px;">Confero</h1>
-  <h2 align="center">Data Compare</h2>
-</p>
+<div>
+  <h1 style="font-size: 70px;text-align: center">Confero</h1>
+  <h2 style="text-align: center">Data Compare</h2>
+</div>
+<hr>
 
 [![License](https://img.shields.io/github/license/CrunchyData/postgres-operator)](LICENSE.md)
 
@@ -29,8 +30,9 @@ Why the name Confero? The name is derived from the Latin word "cōnferō," meani
 Before initiating the build and installation process, ensure the following prerequisites are met:
 
 1. Java version 11 or higher.
-2. Postgres version 15 or higher (to use for the Confero Data Compare repository).
-3. Necessary JDBC drivers (Postgres and Oracle currently supported).
+2. Maven 3.9 or higher.
+3. Postgres version 15 or higher (to use for the Confero Data Compare repository).
+4. Necessary JDBC drivers (Postgres and Oracle currently supported).
 
 ### Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
@@ -86,7 +88,7 @@ With the table mapping defined, execute the comparison and provide the mandatory
 java -jar conferodc --batch=0
 ```
 
-Using a batch value of 0 will execute the action for all batches.
+Using a batch value of 0 will execute the action for all batches.  The batch number may also be specified using the environment variable CONFERODC-BATCH.  The default value for batch number is 0 (all batches).
 
 ### Debug/Recheck Out-of-Sync Rows
 If discrepancies are detected, run the comparison with the 'check' option:
@@ -146,6 +148,33 @@ By default, the data is normalized and the hash performed by the Java code.  For
 ## Processes
 Each comparison involves at least three threads: one for the observer and two for the source and target loader processes. By specifying a mod_column in the dc_tables and increasing parallel_degree, the number of threads can be increased to speed up comparison. Tuning between batch sizes, commit rates, and parallel degree is essential for optimal performance.
 
+## Viewing Results
+A summary is printed at the end of each run.  To view results at a later time, the following SQL may be used in the repository database.
+
+#### Results from Last Run
+```sql
+WITH mr AS (SELECT max(rid) rid FROM dc_result)
+SELECT compare_dt, table_name, status, source_cnt total_cnt, equal_cnt, not_equal_cnt, missing_source_cnt+missing_target_cnt missing_cnt
+FROM dc_result r
+     JOIN mr ON (mr.rid=r.rid)
+ORDER BY table_name;
+```
+
+#### Out of Sync Rows
+```sql
+SELECT coalesce(s.table_name,t.table_name) table_name,
+	   coalesce(s.batch_nbr, t.batch_nbr) batch_nbr,
+       coalesce(s.thread_nbr,t.thread_nbr) thread_nbr,
+       CASE WHEN s.compare_result='n' THEN 'out-of-sync'
+            WHEN s.compare_result='m' THEN 'missing target'
+            WHEN t.compare_result='m' THEN 'missing source'
+            ELSE 'unknown'
+       END compare_result,
+       coalesce(s.pk,t.pk) primary_key       
+FROM dc_source s
+     CROSS JOIN dc_target t;
+```
+
 # Design Principles
 The following list outlines some principles that drives the design of this solution:
 - Avoid the need to create any database object in the source or target host.
@@ -163,5 +192,9 @@ The repository database will have a measurable amount of load during the compare
   - shared_buffers = 2048MB
   - work_mem = 256MB
   - maintenance_work_mem = 512MB
+
+## Compute Resources for Compare
+Confero requires the execution host to allocate 3 threads per degree of parallelism, with each thread utilizing approximately 150 MB of memory.
+
 
 Confero project source code is available subject to the [Apache 2.0 license](LICENSE.md).

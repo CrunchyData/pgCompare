@@ -16,21 +16,16 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.services.dbPostgres;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.ArrayList;
-import java.util.List;
-
-import static com.crunchydata.util.Settings.Props;
 
 public class RepoController {
 
-    public static void completeTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr, Integer rowCount, String actionResult) {
+    public void completeTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr, Integer rowCount, String actionResult) {
         ArrayList<Object> binds = new ArrayList<>();
         String sql = "UPDATE dc_table_history set end_dt=current_timestamp, row_count=?, action_result=?::jsonb WHERE tid=? AND action_type=? and load_id=? and batch_nbr=?";
         binds.add(0,rowCount);
@@ -42,7 +37,7 @@ public class RepoController {
         dbPostgres.simpleUpdate(conn, sql, binds, true);
     }
 
-    public static String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
+    public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
                 	table_name varchar(30) NULL,
@@ -66,7 +61,7 @@ public class RepoController {
         return stagingTable;
     }
 
-    public static void deleteDataCompare(Connection conn, String location, String  table, Integer batchNbr) {
+    public void deleteDataCompare(Connection conn, String location, String  table, Integer batchNbr) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,table);
         binds.add(1,batchNbr);
@@ -89,7 +84,7 @@ public class RepoController {
 
     }
 
-    public static void dropStagingTable(Connection conn, String stagingTable) {
+    public void dropStagingTable(Connection conn, String stagingTable) {
         String sql = "DROP TABLE IF EXISTS " + stagingTable;
 
         dbPostgres.simpleExecute(conn, sql);
@@ -97,9 +92,8 @@ public class RepoController {
     }
 
 
-    public static CachedRowSet getTables(Connection conn, Integer batchNbr, String table, Boolean check) {
+    public CachedRowSet getTables(Connection conn, Integer batchNbr, String table, Boolean check) {
         ArrayList<Object> binds = new ArrayList<>();
-        int bindCount = 1;
         binds.add(0,"ready");
 
         String sql = """
@@ -111,12 +105,12 @@ public class RepoController {
                      """;
 
         if ( batchNbr > 0 ) {
-            binds.add(bindCount, batchNbr);
+            binds.add(binds.size(), batchNbr);
             sql += " AND batch_nbr=?";
         }
 
         if (!table.isEmpty()) {
-            binds.add(bindCount,table);
+            binds.add(binds.size(),table);
             sql += " AND target_table=?";
         }
 
@@ -133,40 +127,7 @@ public class RepoController {
 
     }
 
-    public static void loadDataCompare (Connection conn, String stagingTable,List<DataCompare> list) {
-        try {
-                int cnt = 0;
-                String sql = "INSERT INTO " + stagingTable + " (table_name, pk_hash, column_hash, pk, thread_nbr, batch_nbr) VALUES (?,?,?,(?)::jsonb,?,?)";
-                conn.setAutoCommit(false);
-                PreparedStatement stmt = conn.prepareStatement(sql);
-                for (DataCompare dc: list) {
-                   stmt.setString(1, dc.getTableName());
-                   stmt.setString(2,dc.getPkHash());
-                   stmt.setString(3,dc.getColumnHash());
-                   stmt.setString(4,dc.getPk().replace(",}","}"));
-                   stmt.setInt(5, dc.getThreadNbr());
-                   stmt.setInt(6, dc.getBatchNbr());
-                   stmt.addBatch();
-
-                   cnt++;
-
-                   if (cnt % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 || cnt == list.size()) {
-                        stmt.executeBatch();
-                        stmt.clearBatch();
-                        conn.commit();
-                   }
-                }
-
-                conn.commit();
-
-                stmt.close();
-
-        } catch (Exception e) {
-            Logging.write("severe", "repo-controller", "Error loading compare data into repo " + e.getMessage());
-        }
-    }
-
-    public static void loadFindings (Connection conn, String location, String stagingTable) {
+    public void loadFindings (Connection conn, String location, String stagingTable) {
         ArrayList<Object> binds = new ArrayList<>();
         String sqlLoadFindings = """
                 INSERT INTO dc_source (table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr FROM stagingtable)
@@ -176,7 +137,7 @@ public class RepoController {
         dbPostgres.simpleUpdate(conn, sqlFinal, binds, true);
     }
 
-    public static void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {
+    public void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {
         ArrayList<Object> binds = new ArrayList<>();
         String sql = "INSERT INTO dc_table_history (tid, action_type, start_dt, load_id, batch_nbr, row_count) VALUES (?, ?, current_timestamp, ?, ?, 0)";
         binds.add(0,tid);
@@ -186,7 +147,7 @@ public class RepoController {
         dbPostgres.simpleUpdate(conn, sql, binds, true);
     }
 
-    public static Integer dcrCreate (Connection conn, String tableName, long rid) {
+    public Integer dcrCreate (Connection conn, String tableName, long rid) {
         ArrayList<Object> binds = new ArrayList<>();
         String sql = "INSERT INTO dc_result (compare_dt, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
         binds.add(0,tableName);
@@ -197,6 +158,9 @@ public class RepoController {
             while (crs.next()) {
                 cid = crs.getInt(1);
             }
+
+            crs.close();
+
         } catch (Exception e) {
             Logging.write("severe", "repo-controller", "Error retrieving cid");
         }
@@ -204,7 +168,7 @@ public class RepoController {
         return cid;
     }
 
-    public static void dcrUpdateRowCount (Connection conn, String targetType, Integer cid, Integer rowCount) {
+    public void dcrUpdateRowCount (Connection conn, String targetType, Integer cid, Integer rowCount) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,rowCount);
         binds.add(1,cid);

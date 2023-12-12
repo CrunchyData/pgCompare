@@ -17,13 +17,11 @@
 package com.crunchydata.services;
 
 import com.crunchydata.controller.RepoController;
-import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.*;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.ArrayList;
 
 import static com.crunchydata.util.SecurityUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
@@ -87,7 +85,9 @@ public class dbReconcile extends Thread {
             Logging.write("severe", threadName, "Cannot connect to repository database");
             System.exit(1);
         }
-        try { repoConn.setAutoCommit(false); } catch (Exception e) {}
+        try { repoConn.setAutoCommit(false); } catch (Exception e) {
+            // do nothing
+        }
 
         /////////////////////////////////////////////////
         // Connect to Source/Target
@@ -99,7 +99,9 @@ public class dbReconcile extends Thread {
             conn = dbOracle.getConnection(Props,targetType);
         } else {
             conn = dbPostgres.getConnection(Props,targetType, "reconcile");
-            try { conn.setAutoCommit(false); } catch (Exception e) {}
+            try { conn.setAutoCommit(false); } catch (Exception e) {
+                // do nothing
+            }
         }
         if ( conn == null) {
             Logging.write("severe", threadName, "Cannot connect to " + targetType + " database");
@@ -111,7 +113,6 @@ public class dbReconcile extends Thread {
         /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
-        ArrayList<DataCompare> dataCompareList = new ArrayList<>();
         int cntRecord = 0;
         int totalRows = 0;
 
@@ -124,6 +125,8 @@ public class dbReconcile extends Thread {
         }
 
         try {
+            RepoController rpc = new RepoController();
+
             conn.setAutoCommit(false);
             stmt = conn.prepareStatement(sql);
             stmt.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
@@ -132,10 +135,16 @@ public class dbReconcile extends Thread {
             int observerRowCount = 10000;
             boolean firstPass = true;
 
-            rs.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
+            //rs.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
+
+            StringBuilder columnValue = new StringBuilder();
+
+            String sqlLoad = "INSERT INTO " + stagingTable + " (table_name, pk_hash, column_hash, pk, thread_nbr, batch_nbr) VALUES (?,?,?,(?)::jsonb,?,?)";
+            repoConn.setAutoCommit(false);
+            PreparedStatement stmtLoad = repoConn.prepareStatement(sqlLoad);
 
             while (rs.next()) {
-                StringBuilder columnValue = new StringBuilder();
+                columnValue.setLength(0);
 
                 if (! useDatabaseHash) {
                     for (int i = 3; i < nbrColumns + 3 - nbrPKColumns; i++) {
@@ -144,24 +153,43 @@ public class dbReconcile extends Thread {
                 } else {
                     columnValue.append(rs.getString(3));
                 }
-                dataCompareList.add(new DataCompare(tableName, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),  (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK"),null, threadNumber, batchNbr));
+
+                stmtLoad.setString(1, tableName);
+                stmtLoad.setString(2, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
+                stmtLoad.setString(3, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
+                stmtLoad.setString(4, rs.getString("PK").replace(",}","}"));
+                stmtLoad.setInt(5, threadNumber);
+                stmtLoad.setInt(6, batchNbr);
+                stmtLoad.addBatch();
+                stmtLoad.clearParameters();
+
                 cntRecord++;
                 totalRows++;
 
+                if (totalRows % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 ) {
+                    stmtLoad.executeBatch();
+                    stmtLoad.clearBatch();
+                    repoConn.commit();
+                }
+
                 if (totalRows % loadRowCount == 0) {
-                    RepoController.loadDataCompare(repoConn, stagingTable, dataCompareList);
-                    dataCompareList.clear();
                     Logging.write("info", threadName, "Loaded " + totalRows + " rows");
                 }
 
                 if (totalRows % observerRowCount == 0) {
                     if (firstPass || Boolean.parseBoolean(Props.getProperty("observer-throttle"))) {
                         firstPass = false;
+
                         Logging.write("info", threadName, "Wait for Observer");
-                        RepoController.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
+
+                        rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
+
                         repoConn.commit();
+
                         cntRecord=0;
+
                         ts.ObserverWait();
+
                         Logging.write("info", threadName, "Cleared by Observer");
                     } else {
                         Logging.write("info", threadName, "Pause for Observer");
@@ -178,12 +206,13 @@ public class dbReconcile extends Thread {
 
             // Loading Remaining
             if (cntRecord > 0) {
-                RepoController.loadDataCompare(repoConn, stagingTable, dataCompareList);
-                RepoController.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
-                dataCompareList.clear();
+                stmtLoad.executeBatch();
+                rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
             }
 
+            rs.close();
             stmt.close();
+            stmtLoad.close();
 
             Logging.write("info", threadName, "Complete. Total rows loaded: " + totalRows);
 
@@ -201,8 +230,12 @@ public class dbReconcile extends Thread {
         /////////////////////////////////////////////////
         // Close Connections
         /////////////////////////////////////////////////
-        try { repoConn.close(); } catch (Exception e) {}
-        try { conn.close(); } catch (Exception e) {}
+        try { repoConn.close(); } catch (Exception e) {
+            // do nothing
+        }
+        try { conn.close(); } catch (Exception e) {
+            // do nothing
+        }
 
     }
 }
