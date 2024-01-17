@@ -16,14 +16,13 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.controller.RepoController;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.ThreadSync;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 
+import com.crunchydata.controller.RepoController;
+import com.crunchydata.util.Logging;
+import com.crunchydata.util.ThreadSync;
 import static com.crunchydata.util.Settings.Props;
 
 /**

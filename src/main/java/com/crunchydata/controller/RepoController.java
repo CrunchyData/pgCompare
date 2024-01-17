@@ -16,12 +16,12 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.util.Logging;
-import com.crunchydata.services.dbPostgres;
-
-import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
+import javax.sql.rowset.CachedRowSet;
+
+import com.crunchydata.services.dbPostgres;
+import com.crunchydata.util.Logging;
 
 public class RepoController {
 

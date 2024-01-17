@@ -16,13 +16,12 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.controller.RepoController;
-import com.crunchydata.util.*;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
+import com.crunchydata.controller.RepoController;
+import com.crunchydata.util.*;
 import static com.crunchydata.util.SecurityUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
 

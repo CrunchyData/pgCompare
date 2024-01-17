@@ -16,16 +16,24 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.util.Logging;
 
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Properties;
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.RowSetProvider;
+
+import static com.crunchydata.services.ColumnValidation.columnValueMap;
+import static com.crunchydata.services.ColumnValidation.supportedDataTypes;
+import com.crunchydata.util.Logging;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 
 
 public class dbOracle {
@@ -46,13 +54,13 @@ public class dbOracle {
         return sql;
     }
 
-    public static CachedRowSet getColumns (Connection conn, String schema, String table) {
+    public static JSONArray getColumns (Connection conn, String schema, String table) {
         ResultSet rs;
         PreparedStatement stmt;
-        CachedRowSet crs = null;
+        JSONArray columnInfo = new JSONArray();
 
         String sql = """
-                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, c.data_type, c.data_length, c.data_precision, c.data_scale, c.nullable,
+                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, c.data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
                 FROM all_tab_columns c
                      LEFT OUTER JOIN (SELECT con.owner, con.table_name, i.column_name, i.column_position
@@ -65,18 +73,56 @@ public class dbOracle {
                 """;
 
         try {
-            crs = RowSetProvider.newFactory().createCachedRowSet();
             stmt = conn.prepareStatement(sql);
             stmt.setObject(1, schema);
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
-            crs.populate(rs);
+            while (rs.next()) {
+                if (! Arrays.asList(supportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
+                    Logging.write("severe", "oracle-service", "Unsupported data type (" + rs.getString("data_type") + ")");
+                    System.exit(1);
+                }
+                JSONObject column = new JSONObject();
+                column.put("columnName",rs.getString("column_name"));
+                column.put("dataType",rs.getString("data_type"));
+                column.put("dataLength",rs.getInt("data_length"));
+                column.put("dataPrecision",rs.getInt("data_precision"));
+                column.put("dataScale",rs.getInt("data_scale"));
+                column.put("nullable",rs.getString("nullable"));
+                column.put("primaryKey",rs.getString("pk"));
+                column.put("valueExpression", columnValueMap("oracle", column));
+
+                String dataClass;
+                switch (rs.getString("data_type").toLowerCase()) {
+                    case "bool":
+                    case "boolean":
+                        dataClass = "boolean";
+                        break;
+                    case "int2":
+                    case "int4":
+                    case "int8":
+                    case "number":
+                    case "binary_double":
+                    case "binary_float":
+                    case "float":
+                    case "numeric":
+                        dataClass = "numeric";
+                        break;
+                    default:
+                        dataClass = "char";
+                }
+
+                column.put("dataClass", dataClass);
+
+                columnInfo.put(column);
+            }
             rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "oracle-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
         }
-        return crs;
+
+        return columnInfo;
 
     }
 
@@ -165,7 +211,5 @@ public class dbOracle {
         }
         return cnt;
     }
-
-
 
 }

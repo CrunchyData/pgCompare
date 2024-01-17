@@ -16,18 +16,17 @@
 
 package com.crunchydata;
 
-import com.crunchydata.controller.ReconcileController;
-import com.crunchydata.controller.RepoController;
-import com.crunchydata.services.*;
-
 import java.sql.Connection;
+import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
 import java.util.Map;
 
-import javax.sql.rowset.CachedRowSet;
-
+import com.crunchydata.controller.ReconcileController;
+import com.crunchydata.controller.RepoController;
+import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.Settings;
+
 import org.apache.commons.cli.*;
 import org.json.JSONArray;
 import org.json.JSONObject;

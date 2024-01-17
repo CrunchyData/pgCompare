@@ -16,100 +16,27 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.model.ColumnInfo;
-import com.crunchydata.model.DataCompare;
-import com.crunchydata.util.DataUtility;
-import com.crunchydata.util.Logging;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import javax.sql.RowSetMetaData;
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.serial.SerialClob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Iterator;
+import javax.sql.RowSetMetaData;
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.serial.SerialClob;
+
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DataCompare;
+import com.crunchydata.util.DataUtility;
+import com.crunchydata.util.Logging;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * @author Brian Pace
  */
 public class dbReconcileCheck {
-
-    public static void recheckRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceTable, String targetTable, ColumnInfo ciSource, ColumnInfo ciTarget, Integer batchNbr, Integer cid) {
-        /////////////////////////////////////////////////
-        // Get Column Info
-        /////////////////////////////////////////////////
-        ArrayList<Object> binds = new ArrayList<>();
-        JSONObject result = new JSONObject();
-        result.put("status","failed");
-        result.put("compareStatus","failed");
-        StringBuilder tableFilter;
-
-        ////////////////////////////////////////
-        // Get Out of Sync Rows
-        ////////////////////////////////////////
-        String sqlOutofSync = """
-                        SELECT DISTINCT table_name, pk_hash, pk
-                        FROM (SELECT table_name, pk_hash, pk
-                            FROM dc_source
-                            WHERE table_name = ?
-                                  AND compare_result is not null
-                                  AND compare_result != 'e'
-                            UNION
-                            SELECT table_name, pk_hash, pk
-                            FROM dc_target
-                            WHERE table_name = ?
-                                  AND compare_result is not null
-                                  AND compare_result != 'e') x
-                        ORDER BY table_name
-                       """;
-
-        try {
-            PreparedStatement stmt = repoConn.prepareStatement(sqlOutofSync);
-            stmt.setObject(1, sourceTable);
-            stmt.setObject(2, targetTable);
-            ResultSet rs = stmt.executeQuery();
-
-
-            while (rs.next()) {
-                DataCompare dcRow = new DataCompare(null,null,null,null,null, 0, batchNbr);
-                dcRow.setTableName(targetTable);
-                dcRow.setPkHash(rs.getString("pk_hash"));
-                dcRow.setPk(rs.getString("pk"));
-                dcRow.setCompareResult("compare_result");
-                int pkColumns = 0;
-                binds.clear();
-                tableFilter = new StringBuilder(" AND ");
-                JSONObject pk = new JSONObject(dcRow.getPk());
-                Iterator<String> keys = pk.keys();
-                while (keys.hasNext()) {
-                    String key = keys.next();
-                    if (pk.get(key) instanceof String) {
-                        String value = pk.getString(key);
-                        binds.add(pkColumns,value);
-                    } else {
-                        Integer value = pk.getInt(key);
-                        binds.add(pkColumns,value);
-                    }
-                    tableFilter.append(key).append(" = ? AND ");
-                    pkColumns++;
-                }
-                tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
-                Logging.write("info", "recheck", "Primary Key: " + pk);
-
-                reCheck(repoConn, sourceConn, targetConn, sqlSource, sqlTarget, tableFilter.toString(), ciTarget.pkList, binds, dcRow, cid);
-
-            }
-
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", "recheck", "Error performing check of table " + targetTable + ":  " + e.getMessage());
-        }
-
-    }
 
     public static void reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSQL, String targetSQL, String tableFilter, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
         JSONObject rowResult = new JSONObject();
@@ -190,5 +117,80 @@ public class dbReconcileCheck {
         }
 
     }
+
+    public static void checkRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceTable, String targetTable, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer batchNbr, Integer cid) {
+        /////////////////////////////////////////////////
+        // Get Column Info
+        /////////////////////////////////////////////////
+        ArrayList<Object> binds = new ArrayList<>();
+        JSONObject result = new JSONObject();
+        result.put("status","failed");
+        result.put("compareStatus","failed");
+        StringBuilder tableFilter;
+
+        ////////////////////////////////////////
+        // Get Out of Sync Rows
+        ////////////////////////////////////////
+        String sqlOutofSync = """
+                        SELECT DISTINCT table_name, pk_hash, pk
+                        FROM (SELECT table_name, pk_hash, pk
+                            FROM dc_source
+                            WHERE table_name = ?
+                                  AND compare_result is not null
+                                  AND compare_result != 'e'
+                            UNION
+                            SELECT table_name, pk_hash, pk
+                            FROM dc_target
+                            WHERE table_name = ?
+                                  AND compare_result is not null
+                                  AND compare_result != 'e') x
+                        ORDER BY table_name
+                       """;
+
+        try {
+            PreparedStatement stmt = repoConn.prepareStatement(sqlOutofSync);
+            stmt.setObject(1, sourceTable);
+            stmt.setObject(2, targetTable);
+            ResultSet rs = stmt.executeQuery();
+
+
+            while (rs.next()) {
+                DataCompare dcRow = new DataCompare(null,null,null,null,null, 0, batchNbr);
+                dcRow.setTableName(targetTable);
+                dcRow.setPkHash(rs.getString("pk_hash"));
+                dcRow.setPk(rs.getString("pk"));
+                dcRow.setCompareResult("compare_result");
+                int pkColumns = 0;
+                binds.clear();
+                tableFilter = new StringBuilder(" AND ");
+                JSONObject pk = new JSONObject(dcRow.getPk());
+                Iterator<String> keys = pk.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    if (pk.get(key) instanceof String) {
+                        String value = pk.getString(key);
+                        binds.add(pkColumns,value);
+                    } else {
+                        Integer value = pk.getInt(key);
+                        binds.add(pkColumns,value);
+                    }
+                    tableFilter.append(key).append(" = ? AND ");
+                    pkColumns++;
+                }
+                tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
+                Logging.write("info", "recheck", "Primary Key: " + pk);
+
+                reCheck(repoConn, sourceConn, targetConn, sqlSource, sqlTarget, tableFilter.toString(), ciTarget.pkList, binds, dcRow, cid);
+
+            }
+
+            rs.close();
+            stmt.close();
+        } catch (Exception e) {
+            Logging.write("severe", "recheck", "Error performing check of table " + targetTable + ":  " + e.getMessage());
+        }
+
+    }
+
 
 }
