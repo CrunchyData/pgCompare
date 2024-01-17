@@ -15,16 +15,22 @@
  */
 package com.crunchydata.services;
 
-import com.crunchydata.util.Logging;
-
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Properties;
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.RowSetProvider;
+
+import static com.crunchydata.services.ColumnValidation.columnValueMap;
+import static com.crunchydata.services.ColumnValidation.supportedDataTypes;
+import com.crunchydata.util.Logging;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * @author Brian Pace
@@ -46,15 +52,16 @@ public class dbPostgres {
 
         return sql;
     }
-    public static CachedRowSet getColumns (Connection conn, String schema, String table) {
+
+    public static JSONArray getColumns (Connection conn, String schema, String table) {
         ResultSet rs;
         PreparedStatement stmt;
-        CachedRowSet crs = null;
+        JSONArray columnInfo = new JSONArray();
 
         String sql = """
-                SELECT DISTINCT n.nspname owner, t.relname table_name, c.attname column_name,
+                SELECT DISTINCT n.nspname as owner, t.relname table_name, c.attname column_name,
                         col.udt_name data_type, coalesce(col.character_maximum_length,col.numeric_precision) data_length,
-                                col.numeric_precision data_precision, col.numeric_scale data_scale,
+                                coalesce(col.numeric_precision,44) data_precision, coalesce(col.numeric_scale,22) data_scale,
                         CASE WHEN c.attnotnull THEN 'Y' ELSE 'N' END nullable,
                         CASE WHEN i.indisprimary THEN 'Y' ELSE 'N' END pk
                 FROM pg_class t
@@ -67,18 +74,56 @@ public class dbPostgres {
                 ORDER BY n.nspname, t.relname, c.attname
                 """;
         try {
-            crs = RowSetProvider.newFactory().createCachedRowSet();
             stmt = conn.prepareStatement(sql);
             stmt.setObject(1, schema);
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
-            crs.populate(rs);
+            while (rs.next()) {
+                if (! Arrays.asList(supportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
+                    Logging.write("severe", "postgres-service", "Unsupported data type (" + rs.getString("data_type") + ")");
+                    System.exit(1);
+                }
+                JSONObject column = new JSONObject();
+                column.put("columnName",rs.getString("column_name"));
+                column.put("dataType",rs.getString("data_type"));
+                column.put("dataLength",rs.getInt("data_length"));
+                column.put("dataPrecision",rs.getInt("data_precision"));
+                column.put("dataScale",rs.getInt("data_scale"));
+                column.put("nullable",rs.getString("nullable"));
+                column.put("primaryKey",rs.getString("pk"));
+                column.put("valueExpression", columnValueMap("postgres", column ));
+
+                String dataClass;
+                switch (rs.getString("data_type").toLowerCase()) {
+                    case "bool":
+                    case "boolean":
+                        dataClass = "boolean";
+                        break;
+                    case "int2":
+                    case "int4":
+                    case "int8":
+                    case "number":
+                    case "binary_double":
+                    case "binary_float":
+                    case "float":
+                    case "numeric":
+                        dataClass = "numeric";
+                        break;
+                    default:
+                        dataClass = "char";
+                }
+
+                column.put("dataClass", dataClass);
+
+                columnInfo.put(column);
+            }
             rs.close();
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
+            e.printStackTrace();
         }
-        return crs;
+        return columnInfo;
 
     }
 

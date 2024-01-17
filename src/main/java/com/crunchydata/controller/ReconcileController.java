@@ -16,19 +16,19 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.model.ColumnInfo;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.ThreadSync;
-import com.crunchydata.services.*;
-import org.json.JSONObject;
-
-import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
+import javax.sql.rowset.CachedRowSet;
 
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.util.Logging;
+import com.crunchydata.util.ThreadSync;
+import com.crunchydata.services.*;
 import static com.crunchydata.util.DatabaseUtility.getColumnInfo;
 import static com.crunchydata.util.Settings.Props;
+
+import org.json.JSONObject;
 
 public class ReconcileController {
 
@@ -85,9 +85,8 @@ public class ReconcileController {
         result.put("status","failed");
         result.put("compareStatus","failed");
 
-        // TODO: Reconcile column list between source and target instead of using only target
-        ColumnInfo ciSource = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
-        ColumnInfo ciTarget = getColumnInfo(Props.getProperty("target-type"), targetConn, targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
+        ColumnMetadata ciSource = getColumnInfo("source", Props.getProperty("source-type"), sourceConn, sourceSchema, sourceTable, !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
+        ColumnMetadata ciTarget = getColumnInfo("target", Props.getProperty("target-type"), targetConn, targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
 
         Logging.write("info", "reconcile-controller", "Source Columns: " + ciSource.columnList);
         Logging.write("info", "reconcile-controller", "Target Columns: " + ciTarget.columnList);
@@ -99,17 +98,17 @@ public class ReconcileController {
         ////////////////////////////////////////
         String sqlSource = switch (Props.getProperty("source-type")) {
             case "postgres" ->
-                    dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pgPK, ciSource.pkJSON, ciSource.pgColumn, tableFilter);
+                    dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
             case "oracle" ->
-                    dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.oraPK, ciSource.pkJSON, ciSource.oraColumn, tableFilter);
+                    dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
             default -> "";
         };
 
         String sqlTarget = switch (Props.getProperty("target-type")) {
             case "postgres" ->
-                    dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pgPK, ciTarget.pkJSON, ciTarget.pgColumn, tableFilter);
+                    dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
             case "oracle" ->
-                    dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.oraPK, ciTarget.pkJSON, ciTarget.oraColumn, tableFilter);
+                    dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
             default -> "";
         };
 
@@ -118,7 +117,7 @@ public class ReconcileController {
 
 
         if (check) {
-            dbReconcileCheck.recheckRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
+            dbReconcileCheck.checkRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
         } else {
             ////////////////////////////////////////
             // Execute Compare SQL on Source and Target

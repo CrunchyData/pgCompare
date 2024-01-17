@@ -6,8 +6,9 @@
 #
 # HOW TO BUILD THIS IMAGE
 # -----------------------
-# Aftering compiling,
-# Run:
+# Compile code:
+#      $ mvn install
+# Build Docker Image:
 #      $ docker build -t {tag} .
 #
 # Pull base image
