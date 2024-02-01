@@ -9,9 +9,9 @@ batch-fetch-size = 2000
 # default: 2000
 batch-commit-size = 2000
 
-# Number of rows to pass to loader process
+# Number of rows used in mod operation to report progress status
 # default: 1000000
-batch-load-size = 1000000
+batch-progress-report-size = 1000000
 
 # When threshold is reached, observer-throttle-size, pause data loading
 # until cleared by observer process.

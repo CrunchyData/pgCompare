@@ -40,9 +40,6 @@ public class RepoController {
     public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
-                	table_name text NULL,
-                	thread_nbr int4 NULL,
-                	batch_nbr int4 NULL,
                 	pk_hash varchar(100) NULL,
                 	column_hash varchar(100) NULL,
                 	pk jsonb NULL,
@@ -127,13 +124,16 @@ public class RepoController {
 
     }
 
-    public void loadFindings (Connection conn, String location, String stagingTable) {
+    public void loadFindings (Connection conn, String location, String stagingTable, String tableName, Integer batchNbr, Integer threadNbr) {
         ArrayList<Object> binds = new ArrayList<>();
         String sqlLoadFindings = """
-                INSERT INTO dc_source (table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr FROM stagingtable)
+                INSERT INTO dc_source (table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT ? table_name, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr FROM stagingtable)
                 """;
 
         String sqlFinal = sqlLoadFindings.replaceAll("dc_source", "dc_"+location).replaceAll("stagingtable", stagingTable);
+        binds.add(0,tableName);
+        binds.add(1,threadNbr);
+        binds.add(2,batchNbr);
         dbPostgres.simpleUpdate(conn, sqlFinal, binds, true);
     }
 
