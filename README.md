@@ -106,7 +106,7 @@ Properties are categorized into four sections: system, repository, source, and t
 ### system
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
-- batch-load-size:  Defines the number of loads retrieved before saving to the staging tables.
+- batch-progress-report-size:  Defines the number of rows used in mod to report progress.
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.

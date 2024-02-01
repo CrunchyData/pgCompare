@@ -4,17 +4,15 @@ import org.json.JSONObject;
 
 import java.util.Arrays;
 
-import com.crunchydata.util.Logging;
-import static com.crunchydata.util.Settings.Props;
-
 public class ColumnValidation {
 
-    public static String[] supportedDataTypes = new String[]{"bool","boolean","binary_double","binary_float","bpchar","char","clob","date","float","int", "int2", "int4", "int8", "numeric","number","text", "timestamp","timestamp(0)","timestamp(1) with time zone", "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone","timestamp(9)","timestamp(9) with time zone","varchar","varchar2"};
+    public static String[] supportedDataTypes = new String[]{"bool","boolean","binary_double","binary_float","bpchar","char","clob","date","float","int", "int2", "int4", "int8","nclob","numeric","number","nvarchar2","text", "timestamp","timestamp(0)","timestamp(1) with time zone", "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone","timestamp(9)","timestamp(9) with time zone","varchar","varchar2"};
     public static String[] booleanTypes = new String[]{"bool","boolean"};
-    public static String[] charTypes = new String[]{"bpchar","char","clob","text","varchar","varchar2"};
+    public static String[] charTypes = new String[]{"bpchar","char","clob","nclob","nvarchar2","text","varchar","varchar2"};
     public static String[] numericTypes = new String[]{"bigint", "bigserial", "binary_double","binary_float", "decimal", "double precision", "float","int", "integer", "int2", "int4", "int8", "number", "numeric", "real", "serial", "smallint", "smallserial"};
     public static String[] timestampTypes = new String[]{"date","timestamp","timestamp(0)","timestamp(1) with time zone", "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone","timestamp(9)","timestamp(9) with time zone"};
     public static String[] restrictedDataTypes = new String[]{"clob"};
+    public static String[] unsupportedDataTypes = new String[]{"bfile","blob","long","long raw","raw","rowid"};
 
     public static String columnValueMap(String platform, JSONObject column) {
         String oraTemp;

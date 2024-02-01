@@ -88,29 +88,17 @@ public class dbReconcileObserver extends Thread  {
         /////////////////////////////////////////////////
         // Watch Reconcile Loop
         /////////////////////////////////////////////////
-
         String sqlClearMatch = """
                 WITH ds AS (DELETE FROM dc_source s
                             WHERE EXISTS
                                       (SELECT 1
                                        FROM dc_target t
-                                       WHERE table_name=?
-                                             AND s.pk_hash = t.pk_hash
-                                             AND s.column_hash = t.column_hash
-                                             AND s.thread_nbr = t.thread_nbr
-                                             AND s.batch_nbr = t.batch_nbr)
-                                   AND table_name=?
-                                   AND thread_nbr=?
-                                   AND batch_nbr=?
-                            RETURNING table_name, pk_hash, column_hash, thread_nbr, batch_nbr)
+                                       WHERE s.pk_hash = t.pk_hash
+                                             AND s.column_hash = t.column_hash)
+                            RETURNING pk_hash, column_hash)
                 DELETE FROM dc_target dt USING ds
-                WHERE ds.table_name=dt.table_name
-                       AND ds.pk_hash=dt.pk_hash
+                WHERE  ds.pk_hash=dt.pk_hash
                        AND ds.column_hash=dt.column_hash
-                       AND ds.thread_nbr=dt.thread_nbr
-                       AND ds.batch_nbr=dt.batch_nbr
-                       AND dt.thread_nbr=?
-                       AND dt.batch_nbr=?
                 """;
 
         String sqlUpdateStatus = """
@@ -122,6 +110,7 @@ public class dbReconcileObserver extends Thread  {
             sqlClearMatch = sqlClearMatch.replaceAll("dc_target",stagingTableTarget).replaceAll("dc_source",stagingTableSource);
 
             PreparedStatement stmtSU = repoConn.prepareStatement(sqlClearMatch);
+            PreparedStatement stmtSUS = repoConn.prepareStatement(sqlUpdateStatus);
 
             repoConn.setAutoCommit(false);
 
@@ -131,13 +120,6 @@ public class dbReconcileObserver extends Thread  {
                 ///////////////////////////////////////////////////////
                 // Remove Matching Rows
                 ///////////////////////////////////////////////////////
-
-                stmtSU.setObject(1, tableName);
-                stmtSU.setObject(2, tableName);
-                stmtSU.setInt(3, threadNbr);
-                stmtSU.setInt(4, batchNbr);
-                stmtSU.setInt(5, threadNbr);
-                stmtSU.setInt(6, batchNbr);
                 tmpRowCount = stmtSU.executeUpdate();
 
                 cntEqual = cntEqual + tmpRowCount;
@@ -148,12 +130,13 @@ public class dbReconcileObserver extends Thread  {
                     Logging.write("info", threadName, "Matched " + tmpRowCount + " rows");
                 } else {
                     if (cntEqual > 0 || ts.sourceComplete || ts.targetComplete ) {
-                        ts.ObserverNotify();
-                        binds.clear();
-                        binds.add(0,deltaCount);
-                        binds.add(1, cid);
-                        dbPostgres.simpleUpdate(repoConn, sqlUpdateStatus, binds, true);
+                        stmtSUS.clearParameters();
+                        stmtSUS.setInt(1,deltaCount);
+                        stmtSUS.setInt(2,cid);
+                        stmtSUS.executeUpdate();
+                        repoConn.commit();
                         deltaCount=0;
+                        ts.ObserverNotify();
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
@@ -176,12 +159,13 @@ public class dbReconcileObserver extends Thread  {
                 }
             }
 
+            stmtSUS.close();
             stmtSU.close();
 
             Logging.write("info", threadName, "Staging table cleanup");
 
-            rpc.loadFindings(repoConn, "source", stagingTableSource);
-            rpc.loadFindings(repoConn, "target", stagingTableTarget);
+            rpc.loadFindings(repoConn, "source", stagingTableSource, tableName, batchNbr, threadNbr);
+            rpc.loadFindings(repoConn, "target", stagingTableTarget, tableName, batchNbr, threadNbr);
             rpc.dropStagingTable(repoConn, stagingTableSource);
             rpc.dropStagingTable(repoConn, stagingTableTarget);
 

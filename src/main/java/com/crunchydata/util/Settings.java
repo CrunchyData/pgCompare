@@ -25,7 +25,7 @@ import java.util.Properties;
  */
 public class Settings {
     public static Properties Props;
-    public static String version = "1.1.0";
+    public static String version = "1.1.1";
 
     static String paramFile = (System.getenv("CONFERODC_CONFIG") == null) ? "confero.properties" : System.getenv("CONFERODC_CONFIG");
 
@@ -50,7 +50,7 @@ public class Settings {
         // System Settings
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
-        defaultProps.setProperty("batch-load-size","1000000");
+        defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");

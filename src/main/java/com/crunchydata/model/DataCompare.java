@@ -107,6 +107,6 @@ public class DataCompare {
     }
 
     public String toDelimited(String delimiter) {
-        return String.join(delimiter, tableName,pkHash, columnHash, pk, "p", threadNbr.toString());
+        return String.join(delimiter,  tableName , pkHash , columnHash , pk , threadNbr.toString() , batchNbr.toString() ) + "\n";
     }
 }

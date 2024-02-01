@@ -22,6 +22,7 @@ import java.sql.ResultSet;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.util.*;
+
 import static com.crunchydata.util.SecurityUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
 
@@ -138,7 +139,7 @@ public class dbReconcile extends Thread {
 
             StringBuilder columnValue = new StringBuilder();
 
-            String sqlLoad = "INSERT INTO " + stagingTable + " (table_name, pk_hash, column_hash, pk, thread_nbr, batch_nbr) VALUES (?,?,?,(?)::jsonb,?,?)";
+            String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
             repoConn.setAutoCommit(false);
             PreparedStatement stmtLoad = repoConn.prepareStatement(sqlLoad);
 
@@ -153,12 +154,9 @@ public class dbReconcile extends Thread {
                     columnValue.append(rs.getString(3));
                 }
 
-                stmtLoad.setString(1, tableName);
-                stmtLoad.setString(2, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
-                stmtLoad.setString(3, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
-                stmtLoad.setString(4, rs.getString("PK").replace(",}","}"));
-                stmtLoad.setInt(5, threadNumber);
-                stmtLoad.setInt(6, batchNbr);
+                stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
+                stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
+                stmtLoad.setString(3, rs.getString("PK").replace(",}","}"));
                 stmtLoad.addBatch();
                 stmtLoad.clearParameters();
 
@@ -197,7 +195,7 @@ public class dbReconcile extends Thread {
                 }
 
                 if (!firstPass) {
-                    loadRowCount = Integer.parseInt(Props.getProperty("batch-load-size"));
+                    loadRowCount = Integer.parseInt(Props.getProperty("batch-progress-report-size"));
                     observerRowCount = Integer.parseInt(Props.getProperty("observer-throttle-size"));
                 }
 
