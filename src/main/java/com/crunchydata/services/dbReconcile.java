@@ -185,7 +185,19 @@ public class dbReconcile extends Thread {
 
                         cntRecord=0;
 
+                        if ( targetType.equals("source")) {
+                            ts.sourceWaiting = true;
+                        } else {
+                            ts.targetWaiting = true;
+                        }
+
                         ts.ObserverWait();
+
+                        if ( targetType.equals("source")) {
+                            ts.sourceWaiting = false;
+                        } else {
+                            ts.targetWaiting = false;
+                        }
 
                         Logging.write("info", threadName, "Cleared by Observer");
                     } else {

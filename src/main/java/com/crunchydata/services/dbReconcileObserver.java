@@ -129,7 +129,7 @@ public class dbReconcileObserver extends Thread  {
                     deltaCount += tmpRowCount;
                     Logging.write("info", threadName, "Matched " + tmpRowCount + " rows");
                 } else {
-                    if (cntEqual > 0 || ts.sourceComplete || ts.targetComplete ) {
+                    if (cntEqual > 0 || ts.sourceComplete || ts.targetComplete || ( cntEqual == 0 && ts.sourceWaiting && ts.targetWaiting ) ) {
                         stmtSUS.clearParameters();
                         stmtSUS.setInt(1,deltaCount);
                         stmtSUS.setInt(2,cid);
