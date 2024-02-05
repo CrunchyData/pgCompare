@@ -29,7 +29,7 @@ Why the name Confero? The name is derived from the Latin word "cōnferō," meani
 ### Requirements
 Before initiating the build and installation process, ensure the following prerequisites are met:
 
-1. Java version 11 or higher.
+1. Java version 21 or higher.
 2. Maven 3.9 or higher.
 3. Postgres version 15 or higher (to use for the Confero Data Compare repository).
 4. Necessary JDBC drivers (Postgres and Oracle currently supported).
