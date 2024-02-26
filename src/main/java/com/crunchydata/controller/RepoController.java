@@ -23,6 +23,8 @@ import javax.sql.rowset.CachedRowSet;
 import com.crunchydata.services.dbPostgres;
 import com.crunchydata.util.Logging;
 
+import static com.crunchydata.util.Settings.Props;
+
 public class RepoController {
 
     public void completeTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr, Integer rowCount, String actionResult) {
@@ -44,8 +46,8 @@ public class RepoController {
                 	column_hash varchar(100) NULL,
                 	pk jsonb NULL,
                 	compare_result bpchar(1) NULL
-                ) with (autovacuum_enabled=false)
-                """;
+                ) with (autovacuum_enabled=false, parallel_workers=
+                """ + Props.getProperty("stage-table-parallel") + ")";
 
         String stagingTable = "dc_" + location + "_" + tid + "_" + threadNbr;
 

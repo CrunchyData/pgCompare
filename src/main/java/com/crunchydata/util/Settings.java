@@ -51,40 +51,46 @@ public class Settings {
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
+        defaultProps.setProperty("database-sort","true");
+        defaultProps.setProperty("log-destination","stdout");
+        defaultProps.setProperty("log-level","INFO");
+        defaultProps.setProperty("number-cast","notation");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");
-        defaultProps.setProperty("log-destination","stdout");
-        defaultProps.setProperty("log-level","INFO");
-        defaultProps.setProperty("database-sort","true");
+        defaultProps.setProperty("stage-table-parallel","0");
+
 
         // Repository
-        defaultProps.setProperty("repo-host","localhost");
-        defaultProps.setProperty("repo-port","5432");
         defaultProps.setProperty("repo-dbname","confero");
-        defaultProps.setProperty("repo-user","confero");
+        defaultProps.setProperty("repo-host","localhost");
         defaultProps.setProperty("repo-password","welcome1");
+        defaultProps.setProperty("repo-port","5432");
         defaultProps.setProperty("repo-schema","confero");
+        defaultProps.setProperty("repo-sslmode","disable");
+        defaultProps.setProperty("repo-user","confero");
 
         // Source
-        defaultProps.setProperty("source-name","source");
-        defaultProps.setProperty("source-type","postgres");
-        defaultProps.setProperty("source-host","localhost");
-        defaultProps.setProperty("source-port","5432");
-        defaultProps.setProperty("source-dbname","postgres");
-        defaultProps.setProperty("source-user","postgres");
-        defaultProps.setProperty("source-password","welcome1");
         defaultProps.setProperty("source-database-hash","true");
+        defaultProps.setProperty("source-dbname","postgres");
+        defaultProps.setProperty("source-host","localhost");
+        defaultProps.setProperty("source-name","source");
+        defaultProps.setProperty("source-password","welcome1");
+        defaultProps.setProperty("source-port","5432");
+        defaultProps.setProperty("source-sslmode","disable");
+        defaultProps.setProperty("source-type","postgres");
+        defaultProps.setProperty("source-user","postgres");
 
         // Target
-        defaultProps.setProperty("target-name","target");
-        defaultProps.setProperty("target-type","postgres");
-        defaultProps.setProperty("target-host","localhost");
-        defaultProps.setProperty("target-port","5432");
-        defaultProps.setProperty("target-dbname","postgres");
-        defaultProps.setProperty("target-user","postgres");
-        defaultProps.setProperty("target-password","welcome1");
         defaultProps.setProperty("target-database-hash","true");
+        defaultProps.setProperty("target-dbname","postgres");
+        defaultProps.setProperty("target-host","localhost");
+        defaultProps.setProperty("target-name","target");
+        defaultProps.setProperty("target-password","welcome1");
+        defaultProps.setProperty("target-port","5432");
+        defaultProps.setProperty("target-sslmode","disable");
+        defaultProps.setProperty("target-type","postgres");
+        defaultProps.setProperty("target-user","postgres");
 
         return defaultProps;
     }

@@ -1,22 +1,11 @@
-/*
- * Copyright 2012-2023 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.crunchydata.services;
 
+import com.crunchydata.util.Logging;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.RowSetProvider;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -24,25 +13,22 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Properties;
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.RowSetProvider;
-
-import com.crunchydata.util.Logging;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import static com.crunchydata.services.ColumnValidation.*;
 import static com.crunchydata.util.Settings.Props;
 
-
-public class dbOracle {
+public class dbMySQL {
+    // MySQL Data Types
+    //     Date/Time: date, datetime, timestamp, time, year
+    //     Numeric: integer, smallint, decimal, numeric, float, real, double, int, dec, fixed
+    //     String: char, varchar, text, json
+    //     Unsupported: bit, binary, varbinary, blob, enum, set
 
     public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "LOWER(STANDARD_HASH(" + pkColumns + ",'MD5')) pk_hash, " + pkJSON + " pk, LOWER(STANDARD_HASH(" + columns + ",'MD5')) column_hash FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += "lower(md5(" + pkColumns + ")) pk_hash, " + pkJSON + " pk, lower(md5(" + columns + ")) column_hash FROM " + schema + "." + tableName + " WHERE 1=1 ";
         } else {
             sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
         }
@@ -54,24 +40,24 @@ public class dbOracle {
         return sql;
     }
 
-    public static String columnValueMapOracle(JSONObject column) {
+    public static String columnValueMapMySQL(JSONObject column) {
         String colExpression;
         String dt;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             dt = "numeric";
-            colExpression =  Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000')),' ')";
+            if ( Props.getProperty("number-cast").equals("notation") ) {
+                colExpression = "coalesce(if("+ column.getString("columnName") + "=0,'0.0000000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") +")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 10),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+            } else {
+                colExpression = "coalesce(if(instr(convert("+ column.getString("columnName") + ",char),'.')>0,concat(if(" + column.getString("columnName") +"<0,'-',''),lpad(substring_index(convert(abs(" + column.getString("columnName") +"),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + column.getString("columnName") +",char),'.',-1),22,'0')),concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(convert(" + column.getString("columnName") + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
+            }
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             dt = "boolean";
-            colExpression = "nvl(to_char(" + column.getString("columnName") + "),'0')";
+            colExpression = "case when coalesce(convert(" + column.getString("columnName") + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "nvl(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
+            colExpression = "coalesce(date_format(" + column.getString("columnName") + ",'%m%d%Y%H%i%S'),' ')";
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            if (column.getInt("dataLength") > 1) {
-                colExpression = "nvl(trim(" + column.getString("columnName") + "),' ')";
-            } else {
-                colExpression = "nvl(" + column.getString("columnName") + ",' ')";
-            }
+            colExpression = "coalesce(" + column.getString("columnName") + ",' ')";
         } else {
             colExpression = column.getString("columnName");
         }
@@ -86,16 +72,22 @@ public class dbOracle {
         JSONArray columnInfo = new JSONArray();
 
         String sql = """
-                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, c.data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
+                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
+                       coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
+                       case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
-                FROM all_tab_columns c
-                     LEFT OUTER JOIN (SELECT con.owner, con.table_name, i.column_name, i.column_position
-                                    FROM all_constraints con
-                                         JOIN all_ind_columns i ON (con.index_owner=i.index_owner AND con.index_name=i.index_name)
-                                    WHERE con.constraint_type='P') pkc ON (c.owner=pkc.owner AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
-                WHERE c.owner=upper(?)
-                      AND c.table_name=upper(?)
-                ORDER BY c.owner, c.table_name, c.column_name
+                FROM information_schema.columns c
+                     LEFT OUTER JOIN (SELECT tc.table_schema, tc.table_name, kcu.column_name, kcu.ORDINAL_POSITION column_position
+                	  				  FROM information_schema.table_constraints tc
+                					  	   INNER JOIN information_schema.key_column_usage kcu
+                								ON tc.constraint_catalog = kcu.constraint_catalog
+                									AND tc.constraint_schema = kcu.constraint_schema
+                									AND tc.constraint_name = kcu.constraint_name
+                									AND tc.table_name = kcu.table_name
+                					WHERE tc.constraint_type='PRIMARY KEY')  pkc ON (c.table_schema=pkc.table_schema AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
+                WHERE c.table_schema=?
+                      AND c.table_name=?
+                ORDER BY c.table_schema, c.table_name, c.column_name
                 """;
 
         try {
@@ -104,8 +96,8 @@ public class dbOracle {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             while (rs.next()) {
-                if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
-                    Logging.write("severe", "oracle-service", "Unsupported data type (" + rs.getString("data_type") + ")");
+                if ( Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
+                    Logging.write("severe", "mysql-service", "Unsupported data type (" + rs.getString("data_type") + ")");
                     System.exit(1);
                 }
                 JSONObject column = new JSONObject();
@@ -116,7 +108,7 @@ public class dbOracle {
                 column.put("dataScale",rs.getInt("data_scale"));
                 column.put("nullable",rs.getString("nullable"));
                 column.put("primaryKey",rs.getString("pk"));
-                column.put("valueExpression", columnValueMapOracle(column));
+                column.put("valueExpression", columnValueMapMySQL(column));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
 
                 columnInfo.put(column);
@@ -124,7 +116,7 @@ public class dbOracle {
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
+            Logging.write("severe", "mysql-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
         }
         return columnInfo;
     }
@@ -133,15 +125,16 @@ public class dbOracle {
         Connection conn;
         conn = null;
 
-        String url = "jdbc:oracle:thin:@//"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname");
+        String url = "jdbc:mysql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
         Properties dbProps = new Properties();
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
 
         try {
             conn = DriverManager.getConnection(url,dbProps);
+            dbMySQL.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
         } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error connecting to Oracle " + e.getMessage());
+            Logging.write("severe", "mysql-service", "Error connecting to MySQL " + e.getMessage());
         }
 
         return conn;
@@ -154,7 +147,7 @@ public class dbOracle {
         ArrayList<Object> binds = new ArrayList<>();
 
         try {
-            CachedRowSet crsVersion = dbPostgres.simpleSelect(conn, "select version from v$version", binds);
+            CachedRowSet crsVersion = dbMySQL.simpleSelect(conn, "select version()", binds);
 
             if (crsVersion.next()) {
                 dbVersion = crsVersion.getString("version");
@@ -163,7 +156,7 @@ public class dbOracle {
             crsVersion.close();
 
         } catch (Exception e) {
-            Logging.write("info", "oracle-service", "Could not retrieve Oracle version " + e.getMessage());
+            Logging.write("info", "mysql-service", "Could not retrieve MySQL version " + e.getMessage());
         }
 
         return dbVersion;
@@ -186,7 +179,7 @@ public class dbOracle {
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error executing simple select (" + sql + "): " + e.getMessage());
+            Logging.write("severe", "mysql-service", "Error executing simple select (" + sql + "): " + e.getMessage());
         }
         return crs;
     }
@@ -206,7 +199,7 @@ public class dbOracle {
                 conn.commit();
             }
         } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error executing simple update (" + sql + "):  " + e.getMessage());
+            Logging.write("severe", "mysql-service", "Error executing simple update (" + sql + "):  " + e.getMessage());
             try { conn.rollback(); } catch (Exception ee) {
                 // do nothing
             }
@@ -214,5 +207,6 @@ public class dbOracle {
         }
         return cnt;
     }
+
 
 }

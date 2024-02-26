@@ -25,12 +25,13 @@ import java.util.Properties;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetProvider;
 
-import static com.crunchydata.services.ColumnValidation.columnValueMap;
-import static com.crunchydata.services.ColumnValidation.supportedDataTypes;
 import com.crunchydata.util.Logging;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * @author Brian Pace
@@ -51,6 +52,28 @@ public class dbPostgres {
         }
 
         return sql;
+    }
+
+    public static String columnValueMapPostgres(JSONObject column) {
+        String colExpression;
+        String dt;
+
+        if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            dt = "numeric";
+            colExpression =   Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' ')"   : "coalesce(trim(to_char(trim_scale(" + column.getString("columnName") + "),'0000000000000000000000.0000000000000000000000')),' ')";
+        } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            dt = "boolean";
+            colExpression = "case when coalesce(" + column.getString("columnName") + "::text,'0') = 'true' then '1' else '0' end";
+        } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            colExpression = "coalesce(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
+        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            colExpression = "coalesce(" + column.getString("columnName") + "::text,' ')";
+        } else {
+            colExpression = column.getString("columnName");
+        }
+
+        return colExpression;
+
     }
 
     public static JSONArray getColumns (Connection conn, String schema, String table) {
@@ -79,7 +102,7 @@ public class dbPostgres {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             while (rs.next()) {
-                if (! Arrays.asList(supportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
+                if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
                     Logging.write("severe", "postgres-service", "Unsupported data type (" + rs.getString("data_type") + ")");
                     System.exit(1);
                 }
@@ -91,29 +114,8 @@ public class dbPostgres {
                 column.put("dataScale",rs.getInt("data_scale"));
                 column.put("nullable",rs.getString("nullable"));
                 column.put("primaryKey",rs.getString("pk"));
-                column.put("valueExpression", columnValueMap("postgres", column ));
-
-                String dataClass;
-                switch (rs.getString("data_type").toLowerCase()) {
-                    case "bool":
-                    case "boolean":
-                        dataClass = "boolean";
-                        break;
-                    case "int2":
-                    case "int4":
-                    case "int8":
-                    case "number":
-                    case "binary_double":
-                    case "binary_float":
-                    case "float":
-                    case "numeric":
-                        dataClass = "numeric";
-                        break;
-                    default:
-                        dataClass = "char";
-                }
-
-                column.put("dataClass", dataClass);
+                column.put("valueExpression", columnValueMapPostgres(column ));
+                column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
 
                 columnInfo.put(column);
             }
@@ -124,14 +126,13 @@ public class dbPostgres {
             e.printStackTrace();
         }
         return columnInfo;
-
     }
 
     public static Connection getConnection(Properties connectionProperties, String destType, String module) {
         Connection conn;
         conn = null;
 
-        String url = "jdbc:postgresql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname");
+        String url = "jdbc:postgresql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?sslmode="+connectionProperties.getProperty(destType+"-sslmode");
         Properties dbProps = new Properties();
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));

@@ -13,6 +13,10 @@ batch-commit-size = 2000
 # default: 1000000
 batch-progress-report-size = 1000000
 
+# Method used to cast number to string (notation|standard)
+# default: notation
+number-cast: notation
+
 # When threshold is reached, observer-throttle-size, pause data loading
 # until cleared by observer process.
 # default: true
@@ -63,6 +67,10 @@ repo-password=welcome1
 # default: confero
 repo-schema=confero
 
+# SSL mode to use for connection (disable|prefer|disable)
+# default: disable
+repo-sslmode: disable
+
 #####
 # Source and Target Parameters
 # source|target-name:
@@ -82,6 +90,9 @@ repo-schema=confero
 #  source|target-database-hash:
 #       Determines whether to generate the hash on the database (true) or by the application (false).
 #       Default: true
+#  source|target-sslmode:
+#       SSL mode to use when connecting to the database (disable|prefer|require).
+#       Default: disable
 #####
 
 ##################################
@@ -96,6 +107,7 @@ source-dbname=hr
 source-user=appuser
 source-password=welcome1
 source-database-hash=false
+source-sslmode=disable
 # Postgres Example
 #source-name=pgsource
 #source-type=postgres
@@ -105,6 +117,7 @@ source-database-hash=false
 #source-user=postgres
 #source-password=welcome1
 #source-database-hash=true
+#source-sslmode=disable
 
 ##################################
 # target
@@ -118,6 +131,7 @@ target-dbname=hr
 target-user=postgres
 target-password=welcome1
 target-database-hash=true
+target-sslmode=disable
 # Oracle Example
 #target-name=orasource
 #target-type=oracle
@@ -127,3 +141,4 @@ target-database-hash=true
 #target-user=appuser
 #target-password=welcome1
 #target-database-hash=true
+#target-sslmode=disable

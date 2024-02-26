@@ -19,9 +19,12 @@ package com.crunchydata.util;
 import java.sql.Connection;
 
 import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.services.dbMSSQL;
+import com.crunchydata.services.dbMySQL;
 import com.crunchydata.services.dbOracle;
 import com.crunchydata.services.dbPostgres;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 
@@ -34,8 +37,20 @@ public class DatabaseUtility {
         JSONObject columnData = new JSONObject();
 
         Logging.write("info", "database-utility", "Getting columns for table " + schema + "." + table);
+        JSONArray colExpression = new JSONArray();
+        String concatOperator = "||";
 
-        columnData.put( (targetType.equals("source")? "sourceColumns" : "targetColumns") , ( platform.equals("postgres")) ? dbPostgres.getColumns(conn, schema, table) : dbOracle.getColumns(conn, schema, table ));
+        colExpression = switch (platform) {
+            case "oracle" -> dbOracle.getColumns(conn, schema, table);
+            case "mysql" -> dbMySQL.getColumns(conn, schema, table);
+            case "mssql" -> {
+                concatOperator = "+";
+                yield dbMSSQL.getColumns(conn, schema, table);
+            }
+            default -> dbPostgres.getColumns(conn, schema, table);
+        };
+
+        columnData.put( (targetType.equals("source")? "sourceColumns" : "targetColumns") , colExpression);
 
         StringBuilder column = new StringBuilder();
         StringBuilder pk = new StringBuilder();
@@ -58,34 +73,44 @@ public class DatabaseUtility {
                         nbrColumns++;
                         columnList.append(joColumn.getString("columnName")).append(",");
 
-                        column.append((useDatabaseHash) ? joColumn.getString("valueExpression")  + "||" : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
+                        column.append((useDatabaseHash) ? joColumn.getString("valueExpression")  + concatOperator : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
 
                     } else {
                         nbrPKColumns++;
-                        pk.append(joColumn.getString("valueExpression")).append("||'.'||");
+                        pk.append(joColumn.getString("valueExpression")).append(concatOperator+"'.'"+concatOperator);
                         pkList.append(joColumn.getString("columnName")).append(",");
 
-                        if (joColumn.getString("dataClass").equals("char")) {
-                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": \"' || ").append(joColumn.getString("columnName")).append(" || '\",' ||");
+                        if (pkJSON.isEmpty()) {
+                            pkJSON.append("'{'" + concatOperator);
                         } else {
-                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' || ").append(joColumn.getString("columnName")).append(" || ',' ||");
+                            pkJSON.append(concatOperator + " ',' " + concatOperator);
+                        }
+
+                        if (joColumn.getString("dataClass").equals("char")) {
+                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": \"' " + concatOperator + " ").append(joColumn.getString("columnName")).append(" " + concatOperator + " '\"' ");
+                        } else {
+                            if ( platform.equals("mssql") ) {
+                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' "   + concatOperator + " ").append("trim(cast(" + joColumn.getString("columnName") + " as varchar))");
+                            } else {
+                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' "   + concatOperator + " ").append(joColumn.getString("columnName"));
+                            }
                         }
                     }
 
             }
 
-
             if (columnList.isEmpty()) {
                 column = new StringBuilder((useDatabaseHash) ? "'0'" : " '0' c1");
+                nbrColumns = 1;
             } else {
                 columnList = new StringBuilder(columnList.substring(0, columnList.length() - 1));
-                column = new StringBuilder(column.substring(0,column.length() - 2));
+                column = new StringBuilder(column.substring(0,column.length() -  (column.substring(column.length()-1).equals("|") ? 2 : 1) ));
             }
 
             if ((!pk.isEmpty()) && (!pkList.isEmpty())) {
-                pk = new StringBuilder(pk.substring(0, pk.length() - 7));
-                pkList = new StringBuilder(pkList.substring(0, pkList.length() - 1));
-                pkJSON = new StringBuilder("'{' || " + pkJSON.substring(0, pkJSON.length() - 5) + "' || '}'");
+                pk = new StringBuilder(pk.substring(0, pk.length() - (3+(concatOperator.length()*2))));
+                pkList = new StringBuilder(pkList.substring(0, pkList.length() - 1 ));
+                pkJSON.append( concatOperator + "'}'");
             }
         } catch (Exception e) {
             Logging.write("severe", "database-utility", "Error while parsing column list " + e.getMessage());

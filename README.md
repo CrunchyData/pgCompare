@@ -34,6 +34,13 @@ Before initiating the build and installation process, ensure the following prere
 3. Postgres version 15 or higher (to use for the Confero Data Compare repository).
 4. Necessary JDBC drivers (Postgres and Oracle currently supported).
 
+### Limitations
+The following are current limitations of the compare utility:
+
+1. Date/Timestamp only compared with a precision of second (DDMMYYYYHH24MISS).
+2. Unsupported data types: blob, long, longraw, bytea.
+3. Limitations with data type boolean when performing cross-platform compare. 
+
 ### Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
 
@@ -107,37 +114,42 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
+- number-cast: Defines how numbers are cast for hash function (notation|standard).  Default is notation (for scientific notation).
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
+- stage-table-parallel: Sets the number of parallel workers for the temporary staging tables.  Default is 0.
 
 ### repository
-- repo-host: Host name of server hosting the Postgres repository database.
-- repo-port:  Repository Postgres instance port.
 - repo-dbname:  Repository database name.
-- repo-user:  Postgres database username.
+- repo-host: Host name of server hosting the Postgres repository database.
 - repo-password:  Postgres database user password.
+- repo-port:  Repository Postgres instance port.
 - repo-schema:  Name of schema that owns the repository tables.
+- repo-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
+- repo-user:  Postgres database username.
 
 ### source
-- source-name:  User defined name for the source.
-- source-type:  Database type: oracle, postgres
-- source-host:  Database server name.
-- source-port:  Database port.
-- source-dbname:  Database or service name.
-- source-user:   Database username.
-- source-password:  Database password.
 - source-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
+- source-dbname:  Database or service name.
+- source-host:  Database server name.
+- source-name:  User defined name for the source.
+- source-password:  Database password.
+- source-port:  Database port.
+- source-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
+- source-type:  Database type: oracle, postgres
+- source-user:   Database username.
 
 ### target
-- target-name:  User defined name for the target.
-- target-type:  Database type: oracle, postgres
-- target-host:  Database server name.
-- target-port:  Database port.
-- target-dbname:  Database or service name.
-- target-user:  Database username.
-- target-password:  Database password.
 - target-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
+- target-dbname:  Database or service name.
+- target-host:  Database server name.
+- target-name:  User defined name for the target.
+- target-password:  Database password.
+- target-port:  Database port.
+- target-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
+- target-type:  Database type: oracle, postgres
+- target-user:  Database username.
 
 # Data Compare
 Confero stores a hash representation of primary key columns and other table columns, reducing row size and storage demands. The utility optimizes network traffic and speeds up the process by using hash functions when comparing similar platforms.
@@ -192,6 +204,7 @@ The repository database will have a measurable amount of load during the compare
   - shared_buffers = 2048MB
   - work_mem = 256MB
   - maintenance_work_mem = 512MB
+  - max_parallel_workers = 16 (Note: Do not exceed 3 times vCPU count)
 
 ## Compute Resources for Compare
 Confero requires the execution host to allocate 3 threads per degree of parallelism, with each thread utilizing approximately 150 MB of memory.

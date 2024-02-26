@@ -101,6 +101,10 @@ public class ReconcileController {
                     dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
             case "oracle" ->
                     dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
+            case "mysql" ->
+                    dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
+            case "mssql" ->
+                    dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
             default -> "";
         };
 
@@ -109,6 +113,10 @@ public class ReconcileController {
                     dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
             case "oracle" ->
                     dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
+            case "mysql" ->
+                    dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
+            case "mssql" ->
+                    dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
             default -> "";
         };
 
@@ -191,7 +199,7 @@ public class ReconcileController {
         Logging.write("info", "reconcile-controller", "Analyzing: Step 2 of 3 - Missing on Target");
         Integer missingTarget = dbPostgres.simpleUpdate(repoConn, sqlMarkMissingTarget, binds, true);
 
-        Logging.write("info", "reconcile-controller", "Analyzing: Step 3 of 3 - Note Equal");
+        Logging.write("info", "reconcile-controller", "Analyzing: Step 3 of 3 - Not Equal");
         Integer notEqual = dbPostgres.simpleUpdate(repoConn, sqlMarkNESource, binds, true);
 
         dbPostgres.simpleUpdate(repoConn, sqlMarkNETarget, binds, true);
