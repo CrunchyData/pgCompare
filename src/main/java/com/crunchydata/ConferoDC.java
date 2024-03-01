@@ -67,6 +67,13 @@ public class ConferoDC {
                 .desc("Usage and help")
                 .build());
 
+        options.addOption(Option.builder("m")
+                .longOpt("maponly")
+                .argName("maponly")
+                .hasArg(false)
+                .desc("Perform column mapping only")
+                .build());
+
         options.addOption(Option.builder("t")
                 .longOpt("table")
                 .argName("table")
@@ -107,6 +114,7 @@ public class ConferoDC {
         Integer batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("CONFERODC-BATCH") == null ) ? 0 : Integer.parseInt(System.getenv("CONFERODC-BATCH"));
         boolean check = cmd.hasOption("check");
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "" ;
+        boolean mapOnly = cmd.hasOption("maponly");
 
         /////////////////////////////////////////////////
         // Process Startup
@@ -150,11 +158,13 @@ public class ConferoDC {
         /////////////////////////////////////////////////
         Connection sourceConn;
         Logging.write("info", "main", "Connecting to source database");
-        if (Props.getProperty("source-type").equals("oracle")) {
-            sourceConn = dbOracle.getConnection(Props,"source");
-        } else {
-            sourceConn = dbPostgres.getConnection(Props,"source", "main");
-        }
+        sourceConn = switch (Props.getProperty("source-type")) {
+            case "oracle" -> dbOracle.getConnection(Props, "source");
+            case "mysql" -> dbMySQL.getConnection(Props, "source");
+            case "mssql" -> dbMSSQL.getConnection(Props, "source");
+            default -> dbPostgres.getConnection(Props, "source", "main");
+        };
+
         if ( sourceConn == null) {
             Logging.write("severe", "main", "Cannot connect to source database");
             System.exit(1);
@@ -165,11 +175,14 @@ public class ConferoDC {
         /////////////////////////////////////////////////
         Connection targetConn;
         Logging.write("info", "main", "Connecting to target database");
-        if (Props.getProperty("target-type").equals("oracle")) {
-            targetConn = dbOracle.getConnection(Props,"target");
-        } else {
-            targetConn = dbPostgres.getConnection(Props,"target", "main");
-        }
+
+        targetConn = switch (Props.getProperty("target-type")) {
+            case "oracle" -> dbOracle.getConnection(Props, "target");
+            case "mysql" -> dbMySQL.getConnection(Props, "target");
+            case "mssql" -> dbMSSQL.getConnection(Props, "target");
+            default -> dbPostgres.getConnection(Props, "target", "main");
+        };
+
         if ( targetConn == null) {
             Logging.write("severe", "main", "Cannot connect to target database");
             System.exit(1);
@@ -212,7 +225,9 @@ public class ConferoDC {
                         startStopWatch,
                         check,
                         crsTable.getInt("batch_nbr"),
-                        crsTable.getInt("tid"));
+                        crsTable.getInt("tid"),
+                        crsTable.getString("column_map"),
+                        mapOnly);
                 rpc.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
 
                 runResult.put(actionResult);
@@ -268,6 +283,7 @@ public class ConferoDC {
         System.out.println("Options:");
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -c|--check Check out of sync rows");
+        System.out.println("   -m|--maponly Only perform column mapping");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");
         System.out.println();

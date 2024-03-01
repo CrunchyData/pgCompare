@@ -25,14 +25,15 @@ import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
-import static com.crunchydata.util.DatabaseUtility.getColumnInfo;
+
+import static com.crunchydata.util.DatabaseUtility.*;
 import static com.crunchydata.util.Settings.Props;
 
 import org.json.JSONObject;
 
 public class ReconcileController {
 
-    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, long rid, Boolean check, Integer batchNbr, Integer tid) {
+    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, long rid, Boolean check, Integer batchNbr, Integer tid, String columnMapping, Boolean mapOnly) {
 
         /////////////////////////////////////////////////
         // Variables
@@ -77,16 +78,31 @@ public class ReconcileController {
                                       """;
 
         /////////////////////////////////////////////////
-        // Get Column Info
+        // Get Column Info and Mapping
         /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+        JSONObject columnMap = new JSONObject();
         JSONObject result = new JSONObject();
         result.put("tableName", targetTable);
-        result.put("status","failed");
-        result.put("compareStatus","failed");
+        result.put("status","processing");
+        result.put("compareStatus","processing");
 
-        ColumnMetadata ciSource = getColumnInfo("source", Props.getProperty("source-type"), sourceConn, sourceSchema, sourceTable, !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
-        ColumnMetadata ciTarget = getColumnInfo("target", Props.getProperty("target-type"), targetConn, targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
+        if (columnMapping.equals("{}") || mapOnly ) {
+            columnMap = getColumnMap("source", Props.getProperty("source-type"), sourceConn, sourceSchema, sourceTable, columnMap);
+            columnMap = getColumnMap("target", Props.getProperty("target-type"), targetConn, targetSchema, targetTable, columnMap);
+            rpc.saveColumnMap(repoConn, tid, columnMap.toString());
+
+            if ( mapOnly ) {
+                Logging.write("info", "reconcile-controller", "Column mapping complete.");
+                System.exit(0);
+            }
+
+        } else {
+            columnMap = new JSONObject(columnMapping);
+        }
+
+        ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), sourceSchema, sourceTable, !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
+        ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
 
         Logging.write("info", "reconcile-controller", "Source Columns: " + ciSource.columnList);
         Logging.write("info", "reconcile-controller", "Target Columns: " + ciTarget.columnList);
@@ -101,6 +117,10 @@ public class ReconcileController {
                     dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
             case "oracle" ->
                     dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
+            case "mysql" ->
+                    dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
+            case "mssql" ->
+                    dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
             default -> "";
         };
 
@@ -109,12 +129,15 @@ public class ReconcileController {
                     dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
             case "oracle" ->
                     dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
+            case "mysql" ->
+                    dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
+            case "mssql" ->
+                    dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
             default -> "";
         };
 
         Logging.write("info", "reconcile-controller", "Source Compare Hash SQL: " + sqlSource);
         Logging.write("info", "reconcile-controller", "Target Compare Hash SQL: " + sqlTarget);
-
 
         if (check) {
             dbReconcileCheck.checkRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
@@ -125,6 +148,7 @@ public class ReconcileController {
             if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty()) {
                 Logging.write("warning", "reconcile-controller", "Table " + targetTable + " has no Primary Key, skipping reconciliation");
                 result.put("status", "skipped");
+                result.put("compareStatus", "skipped");
                 binds.add(0,cid);
                 dbPostgres.simpleUpdate(repoConn,"UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?",binds, true);
             } else {
@@ -191,7 +215,7 @@ public class ReconcileController {
         Logging.write("info", "reconcile-controller", "Analyzing: Step 2 of 3 - Missing on Target");
         Integer missingTarget = dbPostgres.simpleUpdate(repoConn, sqlMarkMissingTarget, binds, true);
 
-        Logging.write("info", "reconcile-controller", "Analyzing: Step 3 of 3 - Note Equal");
+        Logging.write("info", "reconcile-controller", "Analyzing: Step 3 of 3 - Not Equal");
         Integer notEqual = dbPostgres.simpleUpdate(repoConn, sqlMarkNESource, binds, true);
 
         dbPostgres.simpleUpdate(repoConn, sqlMarkNETarget, binds, true);
@@ -200,7 +224,9 @@ public class ReconcileController {
             result.put("missingSource",missingSource);
             result.put("missingTarget",missingTarget);
             result.put("notEqual",notEqual);
-            result.put("compareStatus",(missingSource+missingTarget+notEqual > 0) ? "out-of-sync" : "in-sync");
+            if ( result.getString("compareStatus").equals("processing")) {
+                result.put("compareStatus", (missingSource + missingTarget + notEqual > 0) ? "out-of-sync" : "in-sync");
+            }
 
             ///////////////////////////////////////////////////////
             // Update and Check Status
@@ -230,6 +256,5 @@ public class ReconcileController {
         return result;
 
     }
-
 
 }

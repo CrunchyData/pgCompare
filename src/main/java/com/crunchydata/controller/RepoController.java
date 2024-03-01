@@ -23,6 +23,8 @@ import javax.sql.rowset.CachedRowSet;
 import com.crunchydata.services.dbPostgres;
 import com.crunchydata.util.Logging;
 
+import static com.crunchydata.util.Settings.Props;
+
 public class RepoController {
 
     public void completeTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr, Integer rowCount, String actionResult) {
@@ -44,8 +46,8 @@ public class RepoController {
                 	column_hash varchar(100) NULL,
                 	pk jsonb NULL,
                 	compare_result bpchar(1) NULL
-                ) with (autovacuum_enabled=false)
-                """;
+                ) with (autovacuum_enabled=false, parallel_workers=
+                """ + Props.getProperty("stage-table-parallel") + ")";
 
         String stagingTable = "dc_" + location + "_" + tid + "_" + threadNbr;
 
@@ -74,8 +76,7 @@ public class RepoController {
             dbPostgres.simpleUpdate(conn, "vacuum dc_" + location, binds, false);
             conn.setAutoCommit(currentAutoCommit);
         } catch (Exception e) {
-            System.out.println("Error clearing staging tables");
-            e.printStackTrace();
+            System.out.println("Error clearing staging tables: " + e.getMessage());
             System.exit(1);
         }
 
@@ -96,7 +97,8 @@ public class RepoController {
         String sql = """
                      SELECT tid, source_schema, source_table,
                             target_schema, target_table, table_filter,
-                            parallel_degree, status, batch_nbr, mod_column
+                            parallel_degree, status, batch_nbr, mod_column,
+                            coalesce(column_map::text,'{}') column_map
                      FROM dc_table
                      WHERE status=?
                      """;
@@ -135,6 +137,16 @@ public class RepoController {
         binds.add(1,threadNbr);
         binds.add(2,batchNbr);
         dbPostgres.simpleUpdate(conn, sqlFinal, binds, true);
+    }
+
+    public void saveColumnMap (Connection conn, Integer tid, String columnMap) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0,columnMap);
+        binds.add(1,tid);
+        String sql;
+        sql = "UPDATE dc_table SET column_map=?::jsonb WHERE tid=?";
+
+        dbPostgres.simpleUpdate(conn,sql,binds, true);
     }
 
     public void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {

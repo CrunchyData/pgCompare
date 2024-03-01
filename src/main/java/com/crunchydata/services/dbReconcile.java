@@ -95,14 +95,25 @@ public class dbReconcile extends Thread {
         Connection conn;
 
         Logging.write("info", threadName, "Connecting to " + targetType + " database");
-        if (Props.getProperty(targetType + "-type").equals("oracle")) {
-            conn = dbOracle.getConnection(Props,targetType);
-        } else {
-            conn = dbPostgres.getConnection(Props,targetType, "reconcile");
-            try { conn.setAutoCommit(false); } catch (Exception e) {
-                // do nothing
-            }
+
+        switch (Props.getProperty(targetType + "-type")) {
+            case "oracle":
+                conn = dbOracle.getConnection(Props,targetType);
+                break;
+            case "mysql":
+                conn = dbMySQL.getConnection(Props,targetType);
+                break;
+            case "mssql":
+                conn = dbMSSQL.getConnection(Props,targetType);
+                break;
+            default:
+                conn = dbPostgres.getConnection(Props,targetType, "reconcile");
+                try { conn.setAutoCommit(false); } catch (Exception e) {
+                    // do nothing
+                }
+                break;
         }
+
         if ( conn == null) {
             Logging.write("severe", threadName, "Cannot connect to " + targetType + " database");
             System.exit(1);
@@ -147,7 +158,7 @@ public class dbReconcile extends Thread {
                 columnValue.setLength(0);
 
                 if (! useDatabaseHash) {
-                    for (int i = 3; i < nbrColumns + 3 - nbrPKColumns; i++) {
+                    for (int i = 3; i < nbrColumns + 3; i++) {
                         columnValue.append(rs.getString(i));
                     }
                 } else {
