@@ -56,22 +56,37 @@ public class dbOracle {
 
     public static String columnValueMapOracle(JSONObject column) {
         String colExpression;
-        String dt;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "numeric";
-            colExpression =  Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000')),' ')";
+
+            colExpression = switch (column.getString("dataType").toLowerCase()) {
+                case "float", "binary_float", "binary_double" ->
+                        "lower(nvl(trim(to_char(" + column.getString("columnName") + ",'0.999999EEEE')),' '))";
+                default ->
+                        Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000')),' ')";
+            };
+
+
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "boolean";
             colExpression = "nvl(to_char(" + column.getString("columnName") + "),'0')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "nvl(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
-        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            if (column.getInt("dataLength") > 1) {
-                colExpression = "nvl(trim(" + column.getString("columnName") + "),' ')";
+            if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
+                colExpression = "nvl(to_char(" + column.getString("columnName") + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
             } else {
-                colExpression = "nvl(" + column.getString("columnName") + ",' ')";
+                colExpression = "nvl(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
             }
+        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            if (column.getString("dataType").toLowerCase().contains("lob")) {
+                colExpression = "nvl(trim(to_char(" + column.getString("columnName") + ")),' ')";
+            } else {
+                if (column.getInt("dataLength") > 1) {
+                    colExpression = "nvl(trim(" + column.getString("columnName") + "),' ')";
+                } else {
+                    colExpression = "nvl(" + column.getString("columnName") + ",' ')";
+                }
+            }
+        } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            colExpression = "case when dbms_lob.getlength(" + column.getString("columnName") +") = 0 or " + column.getString("columnName") + " is null then ' ' else lower(dbms_crypto.hash(" + column.getString("columnName") + ",2)) end";
         } else {
             colExpression = column.getString("columnName");
         }
@@ -86,7 +101,7 @@ public class dbOracle {
         JSONArray columnInfo = new JSONArray();
 
         String sql = """
-                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, c.data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
+                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
                 FROM all_tab_columns c
                      LEFT OUTER JOIN (SELECT con.owner, con.table_name, i.column_name, i.column_position
@@ -104,18 +119,20 @@ public class dbOracle {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             while (rs.next()) {
-                if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
-                    Logging.write("severe", "oracle-service", "Unsupported data type (" + rs.getString("data_type") + ")");
-                    System.exit(1);
-                }
                 JSONObject column = new JSONObject();
+                if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
+                    Logging.write("warning", "oracle-service", "Unsupported data type (" + rs.getString("data_type") + ") for column " + rs.getString("column_name"));
+                    column.put("supported",false);
+                } else {
+                    column.put("supported",true);
+                }
                 column.put("columnName",rs.getString("column_name"));
                 column.put("dataType",rs.getString("data_type"));
                 column.put("dataLength",rs.getInt("data_length"));
                 column.put("dataPrecision",rs.getInt("data_precision"));
                 column.put("dataScale",rs.getInt("data_scale"));
-                column.put("nullable",rs.getString("nullable"));
-                column.put("primaryKey",rs.getString("pk"));
+                column.put("nullable", rs.getString("nullable").equals("Y"));
+                column.put("primaryKey",rs.getString("pk").equals("Y"));
                 column.put("valueExpression", columnValueMapOracle(column));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
 

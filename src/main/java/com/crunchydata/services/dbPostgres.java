@@ -56,18 +56,27 @@ public class dbPostgres {
 
     public static String columnValueMapPostgres(JSONObject column) {
         String colExpression;
-        String dt;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "numeric";
-            colExpression =   Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' ')"   : "coalesce(trim(to_char(trim_scale(" + column.getString("columnName") + "),'0000000000000000000000.0000000000000000000000')),' ')";
+            colExpression = switch (column.getString("dataType").toLowerCase()) {
+                case "float4", "float8" ->
+                        "coalesce(trim(to_char(" + column.getString("columnName") + ",'0.999999EEEE')),' ')";
+                default ->
+                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + column.getString("columnName") + "),'0000000000000000000000.0000000000000000000000')),' ')";
+            };
+
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "boolean";
             colExpression = "case when coalesce(" + column.getString("columnName") + "::text,'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
+            if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
+                colExpression = "coalesce(to_char(" + column.getString("columnName") + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
+            } else {
+                colExpression = "coalesce(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
+            }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(" + column.getString("columnName") + "::text,' ')";
+        } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            colExpression = "coalesce(md5(" + column.getString("columnName") +"), ' ')";
         } else {
             colExpression = column.getString("columnName");
         }
@@ -102,18 +111,21 @@ public class dbPostgres {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             while (rs.next()) {
+                JSONObject column = new JSONObject();
                 if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
                     Logging.write("severe", "postgres-service", "Unsupported data type (" + rs.getString("data_type") + ")");
-                    System.exit(1);
+                    //System.exit(1);
+                    column.put("supported",false);
+                } else {
+                    column.put("supported",true);
                 }
-                JSONObject column = new JSONObject();
                 column.put("columnName",rs.getString("column_name"));
                 column.put("dataType",rs.getString("data_type"));
                 column.put("dataLength",rs.getInt("data_length"));
                 column.put("dataPrecision",rs.getInt("data_precision"));
                 column.put("dataScale",rs.getInt("data_scale"));
-                column.put("nullable",rs.getString("nullable"));
-                column.put("primaryKey",rs.getString("pk"));
+                column.put("nullable",rs.getString("nullable").equals("Y"));
+                column.put("primaryKey",rs.getString("pk").equals("Y"));
                 column.put("valueExpression", columnValueMapPostgres(column ));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
 
@@ -123,7 +135,6 @@ public class dbPostgres {
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", "postgres-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
-            e.printStackTrace();
         }
         return columnInfo;
     }

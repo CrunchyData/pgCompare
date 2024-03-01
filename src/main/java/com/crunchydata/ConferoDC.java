@@ -67,6 +67,13 @@ public class ConferoDC {
                 .desc("Usage and help")
                 .build());
 
+        options.addOption(Option.builder("m")
+                .longOpt("maponly")
+                .argName("maponly")
+                .hasArg(false)
+                .desc("Perform column mapping only")
+                .build());
+
         options.addOption(Option.builder("t")
                 .longOpt("table")
                 .argName("table")
@@ -107,6 +114,7 @@ public class ConferoDC {
         Integer batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("CONFERODC-BATCH") == null ) ? 0 : Integer.parseInt(System.getenv("CONFERODC-BATCH"));
         boolean check = cmd.hasOption("check");
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "" ;
+        boolean mapOnly = cmd.hasOption("maponly");
 
         /////////////////////////////////////////////////
         // Process Startup
@@ -217,7 +225,9 @@ public class ConferoDC {
                         startStopWatch,
                         check,
                         crsTable.getInt("batch_nbr"),
-                        crsTable.getInt("tid"));
+                        crsTable.getInt("tid"),
+                        crsTable.getString("column_map"),
+                        mapOnly);
                 rpc.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
 
                 runResult.put(actionResult);
@@ -273,6 +283,7 @@ public class ConferoDC {
         System.out.println("Options:");
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -c|--check Check out of sync rows");
+        System.out.println("   -m|--maponly Only perform column mapping");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");
         System.out.println();

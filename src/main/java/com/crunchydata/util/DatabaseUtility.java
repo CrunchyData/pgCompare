@@ -27,76 +27,65 @@ import com.crunchydata.services.dbPostgres;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import static com.crunchydata.util.JsonUtility.findOne;
+
 
 /**
  * @author Brian Pace
  */
 public class DatabaseUtility {
 
-    public static ColumnMetadata getColumnInfo(String targetType, String platform, Connection conn, String schema, String table, Boolean useDatabaseHash) {
-        JSONObject columnData = new JSONObject();
+    public static ColumnMetadata getColumnInfo(JSONObject columnMap, String targetType, String platform, String schema, String table, Boolean useDatabaseHash) {
+        Logging.write("info", "database-utility", "Building column expressions for " + schema + "." + table);
 
-        Logging.write("info", "database-utility", "Getting columns for table " + schema + "." + table);
-        JSONArray colExpression = new JSONArray();
-        String concatOperator = "||";
-
-        colExpression = switch (platform) {
-            case "oracle" -> dbOracle.getColumns(conn, schema, table);
-            case "mysql" -> dbMySQL.getColumns(conn, schema, table);
-            case "mssql" -> {
-                concatOperator = "+";
-                yield dbMSSQL.getColumns(conn, schema, table);
-            }
-            default -> dbPostgres.getColumns(conn, schema, table);
-        };
-
-        columnData.put( (targetType.equals("source")? "sourceColumns" : "targetColumns") , colExpression);
+        String concatOperator = platform.equals("mssql") ? "+" : "||";
 
         StringBuilder column = new StringBuilder();
         StringBuilder pk = new StringBuilder();
-
         StringBuilder pkList = new StringBuilder();
         StringBuilder pkJSON = new StringBuilder();
         StringBuilder columnList = new StringBuilder();
-        Integer nbrColumns = 0;
+
+        int nbrColumns = 0;
         Integer nbrPKColumns = 0;
 
         /////////////////////////////////////////////////
         // Construct Columns
         /////////////////////////////////////////////////
         try {
-            for (int i = 0; i < columnData.getJSONArray((targetType.equals("source")? "sourceColumns" : "targetColumns")).length(); i++ ) {
+            for (int i = 0; i < columnMap.getJSONArray("columns").length(); i++ ) {
 
-                JSONObject joColumn = columnData.getJSONArray((targetType.equals("source")? "sourceColumns" : "targetColumns")).getJSONObject(i);
+                if ( columnMap.getJSONArray("columns").getJSONObject(i).getString("status").equals("compare") ) {
 
-                    if ( joColumn.getString("primaryKey").equals("N")) {
-                        nbrColumns++;
-                        columnList.append(joColumn.getString("columnName")).append(",");
+                    JSONObject joColumn = columnMap.getJSONArray("columns").getJSONObject(i).getJSONObject(targetType);
 
-                        column.append((useDatabaseHash) ? joColumn.getString("valueExpression")  + concatOperator : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
-
-                    } else {
+                    if (joColumn.getBoolean("primaryKey")) {
                         nbrPKColumns++;
-                        pk.append(joColumn.getString("valueExpression")).append(concatOperator+"'.'"+concatOperator);
+                        pk.append(joColumn.getString("valueExpression")).append(concatOperator).append("'.'").append(concatOperator);
                         pkList.append(joColumn.getString("columnName")).append(",");
 
                         if (pkJSON.isEmpty()) {
-                            pkJSON.append("'{'" + concatOperator);
+                            pkJSON.append("'{'").append(concatOperator);
                         } else {
-                            pkJSON.append(concatOperator + " ',' " + concatOperator);
+                            pkJSON.append(concatOperator).append(" ',' ").append(concatOperator);
                         }
 
                         if (joColumn.getString("dataClass").equals("char")) {
-                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": \"' " + concatOperator + " ").append(joColumn.getString("columnName")).append(" " + concatOperator + " '\"' ");
+                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": \"' ").append(concatOperator).append(" ").append(joColumn.getString("columnName")).append(" ").append(concatOperator).append(" '\"' ");
                         } else {
-                            if ( platform.equals("mssql") ) {
-                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' "   + concatOperator + " ").append("trim(cast(" + joColumn.getString("columnName") + " as varchar))");
+                            if (platform.equals("mssql")) {
+                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' ").append(concatOperator).append(" ").append("trim(cast(").append(joColumn.getString("columnName")).append(" as varchar))");
                             } else {
-                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' "   + concatOperator + " ").append(joColumn.getString("columnName"));
+                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' ").append(concatOperator).append(" ").append(joColumn.getString("columnName"));
                             }
                         }
-                    }
+                    } else {
+                        nbrColumns++;
+                        columnList.append(joColumn.getString("columnName")).append(",");
 
+                        column.append((useDatabaseHash) ? joColumn.getString("valueExpression") + concatOperator : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
+                    }
+                }
             }
 
             if (columnList.isEmpty()) {
@@ -110,14 +99,63 @@ public class DatabaseUtility {
             if ((!pk.isEmpty()) && (!pkList.isEmpty())) {
                 pk = new StringBuilder(pk.substring(0, pk.length() - (3+(concatOperator.length()*2))));
                 pkList = new StringBuilder(pkList.substring(0, pkList.length() - 1 ));
-                pkJSON.append( concatOperator + "'}'");
+                pkJSON.append(concatOperator).append("'}'");
             }
         } catch (Exception e) {
             Logging.write("severe", "database-utility", "Error while parsing column list " + e.getMessage());
-            e.printStackTrace();
         }
 
         return new ColumnMetadata(columnList.toString(), nbrColumns, nbrPKColumns, column.toString(), pk.toString(), pkList.toString(), pkJSON.toString());
+
+    }
+
+    public static JSONObject getColumnMap(String targetType, String platform, Connection conn, String schema, String table, JSONObject columnData) {
+        Logging.write("info", "database-utility", "Getting columns for table " + schema + "." + table);
+
+        JSONArray colExpression = switch (platform) {
+            case "oracle" -> dbOracle.getColumns(conn, schema, table);
+            case "mysql" -> dbMySQL.getColumns(conn, schema, table);
+            case "mssql" -> dbMSSQL.getColumns(conn, schema, table);
+            default -> dbPostgres.getColumns(conn, schema, table);
+        };
+
+        JSONArray columns = new JSONArray();
+        if ( columnData.has("columns") ) {
+            columns = columnData.getJSONArray("columns");
+        }
+
+        int columnPosition;
+
+        for (int i = 0; i < colExpression.length(); i++ ) {
+            JSONObject columnDetail = new JSONObject();
+            JSONObject findColumn = findOne(columns, "alias", colExpression.getJSONObject(i).getString("columnName"));
+
+            if ( findColumn.getInt("count") == 0 ) {
+                columnDetail.put("alias",colExpression.getJSONObject(i).getString("columnName"));
+                columnDetail.put("status", "compare");
+                columnPosition = -1;
+            } else {
+                columnPosition = findColumn.getInt("location");
+                columnDetail = findColumn.getJSONObject("data");
+            }
+
+            if ( ! colExpression.getJSONObject(i).getBoolean("supported") ) {
+                columnDetail.put("status", "ignore");
+            }
+
+            columnDetail.put(targetType, colExpression.getJSONObject(i));
+
+            if (columnPosition == -1) {
+                columns.put(columnDetail);
+            } else {
+                columns.put(columnPosition, columnDetail);
+            }
+
+        }
+
+        columnData.put("columns", columns);
+
+        return columnData;
 
     }
 

@@ -74,6 +74,7 @@ dc_table:
 - status: Expected values are 'disabled', which is the default, and 'ready'.
 - batch_nbr:  Tables can be grouped into batches and compare jobs executed a batch, or grouping of tables.
 - mod_column:  Used in conjunction with the parallel_degree.  The work is divided up among the threads using a mod of the specified column.  Therefore, the value entered must be a single column with a numeric data type.
+- column_map:  Used to review or override column mapping used by compare functions.  See Column Map section for more details.
 
 Example of loading a row into `dc_table`:
 
@@ -86,7 +87,7 @@ INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, 
 ### Create `confero.properties`
 Copy the `confero.properties.sample` file to confero.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
 
-By default, the application looks for the properties file in the execution directory.  This can be overriden by using the CONFERODC_CONFIG environment variable to point to a file in a different location.
+By default, the application looks for the properties file in the execution directory.  Use the CONFERODC_CONFIG environment variable override the default and point to a file in a different location.
 
 ### Perform Data Compare
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
@@ -103,9 +104,84 @@ If discrepancies are detected, run the comparison with the 'check' option:
 ```shell
 java -jar conferodc --batch=0 --check
 ```
+This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a discrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
 
-This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a descrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
+# Column Map
+The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the column_map column of the dc_table repository table. The column mapping is stored in the form of a JSON object.  This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column map is present in column_map, the program will not perform a remap.
 
+To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
+
+```shell
+java -jar conferodc --batch=0 --maponly
+```
+
+## JSON Mapping Object
+Below is a sample of a column mapping.
+
+```json
+{
+  "columns": [
+    {
+      "alias": "cola",
+      "source": {
+        "dataType": "char",
+        "nullable": true,
+        "dataClass": "char",
+        "dataScale": 22,
+        "supported": true,
+        "columnName": "cola",
+        "dataLength": 2,
+        "primaryKey": false,
+        "dataPrecision": 44,
+        "valueExpression": "nvl(trim(col_char_2),' ')"
+      },
+      "status": "compare",
+      "target": {
+        "dataType": "bpchar",
+        "nullable": false,
+        "dataClass": "char",
+        "dataScale": 22,
+        "supported": true,
+        "columnName": "cola",
+        "dataLength": 2,
+        "primaryKey": false,
+        "dataPrecision": 44,
+        "valueExpression": "coalesce(col_char_2::text,' ')"
+      }
+    },
+    {
+      "alias": "id",
+      "source": {
+        "dataType": "number",
+        "nullable": false,
+        "dataClass": "numeric",
+        "dataScale": 0,
+        "supported": true,
+        "columnName": "id",
+        "dataLength": 22,
+        "primaryKey": true,
+        "dataPrecision": 8,
+        "valueExpression": "lower(nvl(trim(to_char(id,'0.9999999999EEEE')),' '))"
+      },
+      "status": "compare",
+      "target": {
+        "dataType": "int4",
+        "nullable": true,
+        "dataClass": "numeric",
+        "dataScale": 0,
+        "supported": true,
+        "columnName": "id",
+        "dataLength": 32,
+        "primaryKey": true,
+        "dataPrecision": 32,
+        "valueExpression": "coalesce(trim(to_char(id,'0.9999999999EEEE')),' ')"
+      }
+    }
+  ]
+}
+```
+
+Only Primary Key columns and columns with a status equal to 'compare' will be included in the final data compare.
 
 # Properties
 Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of hte property in upper case prefixed with "CONFERODC-".  For example, batch-fetch-size can be set by using the environment variable CONFERODC-BATCH-FETCH-SIZE.
@@ -155,7 +231,7 @@ Properties are categorized into four sections: system, repository, source, and t
 Confero stores a hash representation of primary key columns and other table columns, reducing row size and storage demands. The utility optimizes network traffic and speeds up the process by using hash functions when comparing similar platforms.
 
 ## Hash Options
-By default, the data is normalized and the hash performed by the Java code.  For supported platforms (Oracle 12.1 or higher and Postgres 11 or higher), the progrom will leverage database functions to perform the hash.  Allowing the database to perform the hash does increase CPU load on the hosting server, but reduces network traffic, increases speed, and reduces memory requirements of Confero.
+By default, the data is normalized and the hash performed by the Java code.  For supported platforms (Oracle 12.1 or higher and Postgres 11 or higher), the program will leverage database functions to perform the hash.  Allowing the database to perform the hash does increase CPU load on the hosting server, but reduces network traffic, increases speed, and reduces memory requirements of Confero.
 
 ## Processes
 Each comparison involves at least three threads: one for the observer and two for the source and target loader processes. By specifying a mod_column in the dc_tables and increasing parallel_degree, the number of threads can be increased to speed up comparison. Tuning between batch sizes, commit rates, and parallel degree is essential for optimal performance.

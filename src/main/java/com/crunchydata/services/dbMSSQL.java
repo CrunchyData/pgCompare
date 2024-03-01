@@ -43,13 +43,10 @@ public class dbMSSQL {
 
     public static String columnValueMapMSSQL(JSONObject column) {
         String colExpression;
-        String dt;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "numeric";
             colExpression =   Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(to_char(" + column.getString("columnName") + ",'E10')),' '),'E+0,'e+'))"   : "coalesce(cast(format(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "boolean";
             colExpression = "case when coalesce(cast(" + column.getString("columnName") + " as varchar),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(format(" + column.getString("columnName") + ",MMddyyyyHHMIss'),' ')";
@@ -93,18 +90,20 @@ public class dbMSSQL {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             while (rs.next()) {
+                JSONObject column = new JSONObject();
                 if ( Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
                     Logging.write("severe", "mssql-service", "Unsupported data type (" + rs.getString("data_type") + ")");
-                    System.exit(1);
+                    column.put("supported",false);
+                } else {
+                    column.put("supported",true);
                 }
-                JSONObject column = new JSONObject();
                 column.put("columnName",rs.getString("column_name"));
                 column.put("dataType",rs.getString("data_type"));
                 column.put("dataLength",rs.getInt("data_length"));
                 column.put("dataPrecision",rs.getInt("data_precision"));
                 column.put("dataScale",rs.getInt("data_scale"));
-                column.put("nullable",rs.getString("nullable"));
-                column.put("primaryKey",rs.getString("pk"));
+                column.put("nullable",rs.getString("nullable").equals("Y"));
+                column.put("primaryKey",rs.getString("pk").equals("Y"));
                 column.put("valueExpression", columnValueMapMSSQL(column));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
 

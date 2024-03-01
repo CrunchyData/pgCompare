@@ -25,7 +25,7 @@ import java.util.Properties;
  */
 public class Settings {
     public static Properties Props;
-    public static String version = "1.1.1";
+    public static String version = "1.2.0";
 
     static String paramFile = (System.getenv("CONFERODC_CONFIG") == null) ? "confero.properties" : System.getenv("CONFERODC_CONFIG");
 

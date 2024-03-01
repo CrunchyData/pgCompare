@@ -42,22 +42,32 @@ public class dbMySQL {
 
     public static String columnValueMapMySQL(JSONObject column) {
         String colExpression;
-        String dt;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "numeric";
-            if ( Props.getProperty("number-cast").equals("notation") ) {
-                colExpression = "coalesce(if("+ column.getString("columnName") + "=0,'0.0000000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") +")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 10),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
-            } else {
-                colExpression = "coalesce(if(instr(convert("+ column.getString("columnName") + ",char),'.')>0,concat(if(" + column.getString("columnName") +"<0,'-',''),lpad(substring_index(convert(abs(" + column.getString("columnName") +"),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + column.getString("columnName") +",char),'.',-1),22,'0')),concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(convert(" + column.getString("columnName") + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
+            switch (column.getString("dataType").toLowerCase()) {
+                case "float":
+                case "double":
+                    colExpression = "coalesce(if(" + column.getString("columnName") + "=0,'0.000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") + ")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 6),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                    break;
+                default:
+                    if (Props.getProperty("number-cast").equals("notation")) {
+                        colExpression = "coalesce(if(" + column.getString("columnName") + "=0,'0.0000000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") + ")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 10),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                    } else {
+                        colExpression = "coalesce(if(instr(convert(" + column.getString("columnName") + ",char),'.')>0,concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(substring_index(convert(abs(" + column.getString("columnName") + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + column.getString("columnName") + ",char),'.',-1),22,'0')),concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(convert(" + column.getString("columnName") + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
+                    }
             }
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            dt = "boolean";
             colExpression = "case when coalesce(convert(" + column.getString("columnName") + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(date_format(" + column.getString("columnName") + ",'%m%d%Y%H%i%S'),' ')";
+            if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
+                colExpression = "coalesce(date_format(convert_tz(" + column.getString("columnName") + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')";
+            } else {
+                colExpression = "coalesce(date_format(" + column.getString("columnName") + ",'%m%d%Y%H%i%S'),' ')";
+            }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(" + column.getString("columnName") + ",' ')";
+        } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
+            colExpression = "coalesce(md5(" + column.getString("columnName") +"), ' ')";
         } else {
             colExpression = column.getString("columnName");
         }
@@ -96,18 +106,20 @@ public class dbMySQL {
             stmt.setObject(2,table);
             rs = stmt.executeQuery();
             while (rs.next()) {
+                JSONObject column = new JSONObject();
                 if ( Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
                     Logging.write("severe", "mysql-service", "Unsupported data type (" + rs.getString("data_type") + ")");
-                    System.exit(1);
+                    column.put("supported",false);
+                } else {
+                    column.put("supported",true);
                 }
-                JSONObject column = new JSONObject();
                 column.put("columnName",rs.getString("column_name"));
                 column.put("dataType",rs.getString("data_type"));
                 column.put("dataLength",rs.getInt("data_length"));
                 column.put("dataPrecision",rs.getInt("data_precision"));
                 column.put("dataScale",rs.getInt("data_scale"));
-                column.put("nullable",rs.getString("nullable"));
-                column.put("primaryKey",rs.getString("pk"));
+                column.put("nullable",rs.getString("nullable").equals("Y"));
+                column.put("primaryKey",rs.getString("pk").equals("Y"));
                 column.put("valueExpression", columnValueMapMySQL(column));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
 

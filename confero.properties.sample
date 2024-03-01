@@ -57,7 +57,7 @@ repo-port=5432
 # default: confero
 repo-dbname=confero
 
-# Database user to use for authenitcation to repository database.
+# Database user to use for authentication to repository database.
 repo-user=postgres
 
 # Database password for authentication.
