@@ -44,7 +44,7 @@ The following are current limitations of the compare utility:
 ### Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
 
-```sh
+```shell
 YOUR_GITHUB_UN="<your GitHub username>"
 git clone --depth 1 "git@github.com:${YOUR_GITHUB_UN}/conferodc.git"
 cd conferodc
@@ -52,11 +52,16 @@ cd conferodc
 
 Compile the Java source:
 
-```sh
+```shell
 mvn clean install
 ```
+
 ### Configure Repository Database
-Confero necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided confero.sql script in the database directory.
+Confero necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided confero.sql script in the database directory.  The repository may also be created using the `--init` flag.
+
+```shell
+java -jar conferodc --init
+```
 
 # Getting Started
 

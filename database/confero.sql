@@ -47,7 +47,7 @@ CREATE TABLE dc_table (
 	tid int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
 	batch_nbr int4 NULL DEFAULT 1,
 	column_map jsonb,
-	mod_column varchar(200) NULL
+	mod_column varchar(200) NULL,
 	parallel_degree int4 NULL DEFAULT 1,
 	status varchar(10) NULL DEFAULT 'disabled'::character varying,
 	source_schema text NULL,

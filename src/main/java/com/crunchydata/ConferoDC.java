@@ -67,6 +67,13 @@ public class ConferoDC {
                 .desc("Usage and help")
                 .build());
 
+        options.addOption(Option.builder("i")
+                .longOpt("init")
+                .argName("init")
+                .hasArg(false)
+                .desc("Initialize repository")
+                .build());
+
         options.addOption(Option.builder("m")
                 .longOpt("maponly")
                 .argName("maponly")
@@ -151,6 +158,16 @@ public class ConferoDC {
         if ( repoConn == null) {
             Logging.write("severe", "main", "Cannot connect to repository database");
             System.exit(1);
+        }
+
+        if ( cmd.hasOption("init")) {
+            dbRepository.createRepository(repoConn);
+            try {
+                repoConn.close();
+            } catch (Exception e) {
+                Logging.write("severe", "main","Error closign connection to repository: " + e.getMessage());
+            }
+            System.exit(0);
         }
 
         /////////////////////////////////////////////////
