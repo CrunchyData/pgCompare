@@ -65,7 +65,7 @@ public class dbReconcileObserver extends Thread  {
         int sleepTime = 2000;
         int deltaCount = 0;
 
-        threadName = "observer-"+cid+"-"+threadNbr;
+        threadName = "observer-"+"-c"+cid+"-t"+threadNbr;
         Logging.write("info", threadName, "Starting reconcile observer");
 
         /////////////////////////////////////////////////

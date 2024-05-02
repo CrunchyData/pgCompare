@@ -72,7 +72,7 @@ public class dbReconcile extends Thread {
 
     public void run() {
 
-        threadName = "reconcile-"+targetType+"-"+threadNumber;
+        threadName = "reconcile-"+targetType+"-c"+cid+"-t"+threadNumber;
         Logging.write("info", threadName, "Start database reconcile thread");
 
         /////////////////////////////////////////////////
