@@ -19,9 +19,14 @@ package com.crunchydata.services;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import com.crunchydata.controller.RepoController;
+import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.*;
+
+import javax.xml.crypto.Data;
 
 import static com.crunchydata.util.SecurityUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
@@ -50,7 +55,10 @@ public class dbReconcile extends Thread {
     String stagingTable;
     Boolean useDatabaseHash;
 
-    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable) {
+    BlockingQueue<DataCompare[]> q;
+
+    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable, BlockingQueue<DataCompare[]> q) {
+        this.q = q;
         this.modColumn = modColumn;
         this.parallelDegree = parallelDegree;
         this.schemaName = schemaName;
@@ -150,9 +158,11 @@ public class dbReconcile extends Thread {
 
             StringBuilder columnValue = new StringBuilder();
 
-            String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
-            repoConn.setAutoCommit(false);
-            PreparedStatement stmtLoad = repoConn.prepareStatement(sqlLoad);
+//            String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
+//            repoConn.setAutoCommit(false);
+//            PreparedStatement stmtLoad = repoConn.prepareStatement(sqlLoad);
+
+            DataCompare[] dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
 
             while (rs.next()) {
                 columnValue.setLength(0);
@@ -165,19 +175,31 @@ public class dbReconcile extends Thread {
                     columnValue.append(rs.getString(3));
                 }
 
-                stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
-                stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
-                stmtLoad.setString(3, rs.getString("PK").replace(",}","}"));
-                stmtLoad.addBatch();
-                stmtLoad.clearParameters();
+//                stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
+//                stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
+//                stmtLoad.setString(3, rs.getString("PK").replace(",}","}"));
+//                stmtLoad.addBatch();
+//                stmtLoad.clearParameters();
+
+                dc[cntRecord] = new DataCompare(null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
 
                 cntRecord++;
                 totalRows++;
 
                 if (totalRows % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 ) {
-                    stmtLoad.executeBatch();
-                    stmtLoad.clearBatch();
-                    repoConn.commit();
+//                    stmtLoad.executeLargeBatch();
+//                    stmtLoad.clearBatch();
+//                    repoConn.commit();
+                      if ( q.size() == 100) {
+                          while (q.size() > 90) {
+                              Logging.write("info", "reconcile", "Queue size: " + q.size());
+                              Thread.sleep(1000);
+                          }
+                      }
+                      q.put(dc);
+                      dc = null;
+                      dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
+                      cntRecord=0;
                 }
 
                 if (totalRows % loadRowCount == 0) {
@@ -226,13 +248,13 @@ public class dbReconcile extends Thread {
 
             // Loading Remaining
             if (cntRecord > 0) {
-                stmtLoad.executeBatch();
+                q.put(dc);
                 rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
             }
 
             rs.close();
             stmt.close();
-            stmtLoad.close();
+//            stmtLoad.close();
 
             Logging.write("info", threadName, "Complete. Total rows loaded: " + totalRows);
 
