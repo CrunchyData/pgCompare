@@ -39,6 +39,9 @@ import static com.crunchydata.util.Settings.Props;
 public class dbPostgres {
 
     public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
@@ -55,6 +58,9 @@ public class dbPostgres {
     }
 
     public static String columnValueMapPostgres(JSONObject column) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String colExpression;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
@@ -86,10 +92,16 @@ public class dbPostgres {
     }
 
     public static JSONArray getColumns (Connection conn, String schema, String table) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
         JSONArray columnInfo = new JSONArray();
 
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = """
                 SELECT DISTINCT n.nspname as owner, t.relname table_name, c.attname column_name,
                         col.udt_name data_type, coalesce(col.character_maximum_length,col.numeric_precision) data_length,
@@ -140,11 +152,14 @@ public class dbPostgres {
     }
 
     public static Connection getConnection(Properties connectionProperties, String destType, String module) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         Connection conn;
         conn = null;
-
         String url = "jdbc:postgresql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?sslmode="+connectionProperties.getProperty(destType+"-sslmode");
         Properties dbProps = new Properties();
+
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
         dbProps.setProperty("options","-c search_path="+connectionProperties.getProperty(destType+"-schema")+",public,pg_catalog");
@@ -164,6 +179,9 @@ public class dbPostgres {
     }
 
     public static String getVersion (Connection conn) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String dbVersion = null;
 
         ArrayList<Object> binds = new ArrayList<>();
@@ -185,6 +203,9 @@ public class dbPostgres {
     }
 
     public static CachedRowSet simpleSelect(Connection conn, String sql, ArrayList<Object> binds) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
         CachedRowSet crs = null;
@@ -206,6 +227,9 @@ public class dbPostgres {
     }
 
     public static Integer simpleUpdate(Connection conn, String sql, ArrayList<Object> binds, Boolean commit) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         int cnt;
         PreparedStatement stmt;
 
@@ -231,6 +255,9 @@ public class dbPostgres {
     }
 
     public static CachedRowSet simpleUpdateReturning(Connection conn, String sql, ArrayList<Object> binds) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         PreparedStatement stmt;
         CachedRowSet crs = null;
 
@@ -258,6 +285,9 @@ public class dbPostgres {
 
 
     public static void simpleExecute(Connection conn, String sql) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         PreparedStatement stmt;
 
         try {

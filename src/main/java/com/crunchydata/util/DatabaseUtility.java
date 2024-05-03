@@ -38,16 +38,17 @@ public class DatabaseUtility {
     public static ColumnMetadata getColumnInfo(JSONObject columnMap, String targetType, String platform, String schema, String table, Boolean useDatabaseHash) {
         Logging.write("info", "database-utility", "Building column expressions for " + schema + "." + table);
 
-        String concatOperator = platform.equals("mssql") ? "+" : "||";
-
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         StringBuilder column = new StringBuilder();
-        StringBuilder pk = new StringBuilder();
-        StringBuilder pkList = new StringBuilder();
-        StringBuilder pkJSON = new StringBuilder();
         StringBuilder columnList = new StringBuilder();
-
+        String concatOperator = platform.equals("mssql") ? "+" : "||";
         int nbrColumns = 0;
         Integer nbrPKColumns = 0;
+        StringBuilder pk = new StringBuilder();
+        StringBuilder pkJSON = new StringBuilder();
+        StringBuilder pkList = new StringBuilder();
 
         /////////////////////////////////////////////////
         // Construct Columns
@@ -112,18 +113,19 @@ public class DatabaseUtility {
     public static JSONObject getColumnMap(String targetType, String platform, Connection conn, String schema, String table, JSONObject columnData) {
         Logging.write("info", "database-utility", "Getting columns for table " + schema + "." + table);
 
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         JSONArray colExpression = switch (platform) {
             case "oracle" -> dbOracle.getColumns(conn, schema, table);
             case "mysql" -> dbMySQL.getColumns(conn, schema, table);
             case "mssql" -> dbMSSQL.getColumns(conn, schema, table);
             default -> dbPostgres.getColumns(conn, schema, table);
         };
-
         JSONArray columns = new JSONArray();
         if ( columnData.has("columns") ) {
             columns = columnData.getJSONArray("columns");
         }
-
         int columnPosition;
 
         for (int i = 0; i < colExpression.length(); i++ ) {

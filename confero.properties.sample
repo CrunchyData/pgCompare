@@ -13,6 +13,14 @@ batch-commit-size = 2000
 # default: 1000000
 batch-progress-report-size = 1000000
 
+# Number of loader threads to use.  Set to 0 to disable.
+# default: 4
+loader-threads = 4
+
+# Size of message queue for loader threads (number of messages)
+# default: 100
+message-queue-size = 100
+
 # Method used to cast number to string (notation|standard)
 # default: notation
 number-cast: notation

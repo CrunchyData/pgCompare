@@ -6,6 +6,9 @@ import org.json.JSONObject;
 public class JsonUtility {
 
     public static JSONObject findOne (JSONArray ja, String key, String value) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         JSONObject result = new JSONObject();
         result.put("count",0);
 

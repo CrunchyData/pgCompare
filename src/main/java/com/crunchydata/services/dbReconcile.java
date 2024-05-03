@@ -20,16 +20,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.*;
 
-import javax.xml.crypto.Data;
-
-import static com.crunchydata.util.SecurityUtility.getMd5;
+import static com.crunchydata.util.HashUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
 
 public class dbReconcile extends Thread {
@@ -80,8 +77,9 @@ public class dbReconcile extends Thread {
         threadName = "reconcile-"+targetType+"-c"+cid+"-t"+threadNumber;
         Logging.write("info", threadName, "Start database reconcile thread");
 
-        useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) == 0;
-
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         int cntRecord = 0;
         Connection conn = null;
         boolean firstPass = true;
@@ -93,6 +91,7 @@ public class dbReconcile extends Thread {
         PreparedStatement stmt = null;
         PreparedStatement stmtLoad = null;
         int totalRows = 0;
+        useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) == 0;
 
         try {
             /////////////////////////////////////////////////

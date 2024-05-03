@@ -59,6 +59,9 @@ public class dbReconcileObserver extends Thread  {
         threadName = "observer-c"+cid+"-t"+threadNbr;
         Logging.write("info", threadName, "Starting reconcile observer");
 
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
         int cntEqual = 0;
         int deltaCount = 0;
@@ -84,7 +87,7 @@ public class dbReconcileObserver extends Thread  {
         }
 
         /////////////////////////////////////////////////
-        // Watch Reconcile Loop
+        // SQL
         /////////////////////////////////////////////////
         String sqlClearMatch = """
                 WITH ds AS (DELETE FROM dc_source s
@@ -104,6 +107,9 @@ public class dbReconcileObserver extends Thread  {
                                  WHERE cid=?
                                  """;
 
+        /////////////////////////////////////////////////
+        // Watch Reconcile Loop
+        /////////////////////////////////////////////////
         try {
             sqlClearMatch = sqlClearMatch.replaceAll("dc_target",stagingTableTarget).replaceAll("dc_source",stagingTableSource);
 
@@ -170,21 +176,19 @@ public class dbReconcileObserver extends Thread  {
 
         } catch (Exception e) {
             Logging.write("severe", threadName, "Error in observer process: " + e.getMessage());
-            try { repoConn.rollback(); } catch (Exception ee) {
-                // do nothing
+            try { repoConn.rollback();
+            } catch (Exception ee) {
+                Logging.write("warn", threadName, "Error rolling back transaction " + e.getMessage());
             }
-            try { repoConn.close(); } catch (Exception ee) {
-                // do nothing
+        } finally {
+            try {
+                if ( repoConn != null ) {
+                    repoConn.close();
+                }
+            } catch (Exception e) {
+                Logging.write("warn", threadName, "Error closing thread " + e.getMessage());
             }
         }
-
-        /////////////////////////////////////////////////
-        // Close Connections
-        /////////////////////////////////////////////////
-        try { repoConn.close(); } catch (Exception e) {
-            // do nothing
-        }
-
     }
 
 }

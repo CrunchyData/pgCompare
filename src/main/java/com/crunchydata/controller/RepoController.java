@@ -28,8 +28,16 @@ import static com.crunchydata.util.Settings.Props;
 public class RepoController {
 
     public void completeTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr, Integer rowCount, String actionResult) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = "UPDATE dc_table_history set end_dt=current_timestamp, row_count=?, action_result=?::jsonb WHERE tid=? AND action_type=? and load_id=? and batch_nbr=?";
+
         binds.add(0,rowCount);
         binds.add(1,actionResult);
         binds.add(2,tid);
@@ -40,6 +48,14 @@ public class RepoController {
     }
 
     public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
+        String stagingTable = "dc_" + location + "_" + tid + "_" + threadNbr;
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
                 	pk_hash varchar(100) NULL,
@@ -49,23 +65,25 @@ public class RepoController {
                 ) with (autovacuum_enabled=false, parallel_workers=
                 """ + Props.getProperty("stage-table-parallel") + ")";
 
-        String stagingTable = "dc_" + location + "_" + tid + "_" + threadNbr;
-
         sql = sql.replaceAll("dc_source",stagingTable);
-
         dropStagingTable(conn, stagingTable);
-
         dbPostgres.simpleExecute(conn, sql);
-
         return stagingTable;
     }
 
     public void deleteDataCompare(Connection conn, String location, String  table, Integer batchNbr) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
+        String sql = "DELETE from dc_" + location +" WHERE table_name=? and batch_nbr=?";
+
         binds.add(0,table);
         binds.add(1,batchNbr);
-
-        String sql = "DELETE from dc_" + location +" WHERE table_name=? and batch_nbr=?";
 
         try {
             dbPostgres.simpleUpdate(conn, sql, binds, true);
@@ -83,6 +101,9 @@ public class RepoController {
     }
 
     public void dropStagingTable(Connection conn, String stagingTable) {
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = "DROP TABLE IF EXISTS " + stagingTable;
 
         dbPostgres.simpleExecute(conn, sql);
@@ -91,9 +112,15 @@ public class RepoController {
 
 
     public CachedRowSet getTables(Connection conn, Integer batchNbr, String table, Boolean check) {
-        ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,"ready");
 
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
+        ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = """
                      SELECT tid, source_schema, source_table,
                             target_schema, target_table, table_filter,
@@ -102,6 +129,8 @@ public class RepoController {
                      FROM dc_table
                      WHERE status=?
                      """;
+
+        binds.add(0,"ready");
 
         if ( batchNbr > 0 ) {
             binds.add(binds.size(), batchNbr);
@@ -127,7 +156,15 @@ public class RepoController {
     }
 
     public void loadFindings (Connection conn, String location, String stagingTable, String tableName, Integer batchNbr, Integer threadNbr) {
+
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sqlLoadFindings = """
                 INSERT INTO dc_source (table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT ? table_name, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr FROM stagingtable)
                 """;
@@ -140,18 +177,33 @@ public class RepoController {
     }
 
     public void saveColumnMap (Connection conn, Integer tid, String columnMap) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
+        String sql = "UPDATE dc_table SET column_map=?::jsonb WHERE tid=?";
+
         binds.add(0,columnMap);
         binds.add(1,tid);
-        String sql;
-        sql = "UPDATE dc_table SET column_map=?::jsonb WHERE tid=?";
 
         dbPostgres.simpleUpdate(conn,sql,binds, true);
     }
 
     public void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = "INSERT INTO dc_table_history (tid, action_type, start_dt, load_id, batch_nbr, row_count) VALUES (?, ?, current_timestamp, ?, ?, 0)";
+
         binds.add(0,tid);
         binds.add(1,actionType);
         binds.add(2,"reconcile");
@@ -160,8 +212,16 @@ public class RepoController {
     }
 
     public Integer dcrCreate (Connection conn, String tableName, long rid) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = "INSERT INTO dc_result (compare_dt, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
+
         binds.add(0,tableName);
         binds.add(1,rid);
         CachedRowSet crs = dbPostgres.simpleUpdateReturning(conn, sql, binds);
@@ -181,10 +241,15 @@ public class RepoController {
     }
 
     public void dcrUpdateRowCount (Connection conn, String targetType, Integer cid, Integer rowCount) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
+        String sql;
+
         binds.add(0,rowCount);
         binds.add(1,cid);
-        String sql;
+
         if (targetType.equals("source")) {
             sql = "UPDATE dc_result SET source_cnt=source_cnt+? WHERE cid=?";
         } else {
@@ -193,6 +258,4 @@ public class RepoController {
 
         dbPostgres.simpleUpdate(conn,sql,binds, true);
     }
-
-
 }

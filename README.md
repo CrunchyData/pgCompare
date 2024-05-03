@@ -191,17 +191,19 @@ Only Primary Key columns and columns with a status equal to 'compare' will be in
 # Properties
 Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of hte property in upper case prefixed with "CONFERODC-".  For example, batch-fetch-size can be set by using the environment variable CONFERODC-BATCH-FETCH-SIZE.
 
-### system
+### System
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
+- loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
+- message-queue-size:  Size of message queue used by loader threads (nbr messages).  Default is 100.
 - number-cast: Defines how numbers are cast for hash function (notation|standard).  Default is notation (for scientific notation).
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
 - stage-table-parallel: Sets the number of parallel workers for the temporary staging tables.  Default is 0.
 
-### repository
+### Repository
 - repo-dbname:  Repository database name.
 - repo-host: Host name of server hosting the Postgres repository database.
 - repo-password:  Postgres database user password.
@@ -210,7 +212,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - repo-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
 - repo-user:  Postgres database username.
 
-### source
+### Source
 - source-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - source-dbname:  Database or service name.
 - source-host:  Database server name.
@@ -221,7 +223,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - source-type:  Database type: oracle, postgres
 - source-user:   Database username.
 
-### target
+### Target
 - target-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - target-dbname:  Database or service name.
 - target-host:  Database server name.
@@ -288,7 +290,7 @@ The repository database will have a measurable amount of load during the compare
   - max_parallel_workers = 16 (Note: Do not exceed 3 times vCPU count)
 
 ## Compute Resources for Compare
-Confero requires the execution host to allocate 3 threads per degree of parallelism, with each thread utilizing approximately 150 MB of memory.
+Confero requires the execution host to allocate 3 - 12 threads per degree of parallelism (can be higher based on loader-threads setting), with each thread utilizing approximately 400 MB of memory.
 
 
 Confero project source code is available subject to the [Apache 2.0 license](LICENSE.md).

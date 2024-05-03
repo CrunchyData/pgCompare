@@ -35,10 +35,12 @@ public class dbLoader extends Thread  {
         threadName = "loader-" + targetType + "-t" + threadNumber + "-i" + instanceNumber;
         Logging.write("info", threadName, "Start repository loader thread");
 
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         Connection repoConn = null;
         boolean stillLoading = true;
         PreparedStatement stmtLoad = null;
-        int totalRows = 0;
 
         try {
             /////////////////////////////////////////////////
@@ -64,7 +66,6 @@ public class dbLoader extends Thread  {
                 if (dc != null && dc.length > 0) {
                     for (int i = 0; i < dc.length; i++) {
                         if (dc[i] != null && dc[i].getPk() != null) {
-                            totalRows++;
                             stmtLoad.setString(1, dc[i].getPkHash());
                             stmtLoad.setString(2, dc[i].getColumnHash());
                             stmtLoad.setString(3, dc[i].getPk());
@@ -84,7 +85,7 @@ public class dbLoader extends Thread  {
                 }
             }
 
-            Logging.write("info", threadName, "Loader thread complete.  Rows inserted: " + totalRows);
+            Logging.write("info", threadName, "Loader thread complete.");
 
             stmtLoad.close();
             repoConn.close();
