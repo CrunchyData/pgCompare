@@ -19,9 +19,12 @@ package com.crunchydata.controller;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import javax.sql.rowset.CachedRowSet;
 
 import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
@@ -42,10 +45,14 @@ public class ReconcileController {
         ThreadSync ts;
         List<dbReconcile> compareList = new ArrayList<>();
         List<dbReconcileObserver> observerList = new ArrayList<>();
+        List<dbLoader> loaderList = new ArrayList<>();
 
         dbReconcileObserver rot;
         dbReconcile cst;
         dbReconcile ctt;
+
+        BlockingQueue<DataCompare[]> qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+        BlockingQueue<DataCompare[]> qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
 
         String sqlUpdateStatus = """
                                  UPDATE dc_result SET missing_source_cnt=?, missing_target_cnt=?, not_equal_cnt=?, status=?
@@ -161,17 +168,26 @@ public class ReconcileController {
                     Logging.write("info", "reconcile-controller", "Creating data compare staging tables");
                     stagingTableSource = rpc.createStagingTable(repoConn, "source", tid, i);
                     stagingTableTarget = rpc.createStagingTable(repoConn, "target", tid, i);
+
                     Logging.write("info", "reconcile-controller", "Starting compare thread " + i);
                     ts = new ThreadSync();
                     rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
                     rot.start();
                     observerList.add(rot);
-                    cst = new dbReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ciSource.nbrColumns, ciSource.nbrPKColumns, cid, ts, ciSource.pkList, Boolean.parseBoolean(Props.getProperty("source-database-hash")), batchNbr, tid, stagingTableSource);
+                    cst = new dbReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ciSource.nbrColumns, ciSource.nbrPKColumns, cid, ts, ciSource.pkList, Boolean.parseBoolean(Props.getProperty("source-database-hash")), batchNbr, tid, stagingTableSource, qs);
                     cst.start();
                     compareList.add(cst);
-                    ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ciTarget.nbrColumns, ciTarget.nbrPKColumns, cid, ts, ciTarget.pkList, Boolean.parseBoolean(Props.getProperty("target-database-hash")), batchNbr, tid, stagingTableTarget);
+                    ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ciTarget.nbrColumns, ciTarget.nbrPKColumns, cid, ts, ciTarget.pkList, Boolean.parseBoolean(Props.getProperty("target-database-hash")), batchNbr, tid, stagingTableTarget, qt);
                     ctt.start();
                     compareList.add(ctt);
+                    for (int li=1;li<=Integer.parseInt(Props.getProperty("loader-threads"));li++) {
+                        dbLoader cls = new dbLoader(i, li, "source",qs,stagingTableSource, ts);
+                        cls.start();
+                        loaderList.add(cls);
+                        dbLoader clt = new dbLoader(i, li, "target",qt,stagingTableTarget, ts);
+                        clt.start();
+                        loaderList.add(clt);
+                    }
                     try {
                         Thread.sleep(2000);
                     } catch (Exception e) {
@@ -187,6 +203,7 @@ public class ReconcileController {
                     for (dbReconcile thread : compareList) {
                         thread.join();
                     }
+
                     Logging.write("info", "reconcile-controller", "Waiting for reconcile threads to complete");
                     for (dbReconcileObserver thread : observerList) {
                         thread.join();
