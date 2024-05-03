@@ -51,6 +51,9 @@ public class ReconcileController {
         dbReconcile cst;
         dbReconcile ctt;
 
+        BlockingQueue<DataCompare[]> qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+        BlockingQueue<DataCompare[]> qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+
         String sqlUpdateStatus = """
                                  UPDATE dc_result SET missing_source_cnt=?, missing_target_cnt=?, not_equal_cnt=?, status=?
                                  WHERE cid=?
@@ -166,9 +169,6 @@ public class ReconcileController {
                     stagingTableSource = rpc.createStagingTable(repoConn, "source", tid, i);
                     stagingTableTarget = rpc.createStagingTable(repoConn, "target", tid, i);
 
-                    BlockingQueue<DataCompare[]> qs = new ArrayBlockingQueue<>(100);
-                    BlockingQueue<DataCompare[]> qt = new ArrayBlockingQueue<>(100);
-
                     Logging.write("info", "reconcile-controller", "Starting compare thread " + i);
                     ts = new ThreadSync();
                     rot = new dbReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
@@ -180,11 +180,11 @@ public class ReconcileController {
                     ctt = new dbReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ciTarget.nbrColumns, ciTarget.nbrPKColumns, cid, ts, ciTarget.pkList, Boolean.parseBoolean(Props.getProperty("target-database-hash")), batchNbr, tid, stagingTableTarget, qt);
                     ctt.start();
                     compareList.add(ctt);
-                    for (int li=1;li<=20;li++) {
-                        dbLoader cls = new dbLoader(i, li, "source",qs,stagingTableSource);
+                    for (int li=1;li<=Integer.parseInt(Props.getProperty("loader-threads"));li++) {
+                        dbLoader cls = new dbLoader(i, li, "source",qs,stagingTableSource, ts);
                         cls.start();
                         loaderList.add(cls);
-                        dbLoader clt = new dbLoader(i, li, "target",qt,stagingTableTarget);
+                        dbLoader clt = new dbLoader(i, li, "target",qt,stagingTableTarget, ts);
                         clt.start();
                         loaderList.add(clt);
                     }
@@ -203,6 +203,7 @@ public class ReconcileController {
                     for (dbReconcile thread : compareList) {
                         thread.join();
                     }
+
                     Logging.write("info", "reconcile-controller", "Waiting for reconcile threads to complete");
                     for (dbReconcileObserver thread : observerList) {
                         thread.join();

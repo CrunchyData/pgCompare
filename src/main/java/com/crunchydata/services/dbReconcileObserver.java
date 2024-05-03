@@ -56,17 +56,15 @@ public class dbReconcileObserver extends Thread  {
     }
 
     public void run() {
-        RepoController rpc = new RepoController();
+        threadName = "observer-c"+cid+"-t"+threadNbr;
+        Logging.write("info", threadName, "Starting reconcile observer");
 
         ArrayList<Object> binds = new ArrayList<>();
         int cntEqual = 0;
-
-        int lastRun = 0;
-        int sleepTime = 2000;
         int deltaCount = 0;
-
-        threadName = "observer-"+cid+"-"+threadNbr;
-        Logging.write("info", threadName, "Starting reconcile observer");
+        int lastRun = 0;
+        RepoController rpc = new RepoController();
+        int sleepTime = 2000;
 
         /////////////////////////////////////////////////
         // Connect to Repository
@@ -149,7 +147,7 @@ public class dbReconcileObserver extends Thread  {
                 ///////////////////////////////////////////////////////
                 // Update and Check Status
                 ///////////////////////////////////////////////////////
-                if (ts.sourceComplete && ts.targetComplete && tmpRowCount == 0) {
+                if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && ts.loaderThreadComplete == Integer.parseInt(Props.getProperty("loader-threads"))*2 ) {
                     lastRun++;
                 }
 

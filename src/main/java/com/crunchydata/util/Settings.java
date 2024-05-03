@@ -52,8 +52,10 @@ public class Settings {
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("database-sort","true");
+        defaultProps.setProperty("loader-threads","4");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
+        defaultProps.setProperty("message-queue-size","100");
         defaultProps.setProperty("number-cast","notation");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");

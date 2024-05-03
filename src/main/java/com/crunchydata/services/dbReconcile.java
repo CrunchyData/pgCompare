@@ -19,6 +19,7 @@ package com.crunchydata.services;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -32,30 +33,26 @@ import static com.crunchydata.util.SecurityUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
 
 public class dbReconcile extends Thread {
+    Integer batchNbr;
+    Integer cid;
     String modColumn;
-    Integer parallelDegree;
-    String schemaName;
-    String tableName;
-    String sql;
-    String tableFilter;
-    String targetType;
-    Integer threadNumber;
-    String threadName;
-
     Integer nbrColumns;
     Integer nbrPKColumns;
-    Integer cid;
-    Integer batchNbr;
-
-    ThreadSync ts;
-
+    Integer parallelDegree;
     String pkList;
-
-    Integer tid;
-    String stagingTable;
-    Boolean useDatabaseHash;
-
     BlockingQueue<DataCompare[]> q;
+    String schemaName;
+    String sql;
+    String stagingTable;
+    String tableName;
+    String tableFilter;
+    String targetType;
+    String threadName;
+    Integer threadNumber;
+    Integer tid;
+    ThreadSync ts;
+    Boolean useDatabaseHash;
+    Boolean useLoaderThreads;
 
     public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;
@@ -83,84 +80,81 @@ public class dbReconcile extends Thread {
         threadName = "reconcile-"+targetType+"-"+threadNumber;
         Logging.write("info", threadName, "Start database reconcile thread");
 
-        /////////////////////////////////////////////////
-        // Connect to Repository
-        /////////////////////////////////////////////////
-        Connection repoConn;
-        Logging.write("info", threadName, "Connecting to repository database");
-        repoConn = dbPostgres.getConnection(Props,"repo", "reconcile");
-        if ( repoConn == null) {
-            Logging.write("severe", threadName, "Cannot connect to repository database");
-            System.exit(1);
-        }
-        try { repoConn.setAutoCommit(false); } catch (Exception e) {
-            // do nothing
-        }
+        useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) == 0;
 
-        /////////////////////////////////////////////////
-        // Connect to Source/Target
-        /////////////////////////////////////////////////
-        Connection conn;
-
-        Logging.write("info", threadName, "Connecting to " + targetType + " database");
-
-        switch (Props.getProperty(targetType + "-type")) {
-            case "oracle":
-                conn = dbOracle.getConnection(Props,targetType);
-                break;
-            case "mysql":
-                conn = dbMySQL.getConnection(Props,targetType);
-                break;
-            case "mssql":
-                conn = dbMSSQL.getConnection(Props,targetType);
-                break;
-            default:
-                conn = dbPostgres.getConnection(Props,targetType, "reconcile");
-                try { conn.setAutoCommit(false); } catch (Exception e) {
-                    // do nothing
-                }
-                break;
-        }
-
-        if ( conn == null) {
-            Logging.write("severe", threadName, "Cannot connect to " + targetType + " database");
-            System.exit(1);
-        }
-
-        /////////////////////////////////////////////////
-        // Load Reconcile Data
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
         int cntRecord = 0;
+        Connection conn = null;
+        boolean firstPass = true;
+        int loadRowCount = 10000;
+        int observerRowCount = 10000;
+        Connection repoConn = null;
+        RepoController rpc = new RepoController();
+        ResultSet rs = null;
+        PreparedStatement stmt = null;
+        PreparedStatement stmtLoad = null;
         int totalRows = 0;
 
-        if ( parallelDegree > 1 && !modColumn.isEmpty()) {
-            sql += " AND mod(" + modColumn + "," + parallelDegree +")="+threadNumber;
-        }
-
-        if (!pkList.isEmpty() && Props.getProperty("database-sort").equals("true")) {
-            sql += " ORDER BY " + pkList;
-        }
-
         try {
-            RepoController rpc = new RepoController();
+            /////////////////////////////////////////////////
+            // Connect to Repository
+            /////////////////////////////////////////////////
+            Logging.write("info", threadName, "Connecting to repository database");
+            repoConn = dbPostgres.getConnection(Props,"repo", "reconcile");
+            if ( repoConn == null) {
+                Logging.write("severe", threadName, "Cannot connect to repository database");
+                System.exit(1);
+            }
+            repoConn.setAutoCommit(false);
+
+            /////////////////////////////////////////////////
+            // Connect to Source/Target
+            /////////////////////////////////////////////////
+            Logging.write("info", threadName, "Connecting to " + targetType + " database");
+
+            switch (Props.getProperty(targetType + "-type")) {
+                case "oracle":
+                    conn = dbOracle.getConnection(Props,targetType);
+                    break;
+                case "mysql":
+                    conn = dbMySQL.getConnection(Props,targetType);
+                    break;
+                case "mssql":
+                    conn = dbMSSQL.getConnection(Props,targetType);
+                    break;
+                default:
+                    conn = dbPostgres.getConnection(Props,targetType, "reconcile");
+                    conn.setAutoCommit(false);
+                    break;
+            }
+
+            if ( conn == null) {
+                Logging.write("severe", threadName, "Cannot connect to " + targetType + " database");
+                System.exit(1);
+            }
+
+            /////////////////////////////////////////////////
+            // Load Reconcile Data
+            /////////////////////////////////////////////////
+            if ( parallelDegree > 1 && !modColumn.isEmpty()) {
+                sql += " AND mod(" + modColumn + "," + parallelDegree +")="+threadNumber;
+            }
+
+            if (!pkList.isEmpty() && Props.getProperty("database-sort").equals("true")) {
+                sql += " ORDER BY " + pkList;
+            }
 
             conn.setAutoCommit(false);
             stmt = conn.prepareStatement(sql);
             stmt.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
             rs = stmt.executeQuery();
-            int loadRowCount = 10000;
-            int observerRowCount = 10000;
-            boolean firstPass = true;
-
-            //rs.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
 
             StringBuilder columnValue = new StringBuilder();
 
-//            String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
-//            repoConn.setAutoCommit(false);
-//            PreparedStatement stmtLoad = repoConn.prepareStatement(sqlLoad);
+            if (! useLoaderThreads) {
+                String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
+                repoConn.setAutoCommit(false);
+                stmtLoad = repoConn.prepareStatement(sqlLoad);
+            }
 
             DataCompare[] dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
 
@@ -175,31 +169,36 @@ public class dbReconcile extends Thread {
                     columnValue.append(rs.getString(3));
                 }
 
-//                stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
-//                stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
-//                stmtLoad.setString(3, rs.getString("PK").replace(",}","}"));
-//                stmtLoad.addBatch();
-//                stmtLoad.clearParameters();
-
-                dc[cntRecord] = new DataCompare(null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
+                if ( useLoaderThreads ) {
+                    dc[cntRecord] = new DataCompare(null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
+                } else {
+                    stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
+                    stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
+                    stmtLoad.setString(3, rs.getString("PK").replace(",}","}"));
+                    stmtLoad.addBatch();
+                    stmtLoad.clearParameters();
+                }
 
                 cntRecord++;
                 totalRows++;
 
                 if (totalRows % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 ) {
-//                    stmtLoad.executeLargeBatch();
-//                    stmtLoad.clearBatch();
-//                    repoConn.commit();
-                      if ( q.size() == 100) {
-                          while (q.size() > 90) {
-                              Logging.write("info", "reconcile", "Queue size: " + q.size());
-                              Thread.sleep(1000);
-                          }
-                      }
-                      q.put(dc);
-                      dc = null;
-                      dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
-                      cntRecord=0;
+                    if ( useLoaderThreads) {
+                        if ( q.size() == 100) {
+                            Logging.write("info", threadName, "Waiting for Queue space");
+                            while (q.size() > 50) {
+                                Thread.sleep(1000);
+                            }
+                        }
+                        q.put(dc);
+                        dc = null;
+                        dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
+                    } else {
+                        stmtLoad.executeLargeBatch();
+                        stmtLoad.clearBatch();
+                        repoConn.commit();
+                    }
+                    cntRecord=0;
                 }
 
                 if (totalRows % loadRowCount == 0) {
@@ -246,38 +245,69 @@ public class dbReconcile extends Thread {
 
             }
 
-            // Loading Remaining
-            if (cntRecord > 0) {
-                q.put(dc);
+            if ( cntRecord > 0 ) {
+                if ( useLoaderThreads ) {
+                    q.put(dc);
+                } else {
+                    stmtLoad.executeBatch();
+                }
                 rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
             }
 
-            rs.close();
-            stmt.close();
-//            stmtLoad.close();
-
             Logging.write("info", threadName, "Complete. Total rows loaded: " + totalRows);
 
+            /////////////////////////////////////////////////
+            // Wait for Queues to Empty
+            /////////////////////////////////////////////////
+            if ( useLoaderThreads) {
+                while (q.size() > 0 ) {
+                    Logging.write("info", threadName, "Waiting for message queue to empty");
+                    Thread.sleep(1000);
+                }
+                Thread.sleep(1000);
+            }
+
+            if ( targetType.equals("source")) {
+                ts.sourceComplete = true;
+            } else {
+                ts.targetComplete = true;
+            }
+
+        } catch( SQLException e) {
+            Logging.write("severe", threadName, "Database error " + e.getMessage());
         } catch (Exception e) {
-            Logging.write("severe", threadName, "Error loading hash rows: " + e.getMessage());
+            Logging.write("severe", threadName, "Error in reconciliation thread " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+
+                if (stmt != null) {
+                    stmt.close();
+                }
+
+                if (stmtLoad != null) {
+                    stmtLoad.close();
+                }
+
+                /////////////////////////////////////////////////
+                // Close Connections
+                /////////////////////////////////////////////////
+                if (repoConn != null) {
+                    repoConn.close();
+                }
+
+                if (conn != null) {
+                    conn.close();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
-        if ( targetType.equals("source")) {
-            ts.sourceComplete = true;
-        } else {
-            ts.targetComplete = true;
-        }
-
-
-        /////////////////////////////////////////////////
-        // Close Connections
-        /////////////////////////////////////////////////
-        try { repoConn.close(); } catch (Exception e) {
-            // do nothing
-        }
-        try { conn.close(); } catch (Exception e) {
-            // do nothing
-        }
 
     }
 }
