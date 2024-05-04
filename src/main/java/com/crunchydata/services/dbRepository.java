@@ -3,13 +3,13 @@ package com.crunchydata.services;
 import java.sql.Connection;
 import java.util.ArrayList;
 
+import static com.crunchydata.util.Settings.Props;
+
 public class dbRepository {
     /////////////////////////////////////////////////
     // SQL
     /////////////////////////////////////////////////
-    static String sqlSchema = """
-                       CREATE SCHEMA confero AUTHORIZATION postgres
-                       """;
+    static String sqlSchema = "CREATE SCHEMA IF NOT EXISTS  " + Props.getProperty("repo-schema") + " AUTHORIZATION " + Props.getProperty("repo-user");
 
     static String sqlDCResult = """
                          CREATE TABLE dc_result (
@@ -39,7 +39,7 @@ public class dbRepository {
                                 pk_hash varchar(100) NULL,
                                 column_hash varchar(100) NULL,
                                 compare_result bpchar(1) NULL,
-                                thread_nbr int4 NULL)                         
+                                thread_nbr int4 NULL)
                          """;
 
     static String sqlDCTarget = """
@@ -50,7 +50,7 @@ public class dbRepository {
                                 pk_hash varchar(100) NULL,
                                 column_hash varchar(100) NULL,
                                 compare_result bpchar(1) NULL,
-                                thread_nbr int4 NULL)            
+                                thread_nbr int4 NULL)
                          """;
 
     static String sqlDCTable = """
@@ -60,16 +60,16 @@ public class dbRepository {
                                 source_table text NULL,
                                 target_schema text NULL,
                                 target_table text NULL,
-                                batch_nbr int4 NULL DEFAULT 1,                                
+                                batch_nbr int4 NULL DEFAULT 1,
                                 parallel_degree int4 NULL DEFAULT 1,
-                                mod_column varchar(200) NULL,                                
+                                mod_column varchar(200) NULL,
                                 status varchar(10) NULL DEFAULT 'disabled'::character varying,
                                 table_filter varchar(100) NULL,
-                                column_map jsonb)                        
+                                column_map jsonb)
                         """;
 
     static String sqlDCTablePK = """
-                          ALTER TABLE dc_table ADD CONSTRAINT dc_table_pk PRIMARY KEY (tid)                      
+                          ALTER TABLE dc_table ADD CONSTRAINT dc_table_pk PRIMARY KEY (tid)
                           """;
 
     static String sqlDCTableHistory = """
@@ -80,8 +80,8 @@ public class dbRepository {
                                         start_dt timestamptz NOT NULL,
                                         end_dt timestamptz NULL,
                                         action_result jsonb NULL,
-                                        action_type varchar(20) NOT NULL,                                                                                
-                                        row_count int8 NULL)                               
+                                        action_type varchar(20) NOT NULL,
+                                        row_count int8 NULL)
                                """;
 
     static String sqlDCTableHistoryIdx1 = """
@@ -100,7 +100,7 @@ public class dbRepository {
                                     status varchar(10) NULL DEFAULT 'review'::character varying,
                                     source_code text NULL,
                                     target_code text NULL
-                                )                       
+                                )
                                 """;
 
     static String sqlDCObjectPK = """
