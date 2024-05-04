@@ -88,6 +88,25 @@ public class dbRepository {
                                CREATE INDEX dc_table_history_idx1 ON dc_table_history(tid, start_dt)
                                """;
 
+    static String sqlDCObject = """
+                                CREATE TABLE dc_object (
+                                    oid int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
+                                    object_type text NULL,
+                                    source_schema text NULL,
+                                    source_object text NULL,
+                                    target_schema text NULL,
+                                    target_object text NULL,
+                                    batch_nbr int4 NULL DEFAULT 1,
+                                    status varchar(10) NULL DEFAULT 'review'::character varying,
+                                    source_code text NULL,
+                                    target_code text NULL
+                                )                       
+                                """;
+
+    static String sqlDCObjectPK = """
+                                  ALTER TABLE dc_object ADD CONSTRAINT dc_object_pk PRIMARY KEY (oid)
+                                  """;
+
 
     public static void createRepository(Connection conn) {
         /////////////////////////////////////////////////
@@ -102,8 +121,9 @@ public class dbRepository {
         dbPostgres.simpleUpdate(conn,sqlDCResult, binds, true);
         dbPostgres.simpleUpdate(conn,sqlDCSource, binds, true);
         dbPostgres.simpleUpdate(conn,sqlDCTarget, binds, true);
-        dbPostgres.simpleUpdate(conn,sqlDCTableHistory, binds, true);
         dbPostgres.simpleUpdate(conn,sqlDCTable, binds, true);
+        dbPostgres.simpleUpdate(conn,sqlDCTableHistory, binds, true);
+        dbPostgres.simpleUpdate(conn,sqlDCObject, binds, true);
 
         // Create Indexes
         dbPostgres.simpleUpdate(conn,sqlDCResultIdx1, binds, true);
@@ -111,6 +131,7 @@ public class dbRepository {
 
         // Add Constraints
         dbPostgres.simpleUpdate(conn,sqlDCTablePK, binds, true);
+        dbPostgres.simpleUpdate(conn,sqlDCObjectPK, binds, true);
 
     }
 }
