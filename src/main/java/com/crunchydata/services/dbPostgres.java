@@ -165,7 +165,7 @@ public class dbPostgres {
         dbProps.setProperty("options","-c search_path="+connectionProperties.getProperty(destType+"-schema")+",public,pg_catalog");
         dbProps.setProperty("reWriteBatchedInserts", "true");
         dbProps.setProperty("preparedStatementCacheQueries", "5");
-        dbProps.setProperty("ApplicationName", "ConferoDC - " + module);
+        dbProps.setProperty("ApplicationName", "pgCompare - " + module);
 
         try {
             conn = DriverManager.getConnection(url,dbProps);

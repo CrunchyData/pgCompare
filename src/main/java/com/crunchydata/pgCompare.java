@@ -36,7 +36,7 @@ import static com.crunchydata.util.Settings.Props;
 /**
  * @author Brian Pace
  */
-public class ConferoDC {
+public class pgCompare {
 
     public static void main(String[] args) {
 
@@ -118,7 +118,7 @@ public class ConferoDC {
 
 
         // Capture Argument Values
-        Integer batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("CONFERODC-BATCH") == null ) ? 0 : Integer.parseInt(System.getenv("CONFERODC-BATCH"));
+        Integer batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("PGCOMPARE-BATCH") == null ) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
         boolean check = cmd.hasOption("check");
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "" ;
         boolean mapOnly = cmd.hasOption("maponly");
