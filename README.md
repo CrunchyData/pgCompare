@@ -1,5 +1,5 @@
 <div>
-  <h1 style="font-size: 70px;text-align: center">Confero</h1>
+  <h1 style="font-size: 70px;text-align: center">pgCompare</h1>
   <h2 style="text-align: center">Data Compare</h2>
 </div>
 <hr>
@@ -8,21 +8,19 @@
 
 # Data Compare Made Simple
 
-Confero is a Java application designed for use in situations where you are replicating data from different sources and need to validate that post-replication data consistency, including:
+pgCompare is a Java application designed for use in situations where you are replicating data from different sources and need to validate that post-replication data consistency, including:
 
-- **Data migration from Oracle to Postgres:**  Migrating from Oracle to Postgres? Confero can be utilized to compare data between Oracle and Postgres during and/or after the process of data migration.
-
-
-- **Logical replication between same or different database platforms:** Confero exhibits enhanced optimization when comparing data, reducing the overhead on the source and target databases. The comparison tasks can also be delegated to a physical replication target. Confero not only identifies rows that appear out-of-sync but also offers the capability to revalidate those rows, proving valuable in the process of verifying data on active systems.
+- **Data migration from Oracle to Postgres:**  Migrating from Oracle to Postgres? pgCompare can be utilized to compare data between Oracle and Postgres during and/or after the process of data migration.
 
 
-- **Active-Active replication configuration:**  There are inherent data consistency risks associated with any active-active database setup. To meet verification requirements, Confero can be employed regularly to compare either all or specific portions of the data.
+- **Logical replication between same or different database platforms:** pgCompare exhibits enhanced optimization when comparing data, reducing the overhead on the source and target databases. The comparison tasks can also be delegated to a physical replication target. pgCompare not only identifies rows that appear out-of-sync but also offers the capability to revalidate those rows, proving valuable in the process of verifying data on active systems.
 
-At a higher level, Confero reads a row from a table and generates two hash values. The initial hash is executed on the primary key column(s), while the second hash is computed on the remaining columns. The hash can be calculated by the database or by the application. These hash values are stored in the Confero repository. Representing the original values as a hash minimizes the required space in the repository database and decreases network traffic. A parallel process consistently conducts comparisons on sets of data as they are loaded to expedite the comparison process and avoid row-by-row processing. Ultimately, a summary of the comparison results is displayed and stored in the Confero repository.
 
-Confero is an open-source project maintained by the team at Crunchy Data and made available under the Apache 2.0 licenses for broader use, testing, and feedback.
+- **Active-Active replication configuration:**  There are inherent data consistency risks associated with any active-active database setup. To meet verification requirements, pgCompare can be employed regularly to compare either all or specific portions of the data.
 
-Why the name Confero? The name is derived from the Latin word "cōnferō," meaning "to bring together."
+At a higher level, pgCompare reads a row from a table and generates two hash values. The initial hash is executed on the primary key column(s), while the second hash is computed on the remaining columns. The hash can be calculated by the database or by the application. These hash values are stored in the pgCompare repository. Representing the original values as a hash minimizes the required space in the repository database and decreases network traffic. A parallel process consistently conducts comparisons on sets of data as they are loaded to expedite the comparison process and avoid row-by-row processing. Ultimately, a summary of the comparison results is displayed and stored in the pgCompare repository.
+
+pgCompare is an open-source project maintained by the team at Crunchy Data and made available under the Apache 2.0 licenses for broader use, testing, and feedback.
 
 # Installation
 
@@ -31,7 +29,7 @@ Before initiating the build and installation process, ensure the following prere
 
 1. Java version 21 or higher.
 2. Maven 3.9 or higher.
-3. Postgres version 15 or higher (to use for the Confero Data Compare repository).
+3. Postgres version 15 or higher (to use for the pgCompare Data Compare repository).
 4. Necessary JDBC drivers (Postgres and Oracle currently supported).
 
 ### Limitations
@@ -46,8 +44,8 @@ Once the prerequisites are met, begin by forking the repository and cloning it t
 
 ```shell
 YOUR_GITHUB_UN="<your GitHub username>"
-git clone --depth 1 "git@github.com:${YOUR_GITHUB_UN}/conferodc.git"
-cd conferodc
+git clone --depth 1 "git@github.com:${YOUR_GITHUB_UN}/pgCompare.git"
+cd pgCompare
 ```
 
 Compile the Java source:
@@ -57,16 +55,16 @@ mvn clean install
 ```
 
 ### Configure Repository Database
-Confero necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided confero.sql script in the database directory.  The repository may also be created using the `--init` flag.
+pgCompare necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided pgCompare.sql script in the database directory.  The repository may also be created using the `--init` flag.
 
 ```shell
-java -jar conferodc --init
+java -jar pgcompare --init
 ```
 
 # Getting Started
 
 ### Defining Table Mapping
-The initial step involves defining a set of tables to compare, achieved by inserting rows into the `dc_table` within the Confero repository.
+The initial step involves defining a set of tables to compare, achieved by inserting rows into the `dc_table` within the pgCompare repository.
 
 
 dc_table:
@@ -89,25 +87,25 @@ INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, 
   VALUES ('hr','emp','hr','emp',1,'ready',1);
 ```
 
-### Create `confero.properties`
-Copy the `confero.properties.sample` file to confero.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
+### Create `pgcompare.properties`
+Copy the `pgcompare.properties.sample` file to pgcompare.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
 
-By default, the application looks for the properties file in the execution directory.  Use the CONFERODC_CONFIG environment variable override the default and point to a file in a different location.
+By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
 
 ### Perform Data Compare
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
 
 ```shell
-java -jar conferodc --batch=0
+java -jar pgcompare --batch=0
 ```
 
-Using a batch value of 0 will execute the action for all batches.  The batch number may also be specified using the environment variable CONFERODC-BATCH.  The default value for batch number is 0 (all batches).
+Using a batch value of 0 will execute the action for all batches.  The batch number may also be specified using the environment variable PGCOMPARE-BATCH.  The default value for batch number is 0 (all batches).
 
 ### Debug/Recheck Out-of-Sync Rows
 If discrepancies are detected, run the comparison with the 'check' option:
 
 ```shell
-java -jar conferodc --batch=0 --check
+java -jar pgcompare --batch=0 --check
 ```
 This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a discrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
 
@@ -117,7 +115,7 @@ The system will automatically generate a column mapping during the first executi
 To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
 
 ```shell
-java -jar conferodc --batch=0 --maponly
+java -jar pgcompare --batch=0 --maponly
 ```
 
 ## JSON Mapping Object
@@ -189,7 +187,7 @@ Below is a sample of a column mapping.
 Only Primary Key columns and columns with a status equal to 'compare' will be included in the final data compare.
 
 # Properties
-Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of hte property in upper case prefixed with "CONFERODC-".  For example, batch-fetch-size can be set by using the environment variable CONFERODC-BATCH-FETCH-SIZE.
+Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of hte property in upper case prefixed with "PGCOMPARE-".  For example, batch-fetch-size can be set by using the environment variable PGCOMPARE-BATCH-FETCH-SIZE.
 
 ### System
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
@@ -235,10 +233,10 @@ Properties are categorized into four sections: system, repository, source, and t
 - target-user:  Database username.
 
 # Data Compare
-Confero stores a hash representation of primary key columns and other table columns, reducing row size and storage demands. The utility optimizes network traffic and speeds up the process by using hash functions when comparing similar platforms.
+pgCompare stores a hash representation of primary key columns and other table columns, reducing row size and storage demands. The utility optimizes network traffic and speeds up the process by using hash functions when comparing similar platforms.
 
 ## Hash Options
-By default, the data is normalized and the hash performed by the Java code.  For supported platforms (Oracle 12.1 or higher and Postgres 11 or higher), the program will leverage database functions to perform the hash.  Allowing the database to perform the hash does increase CPU load on the hosting server, but reduces network traffic, increases speed, and reduces memory requirements of Confero.
+By default, the data is normalized and the hash performed by the Java code.  For supported platforms (Oracle 12.1 or higher and Postgres 11 or higher), the program will leverage database functions to perform the hash.  Allowing the database to perform the hash does increase CPU load on the hosting server, but reduces network traffic, increases speed, and reduces memory requirements of pgCompare.
 
 ## Processes
 Each comparison involves at least three threads: one for the observer and two for the source and target loader processes. By specifying a mod_column in the dc_tables and increasing parallel_degree, the number of threads can be increased to speed up comparison. Tuning between batch sizes, commit rates, and parallel degree is essential for optimal performance.
@@ -290,7 +288,7 @@ The repository database will have a measurable amount of load during the compare
   - max_parallel_workers = 16 (Note: Do not exceed 3 times vCPU count)
 
 ## Compute Resources for Compare
-Confero requires the execution host to allocate 3 - 12 threads per degree of parallelism (can be higher based on loader-threads setting), with each thread utilizing approximately 400 MB of memory.
+pgCompare requires the execution host to allocate 3 - 12 threads per degree of parallelism (can be higher based on loader-threads setting), with each thread utilizing approximately 400 MB of memory.
 
 
-Confero project source code is available subject to the [Apache 2.0 license](LICENSE.md).
+pgCompare project source code is available subject to the [Apache 2.0 license](LICENSE.md).

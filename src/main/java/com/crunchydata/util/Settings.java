@@ -27,7 +27,7 @@ public class Settings {
     public static Properties Props;
     public static String version = "1.2.0";
 
-    static String paramFile = (System.getenv("CONFERODC_CONFIG") == null) ? "confero.properties" : System.getenv("CONFERODC_CONFIG");
+    static String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
             Properties configProperties = setDefaults();
@@ -64,13 +64,13 @@ public class Settings {
 
 
         // Repository
-        defaultProps.setProperty("repo-dbname","confero");
+        defaultProps.setProperty("repo-dbname","pgcompare");
         defaultProps.setProperty("repo-host","localhost");
         defaultProps.setProperty("repo-password","welcome1");
         defaultProps.setProperty("repo-port","5432");
-        defaultProps.setProperty("repo-schema","confero");
+        defaultProps.setProperty("repo-schema","pgcompare");
         defaultProps.setProperty("repo-sslmode","disable");
-        defaultProps.setProperty("repo-user","confero");
+        defaultProps.setProperty("repo-user","pgcompare");
 
         // Source
         defaultProps.setProperty("source-database-hash","true");
@@ -100,8 +100,8 @@ public class Settings {
     public static Properties setEnvironment (Properties prop) {
 
         System.getenv().forEach((k, v) -> {
-            if (k.contains("CONFERODC-")) {
-                prop.setProperty(k.replace("CONFERODC-","").toLowerCase(),v);
+            if (k.contains("PGCOMPARE-")) {
+                prop.setProperty(k.replace("PGCOMPARE-","").toLowerCase(),v);
             }
         });
 

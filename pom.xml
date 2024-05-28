@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.crunchydata</groupId>
-    <artifactId>ConferoDC</artifactId>
+    <artifactId>pgCompare</artifactId>
     <version>1.0</version>
 
     <properties>
@@ -131,13 +131,13 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>com.crunchydata.ConferoDC</mainClass>
+                            <mainClass>com.crunchydata.pgCompare</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Class-Path>.</Class-Path>
                         </manifestEntries>
                     </archive>
-                    <finalName>conferodc</finalName>
+                    <finalName>pgcompare</finalName>
                 </configuration>
             </plugin>
         </plugins>

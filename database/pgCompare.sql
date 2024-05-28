@@ -1,6 +1,6 @@
-CREATE SCHEMA confero AUTHORIZATION postgres;
+CREATE SCHEMA pgcompare AUTHORIZATION postgres;
 
-set search_path=confero;
+set search_path=pgcompare;
 
 -- dc_table definition
 CREATE TABLE dc_table (

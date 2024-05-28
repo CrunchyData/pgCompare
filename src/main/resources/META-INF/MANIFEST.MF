@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
-Main-Class: com.crunchydata.ConferoDC
+Main-Class: com.crunchydata.pgCompare
 Class-Path: postgresql-42.2.5.jar
 
