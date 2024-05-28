@@ -27,6 +27,8 @@ public class ThreadSync {
     public boolean sourceWaiting = false;
     public boolean targetWaiting = false;
 
+    public int loaderThreadComplete = 0;
+
     public synchronized void ObserverWait() {
             try {
                 wait();

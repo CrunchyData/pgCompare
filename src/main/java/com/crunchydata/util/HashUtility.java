@@ -23,7 +23,7 @@ import java.security.NoSuchAlgorithmException;
 /**
  * @author Brian Pace
  */
-public class SecurityUtility {
+public class HashUtility {
 
     public static String getMd5(String input)
     {

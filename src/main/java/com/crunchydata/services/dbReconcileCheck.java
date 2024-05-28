@@ -39,15 +39,22 @@ import org.json.JSONObject;
 public class dbReconcileCheck {
 
     public static void reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSQL, String targetSQL, String tableFilter, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
-        JSONObject rowResult = new JSONObject();
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         JSONArray arr = new JSONArray();
         int columnOutofSync = 0;
+        JSONObject rowResult = new JSONObject();
+
         rowResult.put("compareStatus","in-sync");
         rowResult.put("equal",0);
         rowResult.put("notEqual",0);
         rowResult.put("missingSource",0);
         rowResult.put("missingTarget",0);
 
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sqlUpdateCount = """
                                  UPDATE dc_result SET equal_cnt=equal_cnt+?, source_cnt=source_cnt+?, target_cnt=target_cnt+?
                                  WHERE cid=?
@@ -120,16 +127,14 @@ public class dbReconcileCheck {
 
     public static void checkRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceTable, String targetTable, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer batchNbr, Integer cid) {
         /////////////////////////////////////////////////
-        // Get Column Info
+        // Variables
         /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
-        result.put("status","failed");
-        result.put("compareStatus","failed");
         StringBuilder tableFilter;
 
         ////////////////////////////////////////
-        // Get Out of Sync Rows
+        // SQL
         ////////////////////////////////////////
         String sqlOutofSync = """
                         SELECT DISTINCT table_name, pk_hash, pk
@@ -147,12 +152,14 @@ public class dbReconcileCheck {
                         ORDER BY table_name
                        """;
 
+        result.put("status","failed");
+        result.put("compareStatus","failed");
+
         try {
             PreparedStatement stmt = repoConn.prepareStatement(sqlOutofSync);
             stmt.setObject(1, sourceTable);
             stmt.setObject(2, targetTable);
             ResultSet rs = stmt.executeQuery();
-
 
             while (rs.next()) {
                 DataCompare dcRow = new DataCompare(null,null,null,null,null, 0, batchNbr);

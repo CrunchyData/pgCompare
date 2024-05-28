@@ -56,17 +56,18 @@ public class dbReconcileObserver extends Thread  {
     }
 
     public void run() {
-        RepoController rpc = new RepoController();
+        threadName = "observer-c"+cid+"-t"+threadNbr;
+        Logging.write("info", threadName, "Starting reconcile observer");
 
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
         int cntEqual = 0;
-
-        int lastRun = 0;
-        int sleepTime = 2000;
         int deltaCount = 0;
-
-        threadName = "observer-"+cid+"-"+threadNbr;
-        Logging.write("info", threadName, "Starting reconcile observer");
+        int lastRun = 0;
+        RepoController rpc = new RepoController();
+        int sleepTime = 2000;
 
         /////////////////////////////////////////////////
         // Connect to Repository
@@ -86,7 +87,7 @@ public class dbReconcileObserver extends Thread  {
         }
 
         /////////////////////////////////////////////////
-        // Watch Reconcile Loop
+        // SQL
         /////////////////////////////////////////////////
         String sqlClearMatch = """
                 WITH ds AS (DELETE FROM dc_source s
@@ -106,6 +107,9 @@ public class dbReconcileObserver extends Thread  {
                                  WHERE cid=?
                                  """;
 
+        /////////////////////////////////////////////////
+        // Watch Reconcile Loop
+        /////////////////////////////////////////////////
         try {
             sqlClearMatch = sqlClearMatch.replaceAll("dc_target",stagingTableTarget).replaceAll("dc_source",stagingTableSource);
 
@@ -149,7 +153,7 @@ public class dbReconcileObserver extends Thread  {
                 ///////////////////////////////////////////////////////
                 // Update and Check Status
                 ///////////////////////////////////////////////////////
-                if (ts.sourceComplete && ts.targetComplete && tmpRowCount == 0) {
+                if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && ts.loaderThreadComplete == Integer.parseInt(Props.getProperty("loader-threads"))*2 ) {
                     lastRun++;
                 }
 
@@ -172,21 +176,19 @@ public class dbReconcileObserver extends Thread  {
 
         } catch (Exception e) {
             Logging.write("severe", threadName, "Error in observer process: " + e.getMessage());
-            try { repoConn.rollback(); } catch (Exception ee) {
-                // do nothing
+            try { repoConn.rollback();
+            } catch (Exception ee) {
+                Logging.write("warn", threadName, "Error rolling back transaction " + e.getMessage());
             }
-            try { repoConn.close(); } catch (Exception ee) {
-                // do nothing
+        } finally {
+            try {
+                if ( repoConn != null ) {
+                    repoConn.close();
+                }
+            } catch (Exception e) {
+                Logging.write("warn", threadName, "Error closing thread " + e.getMessage());
             }
         }
-
-        /////////////////////////////////////////////////
-        // Close Connections
-        /////////////////////////////////////////////////
-        try { repoConn.close(); } catch (Exception e) {
-            // do nothing
-        }
-
     }
 
 }

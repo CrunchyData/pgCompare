@@ -39,6 +39,9 @@ import static com.crunchydata.util.Settings.Props;
 public class dbOracle {
 
     public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
@@ -55,6 +58,9 @@ public class dbOracle {
     }
 
     public static String columnValueMapOracle(JSONObject column) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String colExpression;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
@@ -96,10 +102,16 @@ public class dbOracle {
     }
 
     public static JSONArray getColumns (Connection conn, String schema, String table) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
         JSONArray columnInfo = new JSONArray();
 
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = """
                 SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
@@ -147,11 +159,14 @@ public class dbOracle {
     }
 
     public static Connection getConnection(Properties connectionProperties, String destType) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         Connection conn;
         conn = null;
-
         String url = "jdbc:oracle:thin:@//"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname");
         Properties dbProps = new Properties();
+
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
 
@@ -166,8 +181,10 @@ public class dbOracle {
     }
 
     public static String getVersion (Connection conn) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String dbVersion = null;
-
         ArrayList<Object> binds = new ArrayList<>();
 
         try {
@@ -187,6 +204,9 @@ public class dbOracle {
     }
 
     public static CachedRowSet simpleSelect(Connection conn, String sql, ArrayList<Object> binds) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
         CachedRowSet crs = null;
@@ -209,6 +229,9 @@ public class dbOracle {
     }
 
     public static Integer simpleUpdate(Connection conn, String sql, ArrayList<Object> binds, boolean commit) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         int cnt;
         PreparedStatement stmt;
 

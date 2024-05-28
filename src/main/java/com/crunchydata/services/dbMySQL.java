@@ -25,6 +25,9 @@ public class dbMySQL {
     //     Unsupported: bit, binary, varbinary, blob, enum, set
 
     public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
@@ -41,6 +44,9 @@ public class dbMySQL {
     }
 
     public static String columnValueMapMySQL(JSONObject column) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String colExpression;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
@@ -77,10 +83,16 @@ public class dbMySQL {
     }
 
     public static JSONArray getColumns (Connection conn, String schema, String table) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
         JSONArray columnInfo = new JSONArray();
 
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
         String sql = """
                 SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
                        coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
@@ -134,11 +146,14 @@ public class dbMySQL {
     }
 
     public static Connection getConnection(Properties connectionProperties, String destType) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         Connection conn;
         conn = null;
-
         String url = "jdbc:mysql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
         Properties dbProps = new Properties();
+
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
 
@@ -154,8 +169,10 @@ public class dbMySQL {
     }
 
     public static String getVersion (Connection conn) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         String dbVersion = null;
-
         ArrayList<Object> binds = new ArrayList<>();
 
         try {
@@ -175,6 +192,9 @@ public class dbMySQL {
     }
 
     public static CachedRowSet simpleSelect(Connection conn, String sql, ArrayList<Object> binds) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         ResultSet rs;
         PreparedStatement stmt;
         CachedRowSet crs = null;
@@ -197,6 +217,9 @@ public class dbMySQL {
     }
 
     public static Integer simpleUpdate(Connection conn, String sql, ArrayList<Object> binds, boolean commit) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
         int cnt;
         PreparedStatement stmt;
 
@@ -219,6 +242,4 @@ public class dbMySQL {
         }
         return cnt;
     }
-
-
 }

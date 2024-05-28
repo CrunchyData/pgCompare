@@ -65,7 +65,7 @@ public class Logging {
     ////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////
     public static void write(String severity, String module, String message) {
-        String msgFormat = "[%-20s] %2$s";
+        String msgFormat = "[%-24s] %2$s";
 
         switch (severity) {
             case "info":
