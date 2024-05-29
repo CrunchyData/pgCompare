@@ -21,9 +21,9 @@ function _kill() {
 ############# MAIN ################
 ###################################
 
-if [ "$CONFERODC_OPTIONS" == "" ];
+if [ "$PGCOMPARE_OPTIONS" == "" ];
 then
-   export CONFERODC_OPTIONS="--batch 0"
+   export PGCOMPARE_OPTIONS="--batch 0"
 fi
 
-java -jar /opt/conferodc/conferodc.jar $CONFERODC_OPTIONS
+java -jar /opt/pgcompare/pgcompare.jar $PGCOMPARE_OPTIONS

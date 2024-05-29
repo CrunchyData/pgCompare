@@ -1,6 +1,6 @@
-# Contributing to ConferoDC
+# Contributing to pgCompare
 
-ConferoDC is released under the Apache 2.0 license. If you would like to contribute something, or want to hack on the code this document should help you get started. If you would like to contribute code you can do so through GitHub by forking the repository and sending a pull request targeting the main branch.
+pgCompare is released under the Apache 2.0 license. If you would like to contribute something, or want to hack on the code this document should help you get started. If you would like to contribute code you can do so through GitHub by forking the repository and sending a pull request targeting the main branch.
 
 ## Using GitHub Issues
 We use GitHub issues to track bugs and enhancements.
