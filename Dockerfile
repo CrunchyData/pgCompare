@@ -24,28 +24,28 @@ MAINTAINER brianpace#
 #############################################
 USER 0
 
-RUN mkdir /opt/conferodc \
-    && chown -R 1001:1001 /opt/conferodc
+RUN mkdir /opt/pgcompare \
+    && chown -R 1001:1001 /opt/pgcompare
 
-COPY docker/start.sh /opt/conferodc/
+COPY docker/start.sh /opt/pgcompare/
 
-RUN chmod 770 /opt/conferodc/start.sh
+RUN chmod 770 /opt/pgcompare/start.sh
 
 #############################################
 # -------------------------------------------
-# Copy in ConferoDC Compiled Application
+# Copy in pgCompare Compiled Application
 # -------------------------------------------
 #############################################
 USER 1000
 
 # Environment variables
 # -------------------------------------------------------------
-ENV CONFERODC_HOME=/opt/conferodc \
-    CONFERODC_CONFIG=/etc/conferodc/confero.properties \
-    PATH=/opt/conferodc:$PATH
+ENV PGCOMPARE_HOME=/opt/pgcompare \
+    PGCOMPARE_CONFIG=/etc/pgcompare/pgcompare.properties \
+    PATH=/opt/pgcompare:$PATH
 
-COPY target/ /opt/conferodc/
+COPY target/ /opt/pgcompare/
 
 CMD ["start.sh"]
 
-WORKDIR "/opt/conferodc"
+WORKDIR "/opt/pgcompare"
