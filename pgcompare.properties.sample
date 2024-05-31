@@ -62,8 +62,8 @@ repo-host=myrepohost
 repo-port=5432
 
 # Database name.
-# default: confero
-repo-dbname=confero
+# default: pgcompare
+repo-dbname=pgcompare
 
 # Database user to use for authentication to repository database.
 repo-user=postgres
@@ -71,9 +71,9 @@ repo-user=postgres
 # Database password for authentication.
 repo-password=welcome1
 
-# Schema that owns the Confero database objects in the repository.
-# default: confero
-repo-schema=confero
+# Schema that owns the pgCompare database objects in the repository.
+# default: pgcompare
+repo-schema=pgcompare
 
 # SSL mode to use for connection (disable|prefer|disable)
 # default: disable
