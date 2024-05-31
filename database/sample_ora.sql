@@ -33,3 +33,5 @@ INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES ('Foghorn', 'L
 INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES ('Speedy', 'Gonzales', 'speedy.gonzales@looneytunes.com', to_date('1953-09-17 00:00:00','YYYY-MM-DD HH24:MI:SS'));
 INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES ('Wile E.', 'Coyote', 'wile.e.coyote@looneytunes.com', to_date('1949-09-17 00:00:00','YYYY-MM-DD HH24:MI:SS'));
 INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES ('Road', 'Runner', 'road.runner@looneytunes.com', to_date('1949-09-17 00:00:00','YYYY-MM-DD HH24:MI:SS'));
+
+commit;

@@ -31,3 +31,5 @@ INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES
 ('Speedy', 'Gonzales', 'speedy.gonzales@looneytunes.com', '1953-09-17 00:00:00'),
 ('Wile E.', 'Coyote', 'wile.e.coyote@looneytunes.com', '1949-09-17 00:00:00'),
 ('Road', 'Runner', 'road.runner@looneytunes.com', '1949-09-17 00:00:00');
+
+commit;
