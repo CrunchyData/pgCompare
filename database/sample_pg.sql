@@ -4,8 +4,7 @@ CREATE TABLE hr.emp (eid int generated always as identity (start with 1 incremen
                   first_name varchar(40),
                   last_name varchar(40),
                   email varchar(100),
-                  hire_dt timestamp,
-                  last_update timestamp default current_timestamp
+                  hire_dt timestamp
                   );
 
 INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES

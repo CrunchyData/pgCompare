@@ -7,7 +7,6 @@ CREATE TABLE hr.emp (EID int generated always as identity increment by 1 start w
                   last_name varchar2(40),
                   email varchar2(100),
                   hire_dt timestamp,
-                  last_update timestamp default systimestamp,
                   constraint emp_pk primary key (eid)
                   );
 
