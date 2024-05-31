@@ -56,12 +56,18 @@ Compile the Java source:
 mvn clean install
 ```
 
+## Create `pgcompare.properties`
+
+Copy the `pgcompare.properties.sample` file to pgcompare.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
+
+By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
+
 ## Configure Repository Database
 
 pgCompare necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided pgCompare.sql script in the database directory.  The repository may also be created using the `--init` flag.
 
 ```shell
-java -jar pgcompare --init
+java -jar pgcompare.jar --init
 ```
 
 # Getting Started
@@ -91,7 +97,7 @@ dc_table:
 Use pgCompare to perform a discovery against the target database and populate the dc_table with the results using the following command (where hr is the schema to be scanned).
 
 ```shell
-java -jar pgcompare --discovery hr
+java -jar pgcompare.jar --discovery hr
 ```
 
 ### Manual Table Registry
@@ -103,18 +109,12 @@ INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, 
   VALUES ('hr','emp','hr','emp',1,'ready',1);
 ```
 
-## Create `pgcompare.properties`
-
-Copy the `pgcompare.properties.sample` file to pgcompare.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
-
-By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
-
 ## Perform Data Compare
 
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
 
 ```shell
-java -jar pgcompare --batch=0
+java -jar pgcompare.jar --batch=0
 ```
 
 Using a batch value of 0 will execute the action for all batches.  The batch number may also be specified using the environment variable PGCOMPARE-BATCH.  The default value for batch number is 0 (all batches).
@@ -124,7 +124,7 @@ Using a batch value of 0 will execute the action for all batches.  The batch num
 If discrepancies are detected, run the comparison with the 'check' option:
 
 ```shell
-java -jar pgcompare --batch=0 --check
+java -jar pgcompare.jar --batch=0 --check
 ```
 
 This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a discrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
@@ -138,7 +138,7 @@ The system will automatically generate a column mapping during the first executi
 To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
 
 ```shell
-java -jar pgcompare --batch=0 --maponly
+java -jar pgcompare.jar --batch=0 --maponly
 ```
 
 ### JSON Mapping Object
