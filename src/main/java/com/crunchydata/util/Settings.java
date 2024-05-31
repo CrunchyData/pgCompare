@@ -25,7 +25,7 @@ import java.util.Properties;
  */
 public class Settings {
     public static Properties Props;
-    public static String version = "1.2.0";
+    public static String version = "0.1.0";
 
     static String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 

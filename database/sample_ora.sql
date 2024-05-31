@@ -7,13 +7,26 @@ CREATE TABLE emp (EID int generated always as identity increment by 1 start with
                   constraint emp_pk primary key (eid)
                   );
 
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('John', 'Doe', 'johndoe@example.com', to_date('2021-01-15 09:00:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Jane', 'Smith', 'janesmith@example.com', to_date('2022-03-20 14:30:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Michael', 'Johnson', 'michaelj@example.com', to_date('2020-12-10 10:15:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Emily', 'Williams', 'emilyw@example.com', to_date('2023-05-05 08:45:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('David', 'Brown', 'davidbrown@example.com', to_date('2019-11-25 11:20:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Sarah', 'Taylor', 'saraht@example.com', to_date('2022-09-08 13:00:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Robert', 'Anderson', 'roberta@example.com', to_date('2021-07-12 16:10:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Jennifer', 'Martinez', 'jenniferm@example.com', to_date('2023-02-18 09:30:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('William', 'Jones', 'williamj@example.com', to_date('2020-04-30 12:45:00','YYYY-MM-DD HH24:MI:SS'));
-INSERT INTO emp (FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT) VALUES ('Linda', 'Garcia', 'lindag@example.com', to_date('2018-06-03 15:55:00','YYYY-MM-DD HH24:MI:SS'));
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Mickey', 'Mouse', 'mickey.mouse@disney.com', '1928-11-18 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Minnie', 'Mouse', 'minnie.mouse@disney.com', '1928-11-18 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Donald', 'Duck', 'donald.duck@disney.com', '1934-06-09 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Daisy', 'Duck', 'daisy.duck@disney.com', '1940-06-07 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Goofy', 'Goof', 'goofy.goof@disney.com', '1932-05-25 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Pluto', 'Dog', 'pluto.dog@disney.com', '1930-09-05 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Huey', 'Duck', 'huey.duck@disney.com', '1937-10-17 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Dewey', 'Duck', 'dewey.duck@disney.com', '1937-10-17 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Louie', 'Duck', 'louie.duck@disney.com', '1937-10-17 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Scrooge', 'McDuck', 'scrooge.mcduck@disney.com', '1947-12-22 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Bugs', 'Bunny', 'bugs.bunny@looneytunes.com', '1940-07-27 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Daffy', 'Duck', 'daffy.duck@looneytunes.com', '1937-04-17 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Porky', 'Pig', 'porky.pig@looneytunes.com', '1935-03-02 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Elmer', 'Fudd', 'elmer.fudd@looneytunes.com', '1940-03-02 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Sylvester', 'Cat', 'sylvester.cat@looneytunes.com', '1945-03-24 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Tweety', 'Bird', 'tweety.bird@looneytunes.com', '1942-11-21 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Taz', 'Devil', 'taz.devil@looneytunes.com', '1954-06-19 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Marvin', 'Martian', 'marvin.martian@looneytunes.com', '1948-07-24 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Yosemite', 'Sam', 'yosemite.sam@looneytunes.com', '1945-05-05 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Foghorn', 'Leghorn', 'foghorn.leghorn@looneytunes.com', '1946-08-31 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Speedy', 'Gonzales', 'speedy.gonzales@looneytunes.com', '1953-09-17 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Wile E.', 'Coyote', 'wile.e.coyote@looneytunes.com', '1949-09-17 00:00:00');
+INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES ('Road', 'Runner', 'road.runner@looneytunes.com', '1949-09-17 00:00:00');

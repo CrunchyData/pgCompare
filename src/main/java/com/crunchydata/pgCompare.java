@@ -60,6 +60,13 @@ public class pgCompare {
                 .desc("Recheck out of sync rows")
                 .build());
 
+        options.addOption(Option.builder("d")
+                .longOpt("discovery")
+                .argName("discovery")
+                .hasArg(true)
+                .desc("Discover tables in database")
+                .build());
+
         options.addOption(Option.builder("h")
                 .longOpt("help")
                 .argName("help")
@@ -122,6 +129,9 @@ public class pgCompare {
         boolean check = cmd.hasOption("check");
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "" ;
         boolean mapOnly = cmd.hasOption("maponly");
+        boolean discovery = cmd.hasOption("discovery");
+        String discoverySchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null ) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
+        boolean reconcile = ! cmd.hasOption("discovery");
 
         /////////////////////////////////////////////////
         // Process Startup
@@ -206,55 +216,106 @@ public class pgCompare {
         }
 
         /////////////////////////////////////////////////
+        // Discovery
+        /////////////////////////////////////////////////
+        if (discovery) {
+            Logging.write("info", "main", "Performaning table discovery for schema: " + discoverySchema);
+
+            JSONArray tables = switch (Props.getProperty("target-type")) {
+                case "oracle" -> dbOracle.getTables(targetConn, discoverySchema);
+                case "mysql" -> dbMySQL.getTables(targetConn, discoverySchema);
+                case "mssql" -> dbMSSQL.getTables(targetConn, discoverySchema);
+                default -> dbPostgres.getTables(targetConn, discoverySchema);
+            };
+
+            for (int i = 0; i < tables.length(); i++) {
+                String schema = tables.getJSONObject(i).getString("schemaName");
+                String tableName =  tables.getJSONObject(i).getString("tableName");
+
+                RepoController.saveTable(repoConn, schema, tableName);
+
+                Logging.write("info", "main", "Discovered Table: " + tableName);
+            }
+        }
+
+        /////////////////////////////////////////////////
         // Data Reconciliation
         /////////////////////////////////////////////////
-        RepoController rpc = new RepoController();
-        int tablesProcessed = 0;
-        CachedRowSet crsTable = rpc.getTables(repoConn, batchParameter, table, check);
+        if (reconcile) {
+            RepoController rpc = new RepoController();
+            int tablesProcessed = 0;
+            CachedRowSet crsTable = rpc.getTables(repoConn, batchParameter, table, check);
 
-        JSONObject actionResult;
-        JSONArray runResult = new JSONArray();
+            JSONObject actionResult;
+            JSONArray runResult = new JSONArray();
 
-        try {
-            while (crsTable.next()) {
-                tablesProcessed++;
+            try {
+                while (crsTable.next()) {
+                    tablesProcessed++;
 
-                Logging.write("info", "main", "Start reconciliation");
-                rpc.startTableHistory(repoConn,crsTable.getInt("tid"),"reconcile",crsTable.getInt("batch_nbr"));
-                ////////////////////////////////////////
-                // Prepare Data Compare Table
-                ////////////////////////////////////////
+                    Logging.write("info", "main", "Start reconciliation");
+                    rpc.startTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"));
+                    ////////////////////////////////////////
+                    // Prepare Data Compare Table
+                    ////////////////////////////////////////
 
-                if (!check) {
-                    Logging.write("info", "main", "Clearing data compare findings");
-                    rpc.deleteDataCompare(repoConn, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
-                    rpc.deleteDataCompare(repoConn, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
+                    if (!check) {
+                        Logging.write("info", "main", "Clearing data compare findings");
+                        rpc.deleteDataCompare(repoConn, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
+                        rpc.deleteDataCompare(repoConn, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
+                    }
+
+                    actionResult = ReconcileController.reconcileData(repoConn,
+                            sourceConn,
+                            targetConn,
+                            crsTable.getString("source_schema"), crsTable.getString("source_table"),
+                            crsTable.getString("target_schema"), crsTable.getString("target_table"),
+                            crsTable.getString("table_filter"),
+                            crsTable.getString("mod_column"),
+                            crsTable.getInt("parallel_degree"),
+                            startStopWatch,
+                            check,
+                            crsTable.getInt("batch_nbr"),
+                            crsTable.getInt("tid"),
+                            crsTable.getString("column_map"),
+                            mapOnly);
+                    rpc.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
+
+                    runResult.put(actionResult);
+
                 }
 
-                actionResult = ReconcileController.reconcileData(repoConn,
-                        sourceConn,
-                        targetConn,
-                        crsTable.getString("source_schema"), crsTable.getString("source_table"),
-                        crsTable.getString("target_schema"), crsTable.getString("target_table"),
-                        crsTable.getString("table_filter"),
-                        crsTable.getString("mod_column"),
-                        crsTable.getInt("parallel_degree"),
-                        startStopWatch,
-                        check,
-                        crsTable.getInt("batch_nbr"),
-                        crsTable.getInt("tid"),
-                        crsTable.getString("column_map"),
-                        mapOnly);
-                rpc.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
+                crsTable.close();
 
-                runResult.put(actionResult);
-
+            } catch (Exception e) {
+                Logging.write("severe", "main", "Error performing data reconciliation: " + e.getMessage());
             }
 
-            crsTable.close();
 
-        } catch (Exception e) {
-            Logging.write("severe", "main", "Error performing data reconciliation: " + e.getMessage());
+            /////////////////////////////////////////////////
+            // Print Summary
+            /////////////////////////////////////////////////
+            Logging.write("info", "main", "Processed " + tablesProcessed + " tables");
+            long endStopWatch = System.currentTimeMillis();
+            long totalRows = 0;
+            long outofsyncRows = 0;
+            String msgFormat;
+            DecimalFormat df = new DecimalFormat("###,###,###,###,###");
+
+            for (int i = 0; i < runResult.length(); i++) {
+                totalRows += runResult.getJSONObject(i).getInt("equal")+runResult.getJSONObject(i).getInt("notEqual")+runResult.getJSONObject(i).getInt("missingSource")+runResult.getJSONObject(i).getInt("missingTarget");
+                outofsyncRows += runResult.getJSONObject(i).getInt("notEqual")+runResult.getJSONObject(i).getInt("missingSource")+runResult.getJSONObject(i).getInt("missingTarget");
+                msgFormat = "Table Summary: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
+                Logging.write("info", "main", String.format(msgFormat,runResult.getJSONObject(i).getString("tableName"),
+                        runResult.getJSONObject(i).getString("compareStatus"),
+                        df.format(runResult.getJSONObject(i).getInt("equal")),
+                        df.format(runResult.getJSONObject(i).getInt("notEqual")),
+                        df.format(runResult.getJSONObject(i).getInt("missingSource")),
+                        df.format(runResult.getJSONObject(i).getInt("missingTarget"))));
+            }
+            msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
+            Logging.write("info", "main", String.format(msgFormat,df.format((endStopWatch-startStopWatch)/1000),df.format(totalRows), df.format(outofsyncRows), df.format( totalRows/((endStopWatch-startStopWatch)/1000) ) ));
+
         }
 
         try { repoConn.close(); } catch (Exception e) {
@@ -267,29 +328,6 @@ public class pgCompare {
             // do nothing
         }
 
-        /////////////////////////////////////////////////
-        // Print Summary
-        /////////////////////////////////////////////////
-        Logging.write("info", "main", "Processed " + tablesProcessed + " tables");
-        long endStopWatch = System.currentTimeMillis();
-        long totalRows = 0;
-        long outofsyncRows = 0;
-        String msgFormat;
-        DecimalFormat df = new DecimalFormat("###,###,###,###,###");
-
-        for (int i = 0; i < runResult.length(); i++) {
-            totalRows += runResult.getJSONObject(i).getInt("equal")+runResult.getJSONObject(i).getInt("notEqual")+runResult.getJSONObject(i).getInt("missingSource")+runResult.getJSONObject(i).getInt("missingTarget");
-            outofsyncRows += runResult.getJSONObject(i).getInt("notEqual")+runResult.getJSONObject(i).getInt("missingSource")+runResult.getJSONObject(i).getInt("missingTarget");
-            msgFormat = "Table Summary: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
-            Logging.write("info", "main", String.format(msgFormat,runResult.getJSONObject(i).getString("tableName"),
-                                                                                  runResult.getJSONObject(i).getString("compareStatus"),
-                                                                                  df.format(runResult.getJSONObject(i).getInt("equal")),
-                                                                                  df.format(runResult.getJSONObject(i).getInt("notEqual")),
-                                                                                  df.format(runResult.getJSONObject(i).getInt("missingSource")),
-                                                                                  df.format(runResult.getJSONObject(i).getInt("missingTarget"))));
-        }
-        msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
-        Logging.write("info", "main", String.format(msgFormat,df.format((endStopWatch-startStopWatch)/1000),df.format(totalRows), df.format(outofsyncRows), df.format( totalRows/((endStopWatch-startStopWatch)/1000) ) ));
     }
 
     /////////////////////////////////////////////////
@@ -300,6 +338,7 @@ public class pgCompare {
         System.out.println("Options:");
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -c|--check Check out of sync rows");
+        System.out.println("   -d|--discovery <schema> Discover tables in database");
         System.out.println("   -m|--maponly Only perform column mapping");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");

@@ -178,6 +178,44 @@ public class dbPostgres {
 
     }
 
+    public static JSONArray getTables (Connection conn, String schema) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
+        ResultSet rs;
+        PreparedStatement stmt;
+        JSONArray tableInfo = new JSONArray();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
+        String sql = """
+                SELECT lower(table_schema) owner, lower(table_name) table_name
+                FROM  information_schema.tables
+                WHERE table_schema=lower(?)  
+                      AND table_type != 'VIEW'                    
+                ORDER BY table_schema, table_name
+                """;
+        try {
+            stmt = conn.prepareStatement(sql);
+            stmt.setObject(1, schema);
+            rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                JSONObject table = new JSONObject();
+                table.put("schemaName",rs.getString("owner"));
+                table.put("tableName",rs.getString("table_name"));
+
+                tableInfo.put(table);
+            }
+            rs.close();
+            stmt.close();
+        } catch (Exception e) {
+            Logging.write("severe", "postgres-service", "Error retrieving tables for " + schema + ":  " + e.getMessage());
+        }
+        return tableInfo;
+    }
+
     public static String getVersion (Connection conn) {
         /////////////////////////////////////////////////
         // Variables
@@ -282,7 +320,6 @@ public class dbPostgres {
 
         return crs;
     }
-
 
     public static void simpleExecute(Connection conn, String sql) {
         /////////////////////////////////////////////////
