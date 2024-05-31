@@ -1,4 +1,6 @@
-CREATE TABLE emp (eid int generated always as identity (start with 1 increment by 1) primary key,
+create schema hr;
+
+CREATE TABLE hr.emp (eid int generated always as identity (start with 1 increment by 1) primary key,
                   first_name varchar(40),
                   last_name varchar(40),
                   email varchar(100),
@@ -6,7 +8,7 @@ CREATE TABLE emp (eid int generated always as identity (start with 1 increment b
                   last_update timestamp default current_timestamp
                   );
 
-INSERT INTO emp (first_name, last_name, email, hire_dt) VALUES
+INSERT INTO hr.emp (first_name, last_name, email, hire_dt) VALUES
 ('Mickey', 'Mouse', 'mickey.mouse@disney.com', '1928-11-18 00:00:00'),
 ('Minnie', 'Mouse', 'minnie.mouse@disney.com', '1928-11-18 00:00:00'),
 ('Donald', 'Duck', 'donald.duck@disney.com', '1934-06-09 00:00:00'),
