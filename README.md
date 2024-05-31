@@ -56,6 +56,12 @@ Compile the Java source:
 mvn clean install
 ```
 
+## Create `pgcompare.properties`
+
+Copy the `pgcompare.properties.sample` file to pgcompare.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
+
+By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
+
 ## Configure Repository Database
 
 pgCompare necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided pgCompare.sql script in the database directory.  The repository may also be created using the `--init` flag.
@@ -102,12 +108,6 @@ Example of loading a row into `dc_table`:
 INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, parallel_degree, status, batch_nbr)
   VALUES ('hr','emp','hr','emp',1,'ready',1);
 ```
-
-## Create `pgcompare.properties`
-
-Copy the `pgcompare.properties.sample` file to pgcompare.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
-
-By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
 
 ## Perform Data Compare
 
