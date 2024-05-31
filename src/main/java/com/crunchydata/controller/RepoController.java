@@ -193,6 +193,25 @@ public class RepoController {
         dbPostgres.simpleUpdate(conn,sql,binds, true);
     }
 
+    public static void saveTable (Connection conn, String schema, String tableName) {
+        /////////////////////////////////////////////////
+        // Variables
+        /////////////////////////////////////////////////
+        ArrayList<Object> binds = new ArrayList<>();
+
+        /////////////////////////////////////////////////
+        // SQL
+        /////////////////////////////////////////////////
+        String sql = "INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, batch_nbr, status) VALUES (?, ?, ?, ?, 1, 'ready')";
+
+        binds.add(0,schema);
+        binds.add(1,tableName);
+        binds.add(2,schema);
+        binds.add(3,tableName);
+
+        dbPostgres.simpleUpdate(conn,sql,binds, true);
+    }
+
     public void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {
         /////////////////////////////////////////////////
         // Variables
