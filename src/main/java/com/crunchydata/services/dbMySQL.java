@@ -1,11 +1,25 @@
+/*
+ * Copyright 2012-2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.crunchydata.services;
 
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -15,19 +29,39 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
+/**
+ * Utility class for interacting with MySQL databases.
+ * This class provides methods for database connection, SQL query generation,
+ * column information retrieval, and data type mapping.
+ * <p>
+ *     MySQL Data Types
+ *         Date/Time: date, datetime, timestamp, time, year
+ *         Numeric: integer, smallint, decimal, numeric, float, real, double, int, dec, fixed
+ *         String: char, varchar, text, json
+ *         Unsupported: bit, binary, varbinary, blob, enum, set
+ *
+ * @author Brian Pace
+ */
 public class dbMySQL {
-    // MySQL Data Types
-    //     Date/Time: date, datetime, timestamp, time, year
-    //     Numeric: integer, smallint, decimal, numeric, float, real, double, int, dec, fixed
-    //     String: char, varchar, text, json
-    //     Unsupported: bit, binary, varbinary, blob, enum, set
 
+    private static final String THREAD_NAME = "dbMySQL";
+
+    /**
+     * Builds a SQL query for loading data from a MySQL table.
+     *
+     * @param useDatabaseHash Whether to use MD5 hash for database columns.
+     * @param schema          Schema name of the table.
+     * @param tableName       Name of the table.
+     * @param pkColumns       Columns used as primary key.
+     * @param pkJSON          JSON representation of primary key columns.
+     * @param columns         Columns to select from the table.
+     * @param tableFilter     Optional filter condition for the WHERE clause.
+     * @return SQL query string for loading data from the specified table.
+     */
     public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
@@ -43,10 +77,13 @@ public class dbMySQL {
         return sql;
     }
 
+    /**
+     * Generates a column value expression for MySQL based on the column's data type.
+     *
+     * @param column JSONObject containing column information.
+     * @return String representing the column value expression.
+     */
     public static String columnValueMapMySQL(JSONObject column) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         String colExpression;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
@@ -82,45 +119,26 @@ public class dbMySQL {
 
     }
 
+    /**
+     * Retrieves column metadata for a specified table in MySQL database.
+     *
+     * @param conn   Database connection to MySQL server.
+     * @param schema Schema name of the table.
+     * @param table  Table name.
+     * @return JSONArray containing metadata for each column in the table.
+     */
     public static JSONArray getColumns (Connection conn, String schema, String table) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
         JSONArray columnInfo = new JSONArray();
 
-        /////////////////////////////////////////////////
-        // SQL
-        /////////////////////////////////////////////////
-        String sql = """
-                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
-                       coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
-                       case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
-                       CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
-                FROM information_schema.columns c
-                     LEFT OUTER JOIN (SELECT tc.table_schema, tc.table_name, kcu.column_name, kcu.ORDINAL_POSITION column_position
-                	  				  FROM information_schema.table_constraints tc
-                					  	   INNER JOIN information_schema.key_column_usage kcu
-                								ON tc.constraint_catalog = kcu.constraint_catalog
-                									AND tc.constraint_schema = kcu.constraint_schema
-                									AND tc.constraint_name = kcu.constraint_name
-                									AND tc.table_name = kcu.table_name
-                					WHERE tc.constraint_type='PRIMARY KEY')  pkc ON (c.table_schema=pkc.table_schema AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
-                WHERE c.table_schema=?
-                      AND c.table_name=?
-                ORDER BY c.table_schema, c.table_name, c.column_name
-                """;
-
         try {
-            stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = conn.prepareStatement(SQL_MYSQL_SELECT_COLUMNS);
             stmt.setObject(1, schema);
             stmt.setObject(2,table);
-            rs = stmt.executeQuery();
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 JSONObject column = new JSONObject();
                 if ( Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
-                    Logging.write("severe", "mysql-service", "Unsupported data type (" + rs.getString("data_type") + ")");
+                    Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
                     column.put("supported",false);
                 } else {
                     column.put("supported",true);
@@ -140,17 +158,20 @@ public class dbMySQL {
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", "mysql-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
+            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s",schema, table, e.getMessage()));
         }
         return columnInfo;
     }
 
+    /**
+     * Establishes a connection to a MySQL database using the provided connection properties.
+     *
+     * @param connectionProperties Properties containing database connection information.
+     * @param destType             Type of destination (e.g., source, target).
+     * @return Connection object to MySQL database.
+     */
     public static Connection getConnection(Properties connectionProperties, String destType) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        Connection conn;
-        conn = null;
+        Connection conn = null;
         String url = "jdbc:mysql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
         Properties dbProps = new Properties();
 
@@ -159,125 +180,13 @@ public class dbMySQL {
 
         try {
             conn = DriverManager.getConnection(url,dbProps);
-            dbMySQL.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
+            dbCommon.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
         } catch (Exception e) {
-            Logging.write("severe", "mysql-service", "Error connecting to MySQL " + e.getMessage());
+            Logging.write("severe", THREAD_NAME, String.format("Error connecting to MySQL:  %s", e.getMessage()));
         }
 
         return conn;
 
     }
 
-    public static JSONArray getTables (Connection conn, String schema) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
-        JSONArray tableInfo = new JSONArray();
-
-        /////////////////////////////////////////////////
-        // SQL
-        /////////////////////////////////////////////////
-        String sql = """
-                SELECT lower(table_schema) owner, lower(table_name) table_name
-                FROM  information_schema.tables
-                WHERE table_schema=?                      
-                ORDER BY table_schema, table_name
-                """;
-
-        try {
-            stmt = conn.prepareStatement(sql);
-            stmt.setObject(1, schema);
-            rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                JSONObject table = new JSONObject();
-                table.put("schemaName",rs.getString("owner"));
-                table.put("tableName",rs.getString("table_name"));
-
-                tableInfo.put(table);
-            }
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", "mysql-service", "Error retrieving tables for " + schema + ":  " + e.getMessage());
-        }
-        return tableInfo;
-    }
-
-    public static String getVersion (Connection conn) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        String dbVersion = null;
-        ArrayList<Object> binds = new ArrayList<>();
-
-        try {
-            CachedRowSet crsVersion = dbMySQL.simpleSelect(conn, "select version()", binds);
-
-            if (crsVersion.next()) {
-                dbVersion = crsVersion.getString("version");
-            }
-
-            crsVersion.close();
-
-        } catch (Exception e) {
-            Logging.write("info", "mysql-service", "Could not retrieve MySQL version " + e.getMessage());
-        }
-
-        return dbVersion;
-    }
-
-    public static CachedRowSet simpleSelect(Connection conn, String sql, ArrayList<Object> binds) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
-        CachedRowSet crs = null;
-
-        try {
-            crs = RowSetProvider.newFactory().createCachedRowSet();
-            stmt = conn.prepareStatement(sql);
-            stmt.setFetchSize(2000);
-            for (int counter = 0; counter < binds.size(); counter++) {
-                stmt.setObject(counter+1, binds.get(counter));
-            }
-            rs = stmt.executeQuery();
-            crs.populate(rs);
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", "mysql-service", "Error executing simple select (" + sql + "): " + e.getMessage());
-        }
-        return crs;
-    }
-
-    public static Integer simpleUpdate(Connection conn, String sql, ArrayList<Object> binds, boolean commit) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        int cnt;
-        PreparedStatement stmt;
-
-        try {
-            stmt = conn.prepareStatement(sql);
-            for (int counter = 0; counter < binds.size(); counter++) {
-                stmt.setObject(counter+1, binds.get(counter));
-            }
-            cnt = stmt.executeUpdate();
-            stmt.close();
-            if (commit) {
-                conn.commit();
-            }
-        } catch (Exception e) {
-            Logging.write("severe", "mysql-service", "Error executing simple update (" + sql + "):  " + e.getMessage());
-            try { conn.rollback(); } catch (Exception ee) {
-                // do nothing
-            }
-            cnt = -1;
-        }
-        return cnt;
-    }
 }

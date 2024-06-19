@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,16 +31,32 @@ import static com.crunchydata.util.JsonUtility.findOne;
 
 
 /**
+ * Utility class for database operations.
+ *
+ * Provides methods to retrieve column metadata and map column details
+ * for different database platforms.
+ *
  * @author Brian Pace
  */
 public class DatabaseUtility {
 
-    public static ColumnMetadata getColumnInfo(JSONObject columnMap, String targetType, String platform, String schema, String table, Boolean useDatabaseHash) {
-        Logging.write("info", "database-utility", "Building column expressions for " + schema + "." + table);
+    private static final String THREAD_NAME = "DatabaseUtility";
 
-        /////////////////////////////////////////////////
+    /**
+     * Retrieves column metadata for a given table.
+     *
+     * @param columnMap        JSON object containing column mapping information
+     * @param targetType       The target type of columns
+     * @param platform         The database platform (e.g., "mssql", "mysql")
+     * @param schema           The schema of the table
+     * @param table            The name of the table
+     * @param useDatabaseHash  Flag to determine whether to use database hash
+     * @return                 A ColumnMetadata object containing column information
+     */
+    public static ColumnMetadata getColumnInfo(JSONObject columnMap, String targetType, String platform, String schema, String table, Boolean useDatabaseHash) {
+        Logging.write("info", THREAD_NAME, String.format("Building column expressions for %s.%s",schema,table));
+
         // Variables
-        /////////////////////////////////////////////////
         StringBuilder column = new StringBuilder();
         StringBuilder columnList = new StringBuilder();
         String concatOperator = platform.equals("mssql") ? "+" : "||";
@@ -50,19 +66,21 @@ public class DatabaseUtility {
         StringBuilder pkJSON = new StringBuilder();
         StringBuilder pkList = new StringBuilder();
 
-        /////////////////////////////////////////////////
         // Construct Columns
-        /////////////////////////////////////////////////
         try {
-            for (int i = 0; i < columnMap.getJSONArray("columns").length(); i++ ) {
+            JSONArray columnsArray = columnMap.getJSONArray("columns");
+            for (int i = 0; i < columnsArray.length(); i++) {
+                JSONObject columnObject = columnsArray.getJSONObject(i);
 
-                if ( columnMap.getJSONArray("columns").getJSONObject(i).getString("status").equals("compare") ) {
-
-                    JSONObject joColumn = columnMap.getJSONArray("columns").getJSONObject(i).getJSONObject(targetType);
+                if ("compare".equals(columnObject.getString("status"))) {
+                    JSONObject joColumn = columnObject.getJSONObject(targetType);
 
                     if (joColumn.getBoolean("primaryKey")) {
                         nbrPKColumns++;
-                        pk.append(joColumn.getString("valueExpression")).append(concatOperator).append("'.'").append(concatOperator);
+                        pk.append(joColumn.getString("valueExpression"))
+                                .append(concatOperator)
+                                .append("'.'")
+                                .append(concatOperator);
                         pkList.append(joColumn.getString("columnName")).append(",");
 
                         if (pkJSON.isEmpty()) {
@@ -71,77 +89,95 @@ public class DatabaseUtility {
                             pkJSON.append(concatOperator).append(" ',' ").append(concatOperator);
                         }
 
-                        if (joColumn.getString("dataClass").equals("char")) {
-                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": \"' ").append(concatOperator).append(" ").append(joColumn.getString("columnName")).append(" ").append(concatOperator).append(" '\"' ");
+                        if ("char".equals(joColumn.getString("dataClass"))) {
+                            pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": \"' ")
+                                    .append(concatOperator).append(" ").append(joColumn.getString("columnName"))
+                                    .append(" ").append(concatOperator).append(" '\"' ");
                         } else {
                             if (platform.equals("mssql")) {
-                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' ").append(concatOperator).append(" ").append("trim(cast(").append(joColumn.getString("columnName")).append(" as varchar))");
+                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' ")
+                                        .append(concatOperator).append(" ").append("trim(cast(")
+                                        .append(joColumn.getString("columnName")).append(" as varchar))");
                             } else {
-                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' ").append(concatOperator).append(" ").append(joColumn.getString("columnName"));
+                                pkJSON.append("'\"").append(joColumn.getString("columnName")).append("\": ' ")
+                                        .append(concatOperator).append(" ").append(joColumn.getString("columnName"));
                             }
                         }
                     } else {
                         nbrColumns++;
                         columnList.append(joColumn.getString("columnName")).append(",");
-
-                        column.append((useDatabaseHash) ? joColumn.getString("valueExpression") + concatOperator : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
+                        column.append(useDatabaseHash
+                                ? joColumn.getString("valueExpression") + concatOperator
+                                : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
                     }
                 }
             }
+
 
             if (columnList.isEmpty()) {
                 column = new StringBuilder((useDatabaseHash) ? "'0'" : " '0' c1");
                 nbrColumns = 1;
             } else {
-                columnList = new StringBuilder(columnList.substring(0, columnList.length() - 1));
-                column = new StringBuilder(column.substring(0,column.length() -  (column.substring(column.length()-1).equals("|") ? 2 : 1) ));
+                columnList.setLength(columnList.length() - 1);
+                column.setLength(column.length() - (column.substring(column.length() - 1).equals("|") ? 2 : 1));
             }
 
-            if ((!pk.isEmpty()) && (!pkList.isEmpty())) {
-                pk = new StringBuilder(pk.substring(0, pk.length() - (3+(concatOperator.length()*2))));
-                pkList = new StringBuilder(pkList.substring(0, pkList.length() - 1 ));
+            if (!pk.isEmpty() && !pkList.isEmpty()) {
+                pk.setLength(pk.length() - (3 + (concatOperator.length() * 2)));
+                pkList.setLength(pkList.length() - 1);
                 pkJSON.append(concatOperator).append("'}'");
             }
+
         } catch (Exception e) {
-            Logging.write("severe", "database-utility", "Error while parsing column list " + e.getMessage());
+            Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list:  %s",e.getMessage()));
         }
 
         return new ColumnMetadata(columnList.toString(), nbrColumns, nbrPKColumns, column.toString(), pk.toString(), pkList.toString(), pkJSON.toString());
 
     }
 
+    /**
+     * Retrieves column details for a given table and maps the columns.
+     *
+     * @param targetType  The target type of columns
+     * @param platform    The database platform (e.g., "oracle", "mysql")
+     * @param conn        The database connection
+     * @param schema      The schema of the table
+     * @param table       The name of the table
+     * @param columnData  JSON object containing column data
+     * @return            A JSON object with updated column mappings
+     */
     public static JSONObject getColumnMap(String targetType, String platform, Connection conn, String schema, String table, JSONObject columnData) {
-        Logging.write("info", "database-utility", "Getting columns for table " + schema + "." + table);
+        Logging.write("info", THREAD_NAME, String.format("Getting columns for table %s.%s",schema,table));
 
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         JSONArray colExpression = switch (platform) {
             case "oracle" -> dbOracle.getColumns(conn, schema, table);
             case "mysql" -> dbMySQL.getColumns(conn, schema, table);
             case "mssql" -> dbMSSQL.getColumns(conn, schema, table);
             default -> dbPostgres.getColumns(conn, schema, table);
         };
-        JSONArray columns = new JSONArray();
+
+        JSONArray columns = columnData.optJSONArray("columns") != null ? columnData.getJSONArray("columns") : new JSONArray();
+
         if ( columnData.has("columns") ) {
             columns = columnData.getJSONArray("columns");
         }
-        int columnPosition;
 
-        for (int i = 0; i < colExpression.length(); i++ ) {
+
+        for (int i = 0; i < colExpression.length(); i++) {
             JSONObject columnDetail = new JSONObject();
             JSONObject findColumn = findOne(columns, "alias", colExpression.getJSONObject(i).getString("columnName"));
 
-            if ( findColumn.getInt("count") == 0 ) {
-                columnDetail.put("alias",colExpression.getJSONObject(i).getString("columnName"));
+            int columnPosition = findColumn.getInt("count") == 0 ? -1 : findColumn.getInt("location");
+
+            if (columnPosition == -1) {
+                columnDetail.put("alias", colExpression.getJSONObject(i).getString("columnName"));
                 columnDetail.put("status", "compare");
-                columnPosition = -1;
             } else {
-                columnPosition = findColumn.getInt("location");
                 columnDetail = findColumn.getJSONObject("data");
             }
 
-            if ( ! colExpression.getJSONObject(i).getBoolean("supported") ) {
+            if (!colExpression.getJSONObject(i).getBoolean("supported")) {
                 columnDetail.put("status", "ignore");
             }
 
@@ -152,7 +188,6 @@ public class DatabaseUtility {
             } else {
                 columns.put(columnPosition, columnDetail);
             }
-
         }
 
         columnData.put("columns", columns);

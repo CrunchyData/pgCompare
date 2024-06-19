@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,36 +16,35 @@
 
 package com.crunchydata.util;
 
+import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.Reader;
 
 /**
+ * A utility class for working with CLOB data.
+ *
  * @author Brian Pace
  */
 public class DataUtility {
 
-    public static String clobToString(javax.sql.rowset.serial.SerialClob data)
+    /**
+     * Converts a CLOB to a string.
+     *
+     * @param data the CLOB data
+     * @return the CLOB data as a string
+     */
+    public static String convertClobToString(javax.sql.rowset.serial.SerialClob data)
     {
-        final StringBuilder sb = new StringBuilder();
-
-        try
-        {
-            final Reader reader = data.getCharacterStream();
-            final BufferedReader br     = new BufferedReader(reader);
-
+        try (Reader reader = data.getCharacterStream(); BufferedReader br = new BufferedReader(reader)) {
+            StringBuilder sb = new StringBuilder();
             int b;
-            while(-1 != (b = br.read()))
-            {
-                sb.append((char)b);
+            while ((b = br.read()) != -1) {
+                sb.append((char) b);
             }
-
-            br.close();
+            return sb.toString();
+        } catch (IOException | SerialException e) {
+            throw new RuntimeException(e);
         }
-        catch (Exception e)
-        {
-            return e.toString();
-        }
-
-        return sb.toString();
     }
 }

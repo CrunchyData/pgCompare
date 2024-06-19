@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,38 +21,71 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
+ * Utility class for managing application settings.
+ * Loads default settings, configuration from a properties file, and environment variables.
+ *
+ * <p>This class is not instantiable.</p>
+ *
+ * <p>The properties file location can be specified using the environment variable PGCOMPARE_CONFIG.</p>
+ * <p>If the properties file is not found, default settings and environment variables will be used.</p>
+ *
+ * <p>The version of the settings is {@link #VERSION}.</p>
+ *
+ * <p>The loaded properties are accessible through {@link #Props}.</p>
+ *
+ * <p>The default settings are loaded using {@link #setDefaults()}.</p>
+ * <p>Environment variables are applied using {@link #setEnvironment(Properties)}.</p>
+ *
+ * <p>Usage example:</p>
+ * <pre>
+ * {@code
+ * Properties props = Settings.Props;
+ * String logLevel = props.getProperty("log-level");
+ * }
+ * </pre>
+ *
+ * @see java.util.Properties
+ * @see java.lang.System#getenv()
+ * @see java.io.FileInputStream
+ * @see java.io.InputStream
+ * @see java.io.IOException
+ * @see java.lang.Exception
+ *
  * @author Brian Pace
  */
 public class Settings {
-    public static Properties Props;
-    public static String version = "0.1.0";
 
-    static String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
+    public static final Properties Props;
+    public static final String VERSION = "0.2.0";
+    private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
-            Properties configProperties = setDefaults();
-            try {
-                InputStream stream = new FileInputStream(paramFile);
+         Properties configProperties = setDefaults();
 
-                configProperties.load(stream);
-                stream.close();
+        try (InputStream stream = new FileInputStream(paramFile)) {
+            configProperties.load(stream);
+        } catch (Exception e) {
+            System.out.println("Configuration file not found, using defaults and environment variables");
+        }
 
-            } catch (Exception e) {
-                System.out.println("Configuration file not found, using defaults and environment variables");
-            }
-
-            Props = setEnvironment(configProperties);
+        Props = setEnvironment(configProperties);
     }
 
+    /**
+     * Sets the default properties for the application.
+     *
+     * @return a {@code Properties} object containing the default settings
+     */
     public static Properties setDefaults() {
         Properties defaultProps = new Properties();
 
         // System Settings
+        defaultProps.setProperty("config-file", paramFile);
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("database-sort","true");
-        defaultProps.setProperty("loader-threads","4");
+        defaultProps.setProperty("loader-threads","2");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("message-queue-size","100");
@@ -97,6 +130,12 @@ public class Settings {
         return defaultProps;
     }
 
+    /**
+     * Applies environment variables to the given properties object.
+     *
+     * @param prop the {@code Properties} object to which environment variables are applied
+     * @return the updated {@code Properties} object with environment variables applied
+     */
     public static Properties setEnvironment (Properties prop) {
 
         System.getenv().forEach((k, v) -> {
@@ -108,6 +147,5 @@ public class Settings {
         return prop;
 
     }
-
 
 }

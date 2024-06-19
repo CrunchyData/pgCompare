@@ -16,6 +16,7 @@
 
 package com.crunchydata.model;
 
+@SuppressWarnings("CanBeFinal")
 public class ColumnMetadata {
     public String columnList;
     public Integer nbrColumns;

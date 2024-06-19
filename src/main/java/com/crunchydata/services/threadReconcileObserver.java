@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,34 +18,57 @@ package com.crunchydata.services;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
+
+import static com.crunchydata.util.SQLConstants.SQL_REPO_CLEARMATCH;
+import static com.crunchydata.util.SQLConstants.SQL_REPO_DCRESULT_UPDATECNT;
 import static com.crunchydata.util.Settings.Props;
 
 /**
+ * Thread class that observes the reconciliation process between source and target tables.
+ * This thread executes SQL statements to manage reconciliation and cleanup of staging tables.
+ * <p>
+ * The observer notifies synchronization threads upon completion of reconciliation steps.
+ * </p>
+ * <p>
+ * Configuration settings include database connection details and SQL statements for reconciliation.
+ * </p>
+ * <p>
+ * This class extends Thread and is designed to run independently for reconciliation monitoring.
+ * </p>
+ *
  * @author Brian Pace
  */
-public class dbReconcileObserver extends Thread  {
-    String schemaName;
-    String tableName;
-    Integer cid;
-    String threadName;
-    Integer threadNbr;
-    Integer batchNbr;
-    String stagingTableSource;
-    String stagingTableTarget;
+public class threadReconcileObserver extends Thread  {
+    private String tableName;
+    private Integer cid;
+    private Integer threadNbr;
+    private Integer batchNbr;
+    private String stagingTableSource;
+    private String stagingTableTarget;
 
-    ThreadSync ts;
+    private ThreadSync ts;
 
-    /////////////////////////////////////////////////
-    // Configuration Settings
-    /////////////////////////////////////////////////
-
-    public dbReconcileObserver(String schemaName, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr, String stagingTableSource, String stagingTableTarget) {
-        this.schemaName = schemaName;
+    /**
+     * Constructs a thread to observe the reconciliation process.
+     *
+     * @param schemaName         Schema name of the tables being reconciled.
+     * @param tableName          Name of the table being reconciled.
+     * @param cid                Identifier for the reconciliation process.
+     * @param ts                 Thread synchronization object for coordinating threads.
+     * @param threadNbr          Thread number identifier.
+     * @param batchNbr           Batch number identifier.
+     * @param stagingTableSource Staging table name for the source data.
+     * @param stagingTableTarget Staging table name for the target data.
+     *
+     * @author Brian Pace
+     */
+    public threadReconcileObserver(String schemaName, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr, String stagingTableSource, String stagingTableTarget) {
         this.tableName = tableName;
         this.cid = cid;
         this.ts = ts;
@@ -55,83 +78,61 @@ public class dbReconcileObserver extends Thread  {
         this.stagingTableTarget = stagingTableTarget;
     }
 
+    /**
+     * Executes the reconciliation observer thread.
+     * This method manages database connections, executes SQL statements for reconciliation,
+     * and performs cleanup operations on staging tables.
+     */
     public void run() {
-        threadName = "observer-c"+cid+"-t"+threadNbr;
+        String threadName = String.format("Observer-c%s-t%s", cid, threadNbr);
         Logging.write("info", threadName, "Starting reconcile observer");
 
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         ArrayList<Object> binds = new ArrayList<>();
         int cntEqual = 0;
         int deltaCount = 0;
+        DecimalFormat formatter = new DecimalFormat("#,###");
         int lastRun = 0;
         RepoController rpc = new RepoController();
         int sleepTime = 2000;
 
-        /////////////////////////////////////////////////
         // Connect to Repository
-        /////////////////////////////////////////////////
-        Connection repoConn;
         Logging.write("info", threadName, "Connecting to repository database");
-        repoConn = dbPostgres.getConnection(Props,"repo", "observer");
+        Connection repoConn = dbPostgres.getConnection(Props,"repo", "observer");
+
         if ( repoConn == null) {
             Logging.write("severe", threadName, "Cannot connect to repository database");
             System.exit(1);
         }
+
         try { repoConn.setAutoCommit(false); } catch (Exception e) {
             // do nothing
         }
-        try { dbPostgres.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {
+
+        try { dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {
             // do nothing
         }
 
-        /////////////////////////////////////////////////
-        // SQL
-        /////////////////////////////////////////////////
-        String sqlClearMatch = """
-                WITH ds AS (DELETE FROM dc_source s
-                            WHERE EXISTS
-                                      (SELECT 1
-                                       FROM dc_target t
-                                       WHERE s.pk_hash = t.pk_hash
-                                             AND s.column_hash = t.column_hash)
-                            RETURNING pk_hash, column_hash)
-                DELETE FROM dc_target dt USING ds
-                WHERE  ds.pk_hash=dt.pk_hash
-                       AND ds.column_hash=dt.column_hash
-                """;
-
-        String sqlUpdateStatus = """
-                                 UPDATE dc_result SET equal_cnt=equal_cnt+?
-                                 WHERE cid=?
-                                 """;
-
-        /////////////////////////////////////////////////
         // Watch Reconcile Loop
-        /////////////////////////////////////////////////
         try {
-            sqlClearMatch = sqlClearMatch.replaceAll("dc_target",stagingTableTarget).replaceAll("dc_source",stagingTableSource);
+            String sqlClearMatch = SQL_REPO_CLEARMATCH.replaceAll("dc_target",stagingTableTarget).replaceAll("dc_source",stagingTableSource);
 
             PreparedStatement stmtSU = repoConn.prepareStatement(sqlClearMatch);
-            PreparedStatement stmtSUS = repoConn.prepareStatement(sqlUpdateStatus);
+            PreparedStatement stmtSUS = repoConn.prepareStatement(SQL_REPO_DCRESULT_UPDATECNT);
 
             repoConn.setAutoCommit(false);
 
             int tmpRowCount;
 
             while (lastRun <= 1) {
-                ///////////////////////////////////////////////////////
                 // Remove Matching Rows
-                ///////////////////////////////////////////////////////
                 tmpRowCount = stmtSU.executeUpdate();
 
-                cntEqual = cntEqual + tmpRowCount;
+                cntEqual += tmpRowCount;
 
                 if (tmpRowCount > 0) {
                     repoConn.commit();
                     deltaCount += tmpRowCount;
-                    Logging.write("info", threadName, "Matched " + tmpRowCount + " rows");
+                    Logging.write("info", threadName, String.format("Matched %s rows", formatter.format(tmpRowCount)));
                 } else {
                     if (cntEqual > 0 || ts.sourceComplete || ts.targetComplete || ( cntEqual == 0 && ts.sourceWaiting && ts.targetWaiting ) ) {
                         stmtSUS.clearParameters();
@@ -140,25 +141,23 @@ public class dbReconcileObserver extends Thread  {
                         stmtSUS.executeUpdate();
                         repoConn.commit();
                         deltaCount=0;
-                        ts.ObserverNotify();
+                        ts.observerNotify();
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
-                            dbPostgres.simpleUpdate(repoConn, "vacuum " + stagingTableSource + "," + stagingTableTarget, binds, false);
+                            dbCommon.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
                             repoConn.setAutoCommit(false);
                         }
                     }
                 }
 
-                ///////////////////////////////////////////////////////
                 // Update and Check Status
-                ///////////////////////////////////////////////////////
                 if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && ts.loaderThreadComplete == Integer.parseInt(Props.getProperty("loader-threads"))*2 ) {
                     lastRun++;
                 }
 
                 if ( tmpRowCount == 0 ) {
-                    if (Props.getProperty("database-sort").equals("false") && cntEqual == 0) { ts.ObserverNotify(); }
+                    if (Props.getProperty("database-sort").equals("false") && cntEqual == 0) { ts.observerNotify(); }
                     Thread.sleep(sleepTime);
                 }
             }
@@ -182,7 +181,7 @@ public class dbReconcileObserver extends Thread  {
             }
         } finally {
             try {
-                if ( repoConn != null ) {
+                if (!(repoConn == null)) {
                     repoConn.close();
                 }
             } catch (Exception e) {
