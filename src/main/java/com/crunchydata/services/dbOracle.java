@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Properties;
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.RowSetProvider;
 
 import com.crunchydata.util.Logging;
 
@@ -33,15 +30,34 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
-
+/**
+ * Utility class for interacting with Oracle databases.
+ * This class provides methods for database connection, SQL query generation,
+ * column information retrieval, and data type mapping.
+ *
+ *
+ * @author Brian Pace
+ */
 public class dbOracle {
 
+    private static final String THREAD_NAME = "dbOracle";
+
+    /**
+     * Builds a SQL query for loading data from a Oracle table.
+     *
+     * @param useDatabaseHash Whether to use MD5 hash for database columns.
+     * @param schema          Schema name of the table.
+     * @param tableName       Name of the table.
+     * @param pkColumns       Columns used as primary key.
+     * @param pkJSON          JSON representation of primary key columns.
+     * @param columns         Columns to select from the table.
+     * @param tableFilter     Optional filter condition for the WHERE clause.
+     * @return SQL query string for loading data from the specified table.
+     */
     public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
@@ -57,10 +73,13 @@ public class dbOracle {
         return sql;
     }
 
+    /**
+     * Generates a column value expression for Oracle based on the column's data type.
+     *
+     * @param column JSONObject containing column information.
+     * @return String representing the column value expression.
+     */
     public static String columnValueMapOracle(JSONObject column) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         String colExpression;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
@@ -101,39 +120,26 @@ public class dbOracle {
 
     }
 
+    /**
+     * Retrieves column metadata for a specified table in Oracle database.
+     *
+     * @param conn   Database connection to Oracle server.
+     * @param schema Schema name of the table.
+     * @param table  Table name.
+     * @return JSONArray containing metadata for each column in the table.
+     */
     public static JSONArray getColumns (Connection conn, String schema, String table) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
         JSONArray columnInfo = new JSONArray();
 
-        /////////////////////////////////////////////////
-        // SQL
-        /////////////////////////////////////////////////
-        String sql = """
-                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
-                       CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
-                FROM all_tab_columns c
-                     LEFT OUTER JOIN (SELECT con.owner, con.table_name, i.column_name, i.column_position
-                                    FROM all_constraints con
-                                         JOIN all_ind_columns i ON (con.index_owner=i.index_owner AND con.index_name=i.index_name)
-                                    WHERE con.constraint_type='P') pkc ON (c.owner=pkc.owner AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
-                WHERE c.owner=upper(?)
-                      AND c.table_name=upper(?)
-                ORDER BY c.owner, c.table_name, c.column_name
-                """;
-
         try {
-            stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = conn.prepareStatement(SQL_ORACLE_SELECT_COLUMNS);
             stmt.setObject(1, schema);
             stmt.setObject(2,table);
-            rs = stmt.executeQuery();
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 JSONObject column = new JSONObject();
                 if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
-                    Logging.write("warning", "oracle-service", "Unsupported data type (" + rs.getString("data_type") + ") for column " + rs.getString("column_name"));
+                    Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
                     column.put("supported",false);
                 } else {
                     column.put("supported",true);
@@ -153,17 +159,20 @@ public class dbOracle {
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error retrieving columns for table " + schema + "." + table + ":  " + e.getMessage());
+            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s",schema,table,e.getMessage()));
         }
         return columnInfo;
     }
 
+    /**
+     * Establishes a connection to an Oracle database using the provided connection properties.
+     *
+     * @param connectionProperties Properties containing database connection information.
+     * @param destType             Type of destination (e.g., source, target).
+     * @return Connection object to Oracle database.
+     */
     public static Connection getConnection(Properties connectionProperties, String destType) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        Connection conn;
-        conn = null;
+        Connection conn = null;
         String url = "jdbc:oracle:thin:@//"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname");
         Properties dbProps = new Properties();
 
@@ -173,124 +182,11 @@ public class dbOracle {
         try {
             conn = DriverManager.getConnection(url,dbProps);
         } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error connecting to Oracle " + e.getMessage());
+            Logging.write("severe", THREAD_NAME, String.format("Error connecting to Oracle %s",e.getMessage()));
         }
 
         return conn;
 
-    }
-
-    public static JSONArray getTables (Connection conn, String schema) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
-        JSONArray tableInfo = new JSONArray();
-
-        /////////////////////////////////////////////////
-        // SQL
-        /////////////////////////////////////////////////
-        String sql = """
-                SELECT LOWER(owner) owner, LOWER(table_name) table_name
-                FROM all_tables
-                WHERE owner=upper(?)
-                ORDER BY owner, table_name
-                """;
-
-        try {
-            stmt = conn.prepareStatement(sql);
-            stmt.setObject(1, schema);
-            rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                JSONObject table = new JSONObject();
-                table.put("schemaName",rs.getString("owner"));
-                table.put("tableName",rs.getString("table_name"));
-
-                tableInfo.put(table);
-            }
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error retrieving tables for " + schema + ":  " + e.getMessage());
-        }
-        return tableInfo;
-    }
-
-    public static String getVersion (Connection conn) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        String dbVersion = null;
-        ArrayList<Object> binds = new ArrayList<>();
-
-        try {
-            CachedRowSet crsVersion = dbPostgres.simpleSelect(conn, "select version from v$version", binds);
-
-            if (crsVersion.next()) {
-                dbVersion = crsVersion.getString("version");
-            }
-
-            crsVersion.close();
-
-        } catch (Exception e) {
-            Logging.write("info", "oracle-service", "Could not retrieve Oracle version " + e.getMessage());
-        }
-
-        return dbVersion;
-    }
-
-    public static CachedRowSet simpleSelect(Connection conn, String sql, ArrayList<Object> binds) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        ResultSet rs;
-        PreparedStatement stmt;
-        CachedRowSet crs = null;
-
-        try {
-            crs = RowSetProvider.newFactory().createCachedRowSet();
-            stmt = conn.prepareStatement(sql);
-            stmt.setFetchSize(2000);
-            for (int counter = 0; counter < binds.size(); counter++) {
-                stmt.setObject(counter+1, binds.get(counter));
-            }
-            rs = stmt.executeQuery();
-            crs.populate(rs);
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error executing simple select (" + sql + "): " + e.getMessage());
-        }
-        return crs;
-    }
-
-    public static Integer simpleUpdate(Connection conn, String sql, ArrayList<Object> binds, boolean commit) {
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
-        int cnt;
-        PreparedStatement stmt;
-
-        try {
-            stmt = conn.prepareStatement(sql);
-            for (int counter = 0; counter < binds.size(); counter++) {
-                stmt.setObject(counter+1, binds.get(counter));
-            }
-            cnt = stmt.executeUpdate();
-            stmt.close();
-            if (commit) {
-                conn.commit();
-            }
-        } catch (Exception e) {
-            Logging.write("severe", "oracle-service", "Error executing simple update (" + sql + "):  " + e.getMessage());
-            try { conn.rollback(); } catch (Exception ee) {
-                // do nothing
-            }
-            cnt = -1;
-        }
-        return cnt;
     }
 
 }

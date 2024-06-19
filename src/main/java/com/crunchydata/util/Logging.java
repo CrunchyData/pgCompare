@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,16 +22,23 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 import static com.crunchydata.util.Settings.Props;
+
 /**
- * @author bpace
+ * Utility class for logging operations.
+ * Provides methods to initialize logging configurations and write log messages at various severity levels.
+ *
+ * <p>This class is not instantiable.</p>
+ *
+ * @author Brian Pace
  */
 public class Logging {
 
-    final private static Logger logger;
+    private static final Logger logger;
 
     static {
         System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
 
+        // Set the log level based on the property value
         switch (Props.getProperty("log-level")) {
             case "SEVERE":
                 java.util.logging.Logger.getLogger(Logging.class.getName()).setLevel(Level.SEVERE);
@@ -45,40 +52,45 @@ public class Logging {
         }
 
         logger = Logger.getLogger(Logging.class.getName());
-        if ( !Props.getProperty("log-destination").equals("stdout") ) {
+
+        // Configure file handler if log-destination is not stdout
+        if (!"stdout".equals(Props.getProperty("log-destination"))) {
             try {
-                FileHandler fh = new FileHandler(Props.getProperty("log-destination"));
+                FileHandler fileHandler = new FileHandler(Props.getProperty("log-destination"));
                 SimpleFormatter formatter = new SimpleFormatter();
-                fh.setFormatter(formatter);
-                logger.addHandler(fh);
+                fileHandler.setFormatter(formatter);
+                logger.addHandler(fileHandler);
             } catch (Exception e) {
                 System.out.println("Cannot allocate log file, will use stdout");
             }
-
         }
+
     }
 
-    ////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////
-    // write:
-    //   Write log message at specified level.
-    ////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////
+    /**
+     * Writes a log message at the specified severity level.
+     *
+     * @param severity the severity level of the log message (info, warning, severe)
+     * @param module the module where the log message originated
+     * @param message the log message
+     */
     public static void write(String severity, String module, String message) {
         String msgFormat = "[%-24s] %2$s";
 
-        switch (severity) {
+        String formattedMessage = String.format(msgFormat, module, message);
+
+        switch (severity.toLowerCase()) {
             case "info":
-                logger.info(String.format(msgFormat,module, message));
+                logger.info(formattedMessage);
                 break;
             case "warning":
-                logger.warning(String.format(msgFormat,module, message));
+                logger.warning(formattedMessage);
                 break;
             case "severe":
-                logger.severe(String.format(msgFormat,module, message));
+                logger.severe(formattedMessage);
                 break;
             default:
-                logger.finer(String.format(msgFormat,module, message));
+                logger.finer(formattedMessage);
                 break;
         }
 

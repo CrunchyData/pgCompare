@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,34 @@
  * limitations under the License.
  */
 
-package com.crunchydata.util;
 
+package com.crunchydata.util;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
+ * Utility class for hashing operations.
+ * Provides methods to generate MD5 hash of a given input string.
+ *
+ * <p>This class is not instantiable.</p>
+ *
  * @author Brian Pace
  */
 public class HashUtility {
 
+    // Private constructor to prevent instantiation
+    private HashUtility() {
+        throw new UnsupportedOperationException("HashUtility is a utility class and cannot be instantiated.");
+    }
+
+    /**
+     * Generates an MD5 hash for the given input string.
+     *
+     * @param input the input string to be hashed
+     * @return the MD5 hash as a hexadecimal string
+     * @throws RuntimeException if the MD5 algorithm is not available
+     */
     public static String getMd5(String input)
     {
         try {
@@ -41,6 +58,8 @@ public class HashUtility {
 
             // Convert message digest into hex value
             StringBuilder hashText = new StringBuilder(no.toString(16));
+
+            // Pad with leading zeros to ensure 32-character length
             while (hashText.length() < 32) {
                 hashText.insert(0, "0");
             }
@@ -49,7 +68,7 @@ public class HashUtility {
 
         // For specifying wrong message digest algorithms
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("MD5 algorithm not found", e);
         }
     }
 }

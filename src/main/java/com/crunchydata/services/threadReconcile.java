@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.concurrent.BlockingQueue;
 
 import com.crunchydata.controller.RepoController;
@@ -29,60 +30,51 @@ import com.crunchydata.util.*;
 import static com.crunchydata.util.HashUtility.getMd5;
 import static com.crunchydata.util.Settings.Props;
 
-public class dbReconcile extends Thread {
-    Integer batchNbr;
-    Integer cid;
-    String modColumn;
-    Integer nbrColumns;
-    Integer nbrPKColumns;
-    Integer parallelDegree;
-    String pkList;
-    BlockingQueue<DataCompare[]> q;
-    String schemaName;
-    String sql;
-    String stagingTable;
-    String tableName;
-    String tableFilter;
-    String targetType;
-    String threadName;
-    Integer threadNumber;
-    Integer tid;
-    ThreadSync ts;
-    Boolean useDatabaseHash;
-    Boolean useLoaderThreads;
+/**
+ * Thread to pull data from source or target and load into the repository database.
+ *
+ * @author Brian Pace
+ */
+public class threadReconcile extends Thread {
+    private Integer batchNbr;
+    private Integer cid;
+    private String modColumn;
+    private Integer nbrColumns;
+    private Integer parallelDegree;
+    private String pkList;
+    private BlockingQueue<DataCompare[]> q;
+    private String sql;
+    private String stagingTable;
+    private String targetType;
+    private Integer threadNumber;
+    private ThreadSync ts;
+    private Boolean useDatabaseHash;
 
-    public dbReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable, BlockingQueue<DataCompare[]> q) {
+    public threadReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;
         this.modColumn = modColumn;
         this.parallelDegree = parallelDegree;
-        this.schemaName = schemaName;
-        this.tableName = tableName;
         this.sql = sql;
-        this.tableFilter = tableFilter;
         this.targetType = targetType;
         this.threadNumber = threadNumber;
         this.nbrColumns = nbrColumns;
-        this.nbrPKColumns = nbrPKColumns;
         this.cid = cid;
         this.ts = ts;
         this.pkList = pkList;
         this.useDatabaseHash = useDatabaseHash;
         this.batchNbr = batchNbr;
-        this.tid = tid;
         this.stagingTable = stagingTable;
     }
 
     public void run() {
 
-        threadName = "reconcile-"+targetType+"-c"+cid+"-t"+threadNumber;
+        String threadName = String.format("Reconcile-%s-c%s-t%s", targetType, cid, threadNumber);
         Logging.write("info", threadName, "Start database reconcile thread");
 
-        /////////////////////////////////////////////////
-        // Variables
-        /////////////////////////////////////////////////
         int cntRecord = 0;
         Connection conn = null;
         boolean firstPass = true;
+        DecimalFormat formatter = new DecimalFormat("#,###");
         int loadRowCount = 10000;
         int observerRowCount = 10000;
         Connection repoConn = null;
@@ -91,24 +83,21 @@ public class dbReconcile extends Thread {
         PreparedStatement stmt = null;
         PreparedStatement stmtLoad = null;
         int totalRows = 0;
-        useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) == 0;
+        Boolean useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) == 0;
 
         try {
-            /////////////////////////////////////////////////
             // Connect to Repository
-            /////////////////////////////////////////////////
             Logging.write("info", threadName, "Connecting to repository database");
             repoConn = dbPostgres.getConnection(Props,"repo", "reconcile");
+
             if ( repoConn == null) {
                 Logging.write("severe", threadName, "Cannot connect to repository database");
                 System.exit(1);
             }
             repoConn.setAutoCommit(false);
 
-            /////////////////////////////////////////////////
             // Connect to Source/Target
-            /////////////////////////////////////////////////
-            Logging.write("info", threadName, "Connecting to " + targetType + " database");
+            Logging.write("info", threadName, String.format("Connecting to %s database", targetType));
 
             switch (Props.getProperty(targetType + "-type")) {
                 case "oracle":
@@ -127,13 +116,11 @@ public class dbReconcile extends Thread {
             }
 
             if ( conn == null) {
-                Logging.write("severe", threadName, "Cannot connect to " + targetType + " database");
+                Logging.write("severe", threadName, String.format("Cannot connect to %s database", targetType));
                 System.exit(1);
             }
 
-            /////////////////////////////////////////////////
             // Load Reconcile Data
-            /////////////////////////////////////////////////
             if ( parallelDegree > 1 && !modColumn.isEmpty()) {
                 sql += " AND mod(" + modColumn + "," + parallelDegree +")="+threadNumber;
             }
@@ -149,7 +136,7 @@ public class dbReconcile extends Thread {
 
             StringBuilder columnValue = new StringBuilder();
 
-            if (! useLoaderThreads) {
+            if (!useLoaderThreads) {
                 String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
                 repoConn.setAutoCommit(false);
                 stmtLoad = repoConn.prepareStatement(sqlLoad);
@@ -168,7 +155,7 @@ public class dbReconcile extends Thread {
                     columnValue.append(rs.getString(3));
                 }
 
-                if ( useLoaderThreads ) {
+                if (useLoaderThreads) {
                     dc[cntRecord] = new DataCompare(null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
                 } else {
                     stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
@@ -182,7 +169,7 @@ public class dbReconcile extends Thread {
                 totalRows++;
 
                 if (totalRows % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 ) {
-                    if ( useLoaderThreads) {
+                    if (useLoaderThreads) {
                         if ( q.size() == 100) {
                             Logging.write("info", threadName, "Waiting for Queue space");
                             while (q.size() > 50) {
@@ -201,7 +188,7 @@ public class dbReconcile extends Thread {
                 }
 
                 if (totalRows % loadRowCount == 0) {
-                    Logging.write("info", threadName, "Loaded " + totalRows + " rows");
+                    Logging.write("info", threadName, String.format("Loaded %s rows", formatter.format(totalRows)));
                 }
 
                 if (totalRows % observerRowCount == 0) {
@@ -222,7 +209,7 @@ public class dbReconcile extends Thread {
                             ts.targetWaiting = true;
                         }
 
-                        ts.ObserverWait();
+                        ts.observerWait();
 
                         if ( targetType.equals("source")) {
                             ts.sourceWaiting = false;
@@ -245,7 +232,7 @@ public class dbReconcile extends Thread {
             }
 
             if ( cntRecord > 0 ) {
-                if ( useLoaderThreads ) {
+                if (useLoaderThreads) {
                     q.put(dc);
                 } else {
                     stmtLoad.executeBatch();
@@ -253,13 +240,11 @@ public class dbReconcile extends Thread {
                 rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
             }
 
-            Logging.write("info", threadName, "Complete. Total rows loaded: " + totalRows);
+            Logging.write("info", threadName, "Complete. Total rows loaded: " + formatter.format(totalRows));
 
-            /////////////////////////////////////////////////
             // Wait for Queues to Empty
-            /////////////////////////////////////////////////
-            if ( useLoaderThreads) {
-                while (q.size() > 0 ) {
+            if (useLoaderThreads) {
+                while (!q.isEmpty()) {
                     Logging.write("info", threadName, "Waiting for message queue to empty");
                     Thread.sleep(1000);
                 }
@@ -273,10 +258,9 @@ public class dbReconcile extends Thread {
             }
 
         } catch( SQLException e) {
-            Logging.write("severe", threadName, "Database error " + e.getMessage());
+            Logging.write("severe", threadName, String.format("Database error:  %s", e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", threadName, "Error in reconciliation thread " + e.getMessage());
-            e.printStackTrace();
+            Logging.write("severe", threadName, String.format("Error in reconciliation thread:  %s",e.getMessage()));
         } finally {
             try {
                 if (rs != null) {
@@ -291,9 +275,7 @@ public class dbReconcile extends Thread {
                     stmtLoad.close();
                 }
 
-                /////////////////////////////////////////////////
                 // Close Connections
-                /////////////////////////////////////////////////
                 if (repoConn != null) {
                     repoConn.close();
                 }
@@ -303,7 +285,7 @@ public class dbReconcile extends Thread {
                 }
 
             } catch (Exception e) {
-                e.printStackTrace();
+                Logging.write("severe", threadName, String.format("Error closing connections thread:  %s",e.getMessage()));
             }
         }
 
