@@ -47,4 +47,25 @@ public class DataUtility {
             throw new RuntimeException(e);
         }
     }
+
+    public static boolean isMixedCase(String str) {
+        boolean hasUpper = false;
+        boolean hasLower = false;
+
+        for (char c : str.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                hasUpper = true;
+            } else if (Character.isLowerCase(c)) {
+                hasLower = true;
+            }
+
+            // If both are true, it's mixed case
+            if (hasUpper && hasLower) {
+                return true;
+            }
+        }
+
+        // Not mixed case if only one or neither is true
+        return false;
+    }
 }
