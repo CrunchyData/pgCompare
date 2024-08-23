@@ -108,6 +108,8 @@ public class ReconcileController {
 
             Logging.write("info", THREAD_NAME, String.format("Source Columns: %s", ciSource.columnList));
             Logging.write("info", THREAD_NAME, String.format("Target Columns: %s", ciTarget.columnList));
+            Logging.write("info", THREAD_NAME, String.format("Source PK Columns: %s", ciSource.pkList));
+            Logging.write("info", THREAD_NAME, String.format("Target PK Columns: %s", ciTarget.pkList));
 
             Integer cid = rpc.dcrCreate(repoConn, targetTable, rid);
 
@@ -135,7 +137,7 @@ public class ReconcileController {
                 threadReconcileCheck.checkRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
             } else {
                 // Execute Compare SQL
-                if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty()) {
+                if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() || ciSource.pkList.isBlank() || ciSource.pkList.isEmpty()) {
                     Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation",targetTable));
                     result.put("status", "skipped");
                     result.put("compareStatus", "skipped");

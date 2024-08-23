@@ -29,6 +29,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.services.dbCommon.ShouldQuoteString;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -59,9 +60,9 @@ public class dbPostgres {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "md5(concat_ws('|'," + pkColumns + ")) pk_hash, " + pkJSON + " pk, md5(concat_ws(''," + columns + ")) FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += "md5(concat_ws('|'," + pkColumns + ")) pk_hash, " + pkJSON + " pk, md5(concat_ws(''," + columns + ")) FROM " +  ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         }
 
         if (tableFilter != null && !tableFilter.isEmpty()) {
@@ -89,7 +90,8 @@ public class dbPostgres {
             };
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(" + column.getString("columnName") + "::text,'0') = 'true' then '1' else '0' end";
+            String booleanConvert = "case when coalesce(" + column.getString("columnName") + "::text,'0') = 'true' then 1 else 0 end";
+            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'0000000000000000000000.0000000000000000000000')),' ')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
                 colExpression = "coalesce(to_char(" + column.getString("columnName") + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";

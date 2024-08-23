@@ -30,6 +30,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.services.dbCommon.ShouldQuoteString;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -61,9 +62,9 @@ public class dbOracle {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "LOWER(STANDARD_HASH(" + pkColumns + ",'MD5')) pk_hash, " + pkJSON + " pk, LOWER(STANDARD_HASH(" + columns + ",'MD5')) column_hash FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += "LOWER(STANDARD_HASH(" + pkColumns + ",'MD5')) pk_hash, " + pkJSON + " pk, LOWER(STANDARD_HASH(" + columns + ",'MD5')) column_hash FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         }
 
         if ( tableFilter != null && !tableFilter.isEmpty()) {
