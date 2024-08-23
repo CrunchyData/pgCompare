@@ -100,6 +100,8 @@ Use pgCompare to perform a discovery against the target database and populate th
 java -jar pgcompare.jar --discovery hr
 ```
 
+After automatic table registry, if there are tables that are case sensistive, those table names will need to be modified in the dc_table.source_table and dc_table.target_table columns as approriate.
+
 ### Manual Table Registry
 
 Example of loading a row into `dc_table`:

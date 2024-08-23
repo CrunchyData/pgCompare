@@ -26,6 +26,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 
+import static com.crunchydata.util.DataUtility.isMixedCase;
+
 /**
  * Utility class that contains common actions performed against the database
  * which are agnostic to the database platform.
@@ -35,6 +37,15 @@ import java.util.ArrayList;
 public class dbCommon {
     private static final String THREAD_NAME = "dbCommon";
 
+
+    public static String ShouldQuoteString(String str) {
+
+        if (isMixedCase(str)) {
+            str = String.format("\"%s\"",str);
+        }
+
+        return str;
+    }
     /**
      * Utility method to execute a provided SQL query and retrieve a list of tables.
      *

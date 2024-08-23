@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.services.dbCommon.ShouldQuoteString;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -65,9 +66,9 @@ public class dbMySQL {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "lower(md5(" + pkColumns + ")) pk_hash, " + pkJSON + " pk, lower(md5(" + columns + ")) column_hash FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += "lower(md5(" + pkColumns + ")) pk_hash, " + pkJSON + " pk, lower(md5(" + columns + ")) column_hash FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         }
 
         if ( tableFilter != null && !tableFilter.isEmpty()) {

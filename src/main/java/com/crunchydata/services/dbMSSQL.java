@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.services.dbCommon.ShouldQuoteString;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -64,9 +65,9 @@ public class dbMSSQL {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "lower(convert(varchar, hashbytes('MD5'," + pkColumns + "),2)) pk_hash, " + pkJSON + " pk, lower(convert(varchar, hashbytes('MD5'," + columns + "),2)) column_hash FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += "lower(convert(varchar, hashbytes('MD5'," + pkColumns + "),2)) pk_hash, " + pkJSON + " pk, lower(convert(varchar, hashbytes('MD5'," + columns + "),2)) column_hash FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + schema + "." + tableName + " WHERE 1=1 ";
+            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
         }
 
         if ( tableFilter != null && !tableFilter.isEmpty()) {

@@ -183,8 +183,8 @@ public class threadReconcileCheck {
                 binds.add(0,dcRow.getTableName());
                 binds.add(1,dcRow.getPkHash());
                 binds.add(2, dcRow.getBatchNbr());
-                dbCommon.simpleUpdate(repoConn, "DELETE FROM dc_source WHERE table_name=? AND pk_hash=? AND batch_nbr=?", binds, true);
-                dbCommon.simpleUpdate(repoConn, "DELETE FROM dc_target WHERE table_name=? AND pk_hash=? AND batch_nbr=?", binds, true);
+                dbCommon.simpleUpdate(repoConn, "DELETE FROM dc_source WHERE lower(table_name)=lower(?) AND pk_hash=? AND batch_nbr=?", binds, true);
+                dbCommon.simpleUpdate(repoConn, "DELETE FROM dc_target WHERE lower(table_name)=lower(?) AND pk_hash=? AND batch_nbr=?", binds, true);
             } else {
                 Logging.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
             }

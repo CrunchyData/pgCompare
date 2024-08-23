@@ -40,8 +40,8 @@ public interface SQLConstants {
                 									AND tc.constraint_name = kcu.constraint_name
                 									AND tc.table_name = kcu.table_name
                 					WHERE tc.constraint_type='PRIMARY KEY')  pkc ON (c.table_schema=pkc.table_schema AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
-                WHERE c.table_schema=?
-                      AND c.table_name=?
+                WHERE lower(c.table_schema)=lower(?)
+                      AND lower(c.table_name)=lower(?)
                 ORDER BY c.table_schema, c.table_name, c.column_name
                 """;
 
@@ -50,7 +50,7 @@ public interface SQLConstants {
     String SQL_MSSQL_SELECT_TABLES = """
                 SELECT lower(table_schema) owner, lower(table_name) table_name
                 FROM  information_schema.tables
-                WHERE table_schema=?
+                WHERE lower(table_schema)=lower(?)
                 ORDER BY table_schema, table_name
                 """;
 
@@ -71,15 +71,15 @@ public interface SQLConstants {
                 									AND tc.constraint_name = kcu.constraint_name
                 									AND tc.table_name = kcu.table_name
                 					WHERE tc.constraint_type='PRIMARY KEY')  pkc ON (c.table_schema=pkc.table_schema AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
-                WHERE c.table_schema=?
-                      AND c.table_name=?
+                WHERE lower(c.table_schema)=lower(?)
+                      AND lower(c.table_name)=lower(?)
                 ORDER BY c.table_schema, c.table_name, c.column_name
                 """;
 
     String SQL_MYSQL_SELECT_TABLES = """
                 SELECT lower(table_schema) owner, lower(table_name) table_name
                 FROM  information_schema.tables
-                WHERE table_schema=?
+                WHERE lower(table_schema)=lower(?)
                 ORDER BY table_schema, table_name
                 """;
 
@@ -96,15 +96,15 @@ public interface SQLConstants {
                                     FROM all_constraints con
                                          JOIN all_ind_columns i ON (con.index_owner=i.index_owner AND con.index_name=i.index_name)
                                     WHERE con.constraint_type='P') pkc ON (c.owner=pkc.owner AND c.table_name=pkc.table_name AND c.column_name=pkc.column_name)
-                WHERE c.owner=upper(?)
-                      AND c.table_name=upper(?)
+                WHERE lower(c.owner)=lower(?)
+                      AND lower(c.table_name)=lower(?)
                 ORDER BY c.owner, c.table_name, c.column_name
                 """;
 
     String SQL_ORACLE_SELECT_TABLES = """
                 SELECT LOWER(owner) owner, LOWER(table_name) table_name
                 FROM all_tables
-                WHERE owner=upper(?)
+                WHERE lower(owner)=lower(?)
                 ORDER BY owner, table_name
                 """;
 
@@ -124,15 +124,15 @@ public interface SQLConstants {
                      JOIN pg_namespace n ON (t.relnamespace=n.oid)
                      JOIN information_schema.columns col ON (col.table_schema=n.nspname AND col.table_name=t.relname AND col.column_name=c.attname)
                      LEFT OUTER JOIN pg_index i ON (i.indrelid=c.attrelid AND c.attnum = any(i.indkey) AND i.indisunique)
-                WHERE n.nspname=lower(?)
-                      AND t.relname=lower(?)
+                WHERE lower(n.nspname)=lower(?)
+                      AND lower(t.relname)=lower(?)
                 ORDER BY n.nspname, t.relname, c.attname
                 """;
 
     String SQL_POSTGRES_SELECT_TABLES = """
                 SELECT lower(table_schema) owner, lower(table_name) table_name
                 FROM  information_schema.tables
-                WHERE table_schema=lower(?)
+                WHERE lower(table_schema)=lower(?)
                       AND table_type != 'VIEW'
                 ORDER BY table_schema, table_name
                 """;
