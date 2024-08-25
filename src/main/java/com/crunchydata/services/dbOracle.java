@@ -43,6 +43,7 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class dbOracle {
+    public static final String nativeCase = "upper";
 
     private static final String THREAD_NAME = "dbOracle";
 

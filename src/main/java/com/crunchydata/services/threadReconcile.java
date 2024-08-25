@@ -36,6 +36,7 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class threadReconcile extends Thread {
+    private Integer tid;
     private Integer batchNbr;
     private Integer cid;
     private String modColumn;
@@ -58,6 +59,7 @@ public class threadReconcile extends Thread {
         this.targetType = targetType;
         this.threadNumber = threadNumber;
         this.nbrColumns = nbrColumns;
+        this.tid = tid;
         this.cid = cid;
         this.ts = ts;
         this.pkList = pkList;
@@ -156,7 +158,7 @@ public class threadReconcile extends Thread {
                 }
 
                 if (useLoaderThreads) {
-                    dc[cntRecord] = new DataCompare(null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
+                    dc[cntRecord] = new DataCompare(tid,null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
                 } else {
                     stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
                     stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));

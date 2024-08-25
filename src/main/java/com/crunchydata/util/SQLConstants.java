@@ -27,7 +27,7 @@ public interface SQLConstants {
     // MSSQL (Sql Server) SQL
     //
     String SQL_MSSQL_SELECT_COLUMNS = """
-                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
+                SELECT c.table_schema owner, c.table_name, c.column_name, c.data_type,\s
                        coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
                        case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
@@ -48,7 +48,7 @@ public interface SQLConstants {
     String SQL_MSSQL_SELECT_VERSION = "select version()";
 
     String SQL_MSSQL_SELECT_TABLES = """
-                SELECT lower(table_schema) owner, lower(table_name) table_name
+                SELECT table_schema owner, table_name
                 FROM  information_schema.tables
                 WHERE lower(table_schema)=lower(?)
                 ORDER BY table_schema, table_name
@@ -58,7 +58,7 @@ public interface SQLConstants {
     // MYSQL SQL
     //
     String SQL_MYSQL_SELECT_COLUMNS =  """
-                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
+                SELECT c.table_schema owner, c.table_name, c.column_name, c.data_type,\s
                        coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
                        case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
@@ -77,7 +77,7 @@ public interface SQLConstants {
                 """;
 
     String SQL_MYSQL_SELECT_TABLES = """
-                SELECT lower(table_schema) owner, lower(table_name) table_name
+                SELECT table_schema owner, table_name table_name
                 FROM  information_schema.tables
                 WHERE lower(table_schema)=lower(?)
                 ORDER BY table_schema, table_name
@@ -89,7 +89,7 @@ public interface SQLConstants {
     // Oracle SQL
     //
     String SQL_ORACLE_SELECT_COLUMNS = """
-                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
+                SELECT c.owner, c.table_name, c.column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
                 FROM all_tab_columns c
                      LEFT OUTER JOIN (SELECT con.owner, con.table_name, i.column_name, i.column_position
@@ -102,7 +102,7 @@ public interface SQLConstants {
                 """;
 
     String SQL_ORACLE_SELECT_TABLES = """
-                SELECT LOWER(owner) owner, LOWER(table_name) table_name
+                SELECT owner, table_name
                 FROM all_tables
                 WHERE lower(owner)=lower(?)
                 ORDER BY owner, table_name
@@ -130,7 +130,7 @@ public interface SQLConstants {
                 """;
 
     String SQL_POSTGRES_SELECT_TABLES = """
-                SELECT lower(table_schema) owner, lower(table_name) table_name
+                SELECT table_schema owner, table_name
                 FROM  information_schema.tables
                 WHERE lower(table_schema)=lower(?)
                       AND table_type != 'VIEW'
@@ -251,15 +251,17 @@ public interface SQLConstants {
                             WHERE EXISTS
                                       (SELECT 1
                                        FROM dc_target t
-                                       WHERE s.pk_hash = t.pk_hash
+                                       WHERE s.tid = t.tid
+                                             AND s.pk_hash = t.pk_hash
                                              AND s.column_hash = t.column_hash)
-                            RETURNING pk_hash, column_hash)
+                            RETURNING tid, pk_hash, column_hash)
                 DELETE FROM dc_target dt USING ds
-                WHERE  ds.pk_hash=dt.pk_hash
+                WHERE  ds.tid=dt.tid
+                       AND ds.pk_hash=dt.pk_hash
                        AND ds.column_hash=dt.column_hash
                 """;
 
-    String SQL_REPO_DCRESULT_INSERT = "INSERT INTO dc_result (compare_dt, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
+    String SQL_REPO_DCRESULT_INSERT = "INSERT INTO dc_result (compare_dt, tid, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
     String SQL_REPO_DCRESULT_UPDATECNT = """
                                  UPDATE dc_result SET equal_cnt=equal_cnt+?
                                  WHERE cid=?
@@ -276,38 +278,62 @@ public interface SQLConstants {
                                  RETURNING equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, status
                                  """;
 
+    String SQL_REPO_DCSOURCE_DELETE = "DELETE FROM dc_source WHERE tid=? AND pk_hash=? AND batch_nbr=?";
     String SQL_REPO_DCSOURCE_INSERT = """
-                INSERT INTO dc_source (table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT ? table_name, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr FROM stagingtable)
+                INSERT INTO dc_source (tid, table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT ? tid, ? table_name, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr FROM stagingtable)
                 """;
     String SQL_REPO_DCSOURCE_MARKNOTEQUAL = """
                                  UPDATE dc_source s SET compare_result = 'n'
-                                 WHERE s.table_name=?
-                                       AND EXISTS (SELECT 1 FROM dc_target t WHERE t.table_name=? AND s.pk_hash=t.pk_hash AND s.column_hash != t.column_hash)
+                                 WHERE s.tid=?
+                                       AND EXISTS (SELECT 1 FROM dc_target t WHERE t.tid=? AND s.pk_hash=t.pk_hash AND s.column_hash != t.column_hash)
                                  """;
 
     String SQL_REPO_DCSOURCE_MARKMISSING = """
                                       UPDATE dc_target t SET compare_result = 'm'
-                                      WHERE t.table_name=?
-                                            AND NOT EXISTS (SELECT 1 FROM dc_source s WHERE s.table_name=? AND t.pk_hash=s.pk_hash)
+                                      WHERE t.tid=?
+                                            AND NOT EXISTS (SELECT 1 FROM dc_source s WHERE s.tid=? AND t.pk_hash=s.pk_hash)
                                       """;
 
 
-    String SQL_REPO_DCTABLE_INSERT = "INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, batch_nbr, status) VALUES (?, ?, ?, ?, 1, 'ready')";
+    String SQL_REPO_DCTARGET_DELETE = "DELETE FROM dc_target WHERE tid=? AND pk_hash=? AND batch_nbr=?";
 
-    String SQL_REPO_DCTABLE_UPDATE_COLUMNMAP = "UPDATE dc_table SET column_map=?::jsonb WHERE tid=?";
+    String SQL_REPO_DCTABLE_INCOMPLETEMAP = """
+                SELECT t.tid, t.table_alias, count(1) cnt
+                FROM dc_table t
+                     LEFT OUTER JOIN dc_table_map m ON (t.tid = m.tid)
+                WHERE t.pid = ?
+                GROUP BY t.tid
+                HAVING count(1) < 2
+                """;
+
+    String SQL_REPO_DCTABLE_DELETEBYPROJECT = "DELETE FROM dc_table WHERE pid=?";
+
+    String SQL_REPO_DCTABLE_DELETEBYTID = "DELETE FROM dc_table WHERE tid=?";
+
+    String SQL_REPO_DCTABLE_INSERT = "INSERT INTO dc_table (pid, table_alias, batch_nbr, status) VALUES (?, lower(?), 1, 'enabled') RETURNING tid";
+
+    String SQL_REPO_DCTABLE_SELECT_BYNAME = "SELECT tid FROM dc_table WHERE table_alias = lower(?)";
+
+
+    String SQL_REPO_DCTABLE_COLUMN_DELETE = "DELETE FROM dc_table_column WHERE tid=?";
+
+    String SQL_REPO_DCTABLE_COLUMN_INSERT = "INSERT INTO dc_table_column (tid, column_alias, column_type, column_name, data_type, data_class, data_length, number_precission, number_scale, column_nullable, column_primarykey, map_expression, supported, case_sensitive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     String SQL_REPO_DCTABLEHISTORY_INSERT = "INSERT INTO dc_table_history (tid, action_type, start_dt, load_id, batch_nbr, row_count) VALUES (?, ?, current_timestamp, ?, ?, 0)";
 
     String SQL_REPO_DCTABLEHISTORY_UPDATE = "UPDATE dc_table_history set end_dt=current_timestamp, row_count=?, action_result=?::jsonb WHERE tid=? AND action_type=? and load_id=? and batch_nbr=?";
+
+    String SQL_REPO_DCTABLEMAP_INSERT = "INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name, schema_preserve_case, table_preserve_case) VALUES (?, ?, ?, ?, ?, ?)";
+
     String SQL_REPO_DCTARGET_MARKMISSING = """
                                       UPDATE dc_source s SET compare_result = 'm'
-                                      WHERE s.table_name=?
-                                            AND NOT EXISTS (SELECT 1 FROM dc_target t WHERE t.table_name=? AND s.pk_hash=t.pk_hash)
+                                      WHERE s.tid=?
+                                            AND NOT EXISTS (SELECT 1 FROM dc_target t WHERE t.tid=? AND s.pk_hash=t.pk_hash)
                                       """;
     String SQL_REPO_DCTARGET_MARKNOTEQUAL ="""
                                 UPDATE dc_target t SET compare_result = 'n'
-                                WHERE t.table_name=?
-                                      AND EXISTS (SELECT 1 FROM dc_source s WHERE s.table_name=? AND t.pk_hash=s.pk_hash AND t.column_hash != s.column_hash)
+                                WHERE t.tid=?
+                                      AND EXISTS (SELECT 1 FROM dc_source s WHERE s.tid=? AND t.pk_hash=s.pk_hash AND t.column_hash != s.column_hash)
                                 """;
 
     String SQL_REPO_DCTABLE_SELECT = """
@@ -320,16 +346,16 @@ public interface SQLConstants {
                      """;
 
     String SQL_REPO_SELECT_OUTOFSYNC_ROWS = """
-                        SELECT DISTINCT table_name, pk_hash, pk
+                        SELECT DISTINCT tid, table_name, pk_hash, pk
                         FROM (SELECT table_name, pk_hash, pk
                             FROM dc_source
-                            WHERE table_name = ?
+                            WHERE tid = ?
                                   AND compare_result is not null
                                   AND compare_result != 'e'
                             UNION
                             SELECT table_name, pk_hash, pk
                             FROM dc_target
-                            WHERE table_name = ?
+                            WHERE tid = ?
                                   AND compare_result is not null
                                   AND compare_result != 'e') x
                         ORDER BY table_name

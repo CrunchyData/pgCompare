@@ -47,6 +47,7 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class dbMySQL {
+    public static final String nativeCase = "lower";
 
     private static final String THREAD_NAME = "dbMySQL";
 

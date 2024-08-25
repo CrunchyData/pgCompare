@@ -33,8 +33,7 @@ import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.util.SQLConstants.SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS;
-import static com.crunchydata.util.SQLConstants.SQL_REPO_SELECT_OUTOFSYNC_ROWS;
+import static com.crunchydata.util.SQLConstants.*;
 
 /**
  * Thread to perform reconciliation checks on rows that are out of sync.
@@ -61,7 +60,7 @@ public class threadReconcileCheck {
      * @param batchNbr           Batch number identifier.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static void checkRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, String sourceTable, String targetTable, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer batchNbr, Integer cid) {
+    public static void checkRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, Integer tid, String sourceTable, String targetTable, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer batchNbr, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
         StringBuilder tableFilter;
@@ -71,12 +70,13 @@ public class threadReconcileCheck {
 
         try {
             PreparedStatement stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
-            stmt.setObject(1, sourceTable);
-            stmt.setObject(2, targetTable);
+            stmt.setObject(1, tid);
+            stmt.setObject(2, tid);
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                DataCompare dcRow = new DataCompare(null,null,null,null,null, 0, batchNbr);
+                DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, batchNbr);
+                dcRow.setTid(tid);
                 dcRow.setTableName(targetTable);
                 dcRow.setPkHash(rs.getString("pk_hash"));
                 dcRow.setPk(rs.getString("pk"));
@@ -180,11 +180,11 @@ public class threadReconcileCheck {
             if (rowResult.get("compareStatus").equals("in-sync")) {
                 rowResult.put("equal",1);
                 binds.clear();
-                binds.add(0,dcRow.getTableName());
+                binds.add(0,dcRow.getTid());
                 binds.add(1,dcRow.getPkHash());
                 binds.add(2, dcRow.getBatchNbr());
-                dbCommon.simpleUpdate(repoConn, "DELETE FROM dc_source WHERE lower(table_name)=lower(?) AND pk_hash=? AND batch_nbr=?", binds, true);
-                dbCommon.simpleUpdate(repoConn, "DELETE FROM dc_target WHERE lower(table_name)=lower(?) AND pk_hash=? AND batch_nbr=?", binds, true);
+                dbCommon.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
+                dbCommon.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
             } else {
                 Logging.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
             }

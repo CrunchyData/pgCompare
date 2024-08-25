@@ -111,7 +111,7 @@ public class ReconcileController {
             Logging.write("info", THREAD_NAME, String.format("Source PK Columns: %s", ciSource.pkList));
             Logging.write("info", THREAD_NAME, String.format("Target PK Columns: %s", ciTarget.pkList));
 
-            Integer cid = rpc.dcrCreate(repoConn, targetTable, rid);
+            Integer cid = rpc.dcrCreate(repoConn, tid, targetTable, rid);
 
             // Set Source & Target Variables
             String sqlSource = switch (Props.getProperty("source-type")) {
@@ -134,7 +134,7 @@ public class ReconcileController {
             Logging.write("info", THREAD_NAME, String.format("Target Compare Hash SQL: %s", sqlTarget));
 
             if (check) {
-                threadReconcileCheck.checkRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
+                threadReconcileCheck.checkRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, tid, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
             } else {
                 // Execute Compare SQL
                 if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() || ciSource.pkList.isBlank() || ciSource.pkList.isEmpty()) {
@@ -153,7 +153,7 @@ public class ReconcileController {
 
                         Logging.write("info", THREAD_NAME, String.format("Starting compare thread %s",i));
                         ts = new ThreadSync();
-                        threadReconcileObserver rot = new threadReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
+                        threadReconcileObserver rot = new threadReconcileObserver(targetSchema, tid, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
                         rot.start();
                         observerList.add(rot);
                         threadReconcile cst = new threadReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ciSource.nbrColumns, ciSource.nbrPKColumns, cid, ts, ciSource.pkList, Boolean.parseBoolean(Props.getProperty("source-database-hash")), batchNbr, tid, stagingTableSource, qs);
@@ -193,8 +193,8 @@ public class ReconcileController {
             dbCommon.simpleExecute(repoConn, "set enable_nestloop='off'");
 
             binds.clear();
-            binds.add(0, targetTable);
-            binds.add(1, targetTable);
+            binds.add(0, tid);
+            binds.add(1, tid);
 
             Logging.write("info", THREAD_NAME, "Analyzing: Step 1 of 3 - Missing on Source");
             Integer missingSource = dbCommon.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);

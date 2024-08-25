@@ -17,6 +17,7 @@
 package com.crunchydata.model;
 
 public class DataCompare {
+    private Integer tid;
     private String tableName;
     private String pkHash;
     private String columnHash;
@@ -28,7 +29,8 @@ public class DataCompare {
 
     private Integer batchNbr;
 
-    public DataCompare(String tableName, String pkHash, String columnHash, String pk, String compareResult, Integer threadNbr, Integer batchNbr) {
+    public DataCompare(Integer tid, String tableName, String pkHash, String columnHash, String pk, String compareResult, Integer threadNbr, Integer batchNbr) {
+        this.tid = tid;
         this.tableName = tableName;
         this.pkHash = pkHash;
         this.columnHash = columnHash;
@@ -36,6 +38,14 @@ public class DataCompare {
         this.compareResult = compareResult;
         this.threadNbr = threadNbr;
         this.batchNbr = batchNbr;
+    }
+
+    public Integer getTid() {
+        return tid;
+    }
+
+    public void setTid(Integer tid) {
+        this.tid = tid;
     }
 
     public String getTableName() {

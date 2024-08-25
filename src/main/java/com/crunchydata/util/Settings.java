@@ -56,7 +56,7 @@ import java.util.Properties;
 public class Settings {
 
     public static final Properties Props;
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.3.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
@@ -65,7 +65,7 @@ public class Settings {
         try (InputStream stream = new FileInputStream(paramFile)) {
             configProperties.load(stream);
         } catch (Exception e) {
-            System.out.println("Configuration file not found, using defaults and environment variables");
+            Logging.write("warning","Settings", "Configuration file not found, using defaults and environment variables");
         }
 
         Props = setEnvironment(configProperties);
@@ -80,6 +80,7 @@ public class Settings {
         Properties defaultProps = new Properties();
 
         // System Settings
+        defaultProps.setProperty("project", "1");
         defaultProps.setProperty("config-file", paramFile);
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
@@ -112,6 +113,7 @@ public class Settings {
         defaultProps.setProperty("source-name","source");
         defaultProps.setProperty("source-password","welcome1");
         defaultProps.setProperty("source-port","5432");
+        defaultProps.setProperty("source-schema","");
         defaultProps.setProperty("source-sslmode","disable");
         defaultProps.setProperty("source-type","postgres");
         defaultProps.setProperty("source-user","postgres");
@@ -123,6 +125,7 @@ public class Settings {
         defaultProps.setProperty("target-name","target");
         defaultProps.setProperty("target-password","welcome1");
         defaultProps.setProperty("target-port","5432");
+        defaultProps.setProperty("target-schema","");
         defaultProps.setProperty("target-sslmode","disable");
         defaultProps.setProperty("target-type","postgres");
         defaultProps.setProperty("target-user","postgres");

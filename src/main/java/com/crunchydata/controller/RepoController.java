@@ -20,6 +20,8 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import javax.sql.rowset.CachedRowSet;
 
+import com.crunchydata.model.DCTable;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.services.dbCommon;
 import com.crunchydata.util.Logging;
 
@@ -182,14 +184,15 @@ public class RepoController {
      * @param batchNbr     Batch number
      * @param threadNbr    Thread number
      */
-    public void loadFindings (Connection conn, String location, String stagingTable, String tableName, Integer batchNbr, Integer threadNbr) {
+    public void loadFindings (Connection conn, String location, Integer tid, String stagingTable, String tableName, Integer batchNbr, Integer threadNbr) {
 
         String sqlFinal = SQL_REPO_DCSOURCE_INSERT.replaceAll("dc_source", String.format("dc_%s",location)).replaceAll("stagingtable", stagingTable);
 
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,tableName);
-        binds.add(1,threadNbr);
-        binds.add(2,batchNbr);
+        binds.add(0, tid);
+        binds.add(1, tableName);
+        binds.add(2, threadNbr);
+        binds.add(3, batchNbr);
         dbCommon.simpleUpdate(conn, sqlFinal, binds, true);
     }
 
@@ -205,25 +208,47 @@ public class RepoController {
         binds.add(0,columnMap);
         binds.add(1,tid);
 
-        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLE_UPDATE_COLUMNMAP,binds, true);
+        //tid, column_alias, column_type, column_name, data_type, data_class, data_length, number_precission, number_scale, column_nullable, column_primarykey, map_expression, supported, case_sensitive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLE_COLUMN_INSERT,binds, true);
     }
 
     /**
      * Saves the table information to the database.
      *
      * @param conn      Database connection
-     * @param schema    Schema name
-     * @param tableName Table name
+     * @param dcTable   Table model
      */
-    public static void saveTable (Connection conn, String schema, String tableName) {
+    public static DCTable saveTable (Connection conn, DCTable dcTable) {
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,schema);
-        binds.add(1,tableName);
-        binds.add(2,schema);
-        binds.add(3,tableName);
+        binds.add(0, dcTable.getPid());
+        binds.add(1, dcTable.getTableAlias());
 
-        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLE_INSERT,binds, true);
+        Integer tid = dbCommon.simpleUpdateReturningInteger(conn,SQL_REPO_DCTABLE_INSERT,binds);
+
+        dcTable.setTid(tid);
+
+        return dcTable;
     }
+
+    /**
+     * Starts table detail for table map.
+     *
+     * @param conn        Database connection
+     * @param dcTableMap  Table Map record.
+     */
+    public static void saveTableMap (Connection conn, DCTableMap dcTableMap) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, dcTableMap.getTid());
+        binds.add(1, dcTableMap.getDestType());
+        binds.add(2,dcTableMap.getSchemaName());
+        binds.add(3,dcTableMap.getTableName());
+        binds.add(4,dcTableMap.isSchemaPreserveCase());
+        binds.add(5,dcTableMap.isTablePreserveCase());
+
+        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLEMAP_INSERT,binds,true);
+    }
+
 
     /**
      * Starts a new table history record.
@@ -250,10 +275,11 @@ public class RepoController {
      * @param rid       Reconciliation ID
      * @return The comparison ID (cid)
      */
-    public Integer dcrCreate (Connection conn, String tableName, long rid) {
+    public Integer dcrCreate (Connection conn, int tid, String tableName, long rid) {
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,tableName);
-        binds.add(1,rid);
+        binds.add(0, tid);
+        binds.add(1, tableName);
+        binds.add(2, rid);
 
         CachedRowSet crs = dbCommon.simpleUpdateReturning(conn, SQL_REPO_DCRESULT_INSERT, binds);
         int cid = -1;

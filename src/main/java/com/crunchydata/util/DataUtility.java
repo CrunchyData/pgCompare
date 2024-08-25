@@ -48,6 +48,26 @@ public class DataUtility {
         }
     }
 
+    public static boolean allUpper(String str) {
+        for (char c : str.toCharArray()) {
+            if (! Character.isUpperCase(c) && Character.isAlphabetic(c) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean allLower(String str) {
+        for (char c : str.toCharArray()) {
+            if (! Character.isLowerCase(c) && Character.isAlphabetic(c) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static boolean isMixedCase(String str) {
         boolean hasUpper = false;
         boolean hasLower = false;
@@ -67,5 +87,10 @@ public class DataUtility {
 
         // Not mixed case if only one or neither is true
         return false;
+    }
+
+    public static boolean preserveCase(String expectedCase, String str) {
+        Boolean result = (expectedCase.equals("lower")) ? ! allLower(str) : ! allUpper(str);
+        return result;
     }
 }

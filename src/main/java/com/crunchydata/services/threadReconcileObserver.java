@@ -45,6 +45,8 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class threadReconcileObserver extends Thread  {
+
+    private Integer tid;
     private String tableName;
     private Integer cid;
     private Integer threadNbr;
@@ -57,6 +59,7 @@ public class threadReconcileObserver extends Thread  {
     /**
      * Constructs a thread to observe the reconciliation process.
      *
+     * @param tid                Identifier for table.
      * @param schemaName         Schema name of the tables being reconciled.
      * @param tableName          Name of the table being reconciled.
      * @param cid                Identifier for the reconciliation process.
@@ -68,7 +71,8 @@ public class threadReconcileObserver extends Thread  {
      *
      * @author Brian Pace
      */
-    public threadReconcileObserver(String schemaName, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr, String stagingTableSource, String stagingTableTarget) {
+    public threadReconcileObserver(String schemaName, Integer tid, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr, String stagingTableSource, String stagingTableTarget) {
+        this.tid = tid;
         this.tableName = tableName;
         this.cid = cid;
         this.ts = ts;
@@ -167,8 +171,8 @@ public class threadReconcileObserver extends Thread  {
 
             Logging.write("info", threadName, "Staging table cleanup");
 
-            rpc.loadFindings(repoConn, "source", stagingTableSource, tableName, batchNbr, threadNbr);
-            rpc.loadFindings(repoConn, "target", stagingTableTarget, tableName, batchNbr, threadNbr);
+            rpc.loadFindings(repoConn, "source", tid, stagingTableSource, tableName, batchNbr, threadNbr);
+            rpc.loadFindings(repoConn, "target", tid, stagingTableTarget, tableName, batchNbr, threadNbr);
             rpc.dropStagingTable(repoConn, stagingTableSource);
             rpc.dropStagingTable(repoConn, stagingTableTarget);
 
