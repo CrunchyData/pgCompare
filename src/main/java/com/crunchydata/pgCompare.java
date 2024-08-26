@@ -20,9 +20,12 @@ import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
 
-import com.crunchydata.controller.DiscoveryController;
+import com.crunchydata.controller.ColumnController;
+import com.crunchydata.controller.TableController;
 import com.crunchydata.controller.ReconcileController;
 import com.crunchydata.controller.RepoController;
+import com.crunchydata.model.DCTable;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.Settings;
@@ -31,7 +34,7 @@ import org.apache.commons.cli.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.controller.TableController.getTableMap;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -94,6 +97,7 @@ public class pgCompare {
             System.exit(0);
         }
 
+
         // Connect to Source
         Logging.write("info", THREAD_NAME, "Connecting to source database");
         connSource = getDatabaseConnection(Props.getProperty("source-type"), "source");
@@ -110,6 +114,13 @@ public class pgCompare {
         if (connTarget == null) {
             Logging.write("severe", THREAD_NAME, "Cannot connect to target database");
             System.exit(1);
+        }
+
+        // Refresh Column Map (maponly)
+        if (cmd.hasOption("maponly")) {
+            // Discover Columns
+            ColumnController.discoverColumns(pid, connRepo, connSource, connTarget);
+            System.exit(0);
         }
 
         // Call module/function to perform desired action
@@ -165,9 +176,11 @@ public class pgCompare {
 
         Logging.write("info", THREAD_NAME, String.format("Performaning table discovery"));
 
-        DiscoveryController.discoverTables(pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
+        // Discover Tables
+        TableController.discoverTables(pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
 
-
+        // Discover Columns
+        ColumnController.discoverColumns(pid, connRepo, connSource, connTarget);
     }
 
     //
@@ -177,38 +190,42 @@ public class pgCompare {
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "";
         RepoController rpc = new RepoController();
         int tablesProcessed = 0;
-        CachedRowSet crsTable = rpc.getTables(connRepo, batchParameter, table, check);
+        CachedRowSet crsTable = rpc.getTables(pid, connRepo, batchParameter, table, check);
         JSONArray runResult = new JSONArray();
 
         try {
             while (crsTable.next()) {
                 tablesProcessed++;
 
-                Logging.write("info", THREAD_NAME, "Start reconciliation");
-                rpc.startTableHistory(connRepo, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"));
+                // Construct DCTable Class
+                DCTable dct = new DCTable();
+                dct.setPid(pid);
+                dct.setTid(crsTable.getInt("tid"));
+                dct.setStatus(crsTable.getString("status"));
+                dct.setBatchNbr(crsTable.getInt("batch_nbr"));
+                dct.setParallelDegree(crsTable.getInt("parallel_degree"));
+                dct.setTableAlias(crsTable.getString("table_alias"));
 
+                Logging.write("info", THREAD_NAME, "Start reconciliation");
+
+                // Construct DCTableMap Class for Source
+                DCTableMap sourceTableMap = createTableMap("source",dct);
+
+                // Construct DCTableMap Class for Target
+                DCTableMap targetTableMap = createTableMap("target",dct);
+
+                // Create Table History Entry
+                rpc.startTableHistory(connRepo,dct.getTid(), "reconcile", dct.getBatchNbr());
+
+                // Clear previous reconciliation results if not recheck.
                 if (!check) {
                     Logging.write("info", THREAD_NAME, "Clearing data compare findings");
-                    rpc.deleteDataCompare(connRepo, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
-                    rpc.deleteDataCompare(connRepo, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
+                    rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
                 }
 
-                JSONObject actionResult = ReconcileController.reconcileData(connRepo,
-                        connSource,
-                        connTarget,
-                        crsTable.getString("source_schema"), crsTable.getString("source_table"),
-                        crsTable.getString("target_schema"), crsTable.getString("target_table"),
-                        crsTable.getString("table_filter"),
-                        crsTable.getString("mod_column"),
-                        crsTable.getInt("parallel_degree"),
-                        startStopWatch,
-                        check,
-                        crsTable.getInt("batch_nbr"),
-                        crsTable.getInt("tid"),
-                        crsTable.getString("column_map"),
-                        mapOnly);
+                JSONObject actionResult = ReconcileController.reconcileData(connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
 
-                rpc.completeTableHistory(connRepo, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
+                rpc.completeTableHistory(connRepo, dct.getTid(), "reconcile", dct.getBatchNbr(), 0, actionResult.toString());
 
                 runResult.put(actionResult);
 
@@ -224,6 +241,18 @@ public class pgCompare {
             printSummary(tablesProcessed, runResult, startStopWatch);
         }
 
+    }
+
+    //
+    // Create Table Map
+    //
+    private static DCTableMap createTableMap(String tableOrigin, DCTable dct) {
+        DCTableMap dctm = getTableMap(connRepo, dct.getTid(),tableOrigin);
+        dctm.setBatchNbr(dct.getBatchNbr());
+        dctm.setPid(pid);
+        dctm.setTableAlias(dct.getTableAlias());
+
+        return dctm;
     }
 
     //

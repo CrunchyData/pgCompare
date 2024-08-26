@@ -16,6 +16,8 @@
 
 package com.crunchydata.services;
 
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -28,7 +30,8 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static com.crunchydata.services.ColumnValidation.*;
-import static com.crunchydata.services.dbCommon.ShouldQuoteString;
+import static com.crunchydata.util.DataUtility.ShouldQuoteString;
+import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -54,25 +57,19 @@ public class dbMSSQL {
      * Builds a SQL query for loading data from a SQL Server table.
      *
      * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @param schema          Schema name of the table.
-     * @param tableName       Name of the table.
-     * @param pkColumns       Columns used as primary key.
-     * @param pkJSON          JSON representation of primary key columns.
-     * @param columns         Columns to select from the table.
-     * @param tableFilter     Optional filter condition for the WHERE clause.
      * @return SQL query string for loading data from the specified table.
      */
-    public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "lower(convert(varchar, hashbytes('MD5'," + pkColumns + "),2)) pk_hash, " + pkJSON + " pk, lower(convert(varchar, hashbytes('MD5'," + columns + "),2)) column_hash FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
+            sql += "lower(convert(varchar, hashbytes('MD5'," +  columnMetadata.getPk() + "),2)) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(convert(varchar, hashbytes('MD5'," + columnMetadata.getColumn() + "),2)) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         }
 
-        if ( tableFilter != null && !tableFilter.isEmpty()) {
-            sql += " AND " + tableFilter;
+        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
+            sql += " AND " + tableMap.getTableFilter();
         }
 
         return sql;
@@ -86,17 +83,18 @@ public class dbMSSQL {
      */
     public static String columnValueMapMSSQL(JSONObject column) {
         String colExpression;
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression =   Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(to_char(" + column.getString("columnName") + ",'E10')),' '),'E+0,'e+'))"   : "coalesce(cast(format(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
+            colExpression =   Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(to_char(" + columnName + ",'E10')),' '),'E+0,'e+'))"   : "coalesce(cast(format(" + columnName + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(cast(" + column.getString("columnName") + " as varchar),'0') = 'true' then '1' else '0' end";
+            colExpression = "case when coalesce(cast(" + columnName + " as varchar),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(format(" + column.getString("columnName") + ",MMddyyyyHHMIss'),' ')";
+            colExpression = "coalesce(format(" + columnName + ",MMddyyyyHHMIss'),' ')";
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + column.getString("columnName") + ",' ')";
+            colExpression = "coalesce(" + columnName + ",' ')";
         } else {
-            colExpression = column.getString("columnName");
+            colExpression = columnName;
         }
 
         return colExpression;
@@ -134,8 +132,9 @@ public class dbMSSQL {
                 column.put("dataScale",rs.getInt("data_scale"));
                 column.put("nullable",rs.getString("nullable").equals("Y"));
                 column.put("primaryKey",rs.getString("pk").equals("Y"));
-                column.put("valueExpression", columnValueMapMSSQL(column));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
+                column.put("preserveCase",preserveCase(nativeCase,rs.getString("column_name")));
+                column.put("valueExpression", columnValueMapMSSQL(column));
 
                 columnInfo.put(column);
             }

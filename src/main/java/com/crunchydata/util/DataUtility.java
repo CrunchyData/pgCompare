@@ -16,6 +16,11 @@
 
 package com.crunchydata.util;
 
+import com.crunchydata.services.dbMSSQL;
+import com.crunchydata.services.dbMySQL;
+import com.crunchydata.services.dbOracle;
+import com.crunchydata.services.dbPostgres;
+
 import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -48,6 +53,16 @@ public class DataUtility {
         }
     }
 
+    public static boolean allLower(String str) {
+        for (char c : str.toCharArray()) {
+            if (! Character.isLowerCase(c) && Character.isAlphabetic(c) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static boolean allUpper(String str) {
         for (char c : str.toCharArray()) {
             if (! Character.isUpperCase(c) && Character.isAlphabetic(c) ) {
@@ -58,15 +73,15 @@ public class DataUtility {
         return true;
     }
 
-    public static boolean allLower(String str) {
-        for (char c : str.toCharArray()) {
-            if (! Character.isLowerCase(c) && Character.isAlphabetic(c) ) {
-                return false;
-            }
-        }
-
-        return true;
+    public static String getNativeCase(String databasePlatform) {
+        return switch (databasePlatform) {
+            case "oracle" -> dbOracle.nativeCase;
+            case "mysql" -> dbMySQL.nativeCase;
+            case "mssql" -> dbMSSQL.nativeCase;
+            default -> dbPostgres.nativeCase;
+        };
     }
+
 
     public static boolean isMixedCase(String str) {
         boolean hasUpper = false;
@@ -90,7 +105,10 @@ public class DataUtility {
     }
 
     public static boolean preserveCase(String expectedCase, String str) {
-        Boolean result = (expectedCase.equals("lower")) ? ! allLower(str) : ! allUpper(str);
-        return result;
+        return (expectedCase.equals("lower")) ? ! allLower(str) : ! allUpper(str);
+    }
+
+    public static String ShouldQuoteString(Boolean preserveCase, String str) {
+        return (preserveCase) ? String.format("\"%s\"",str) :  str;
     }
 }

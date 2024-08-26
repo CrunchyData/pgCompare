@@ -9,7 +9,8 @@ project_config text NULL);
 
 ALTER TABLE dc_project ADD CONSTRAINT dc_project_pk PRIMARY KEY (pid);
 
-INSERT INTO dc_project (pid, project_name) VALUES (1, 'default');
+INSERT INTO dc_project (project_name) VALUES ('default');
+
 
 -- dc_table definition
 CREATE TABLE dc_table (
@@ -22,11 +23,21 @@ CREATE TABLE dc_table (
 
 ALTER TABLE dc_table ADD CONSTRAINT dc_table_pk PRIMARY KEY (tid);
 
--- dc_table_column definition
-CREATE TABLE dc_table_column (
+create table dc_table_column (
+  tid                  int8 not null,
+  column_id            int8  NOT NULL GENERATED ALWAYS AS IDENTITY,
+  column_alias         varchar(50) not null,
+  status               varchar(15) default 'compare'
+);
+
+ALTER TABLE dc_table_column ADD CONSTRAINT dc_table_column_pk PRIMARY KEY (column_id);
+
+
+-- dc_table_column_map definition
+CREATE TABLE dc_table_column_map (
   tid                  int8 NOT NULL,
-  column_alias         varchar(50) NOT NULL,
-  column_type          varchar(10) DEFAULT 'source' NOT NULL,
+  column_id            int8 not null,
+  column_origin        varchar(10) DEFAULT 'source' NOT NULL,
   column_name          varchar(50) NULL,
   data_type            varchar(20) NOT NULL,
   data_class           varchar(20) DEFAULT 'string',
@@ -37,10 +48,11 @@ CREATE TABLE dc_table_column (
   column_primarykey    boolean DEFAULT false,
   map_expression       varchar(500),
   supported            boolean DEFAULT true,
-  preserve_case        boolean DEFAULT false
+  preserve_case        boolean DEFAULT false,
+  map_type             varchar(15) default 'column' not null
 )
 
-ALTER TABLE dc_table_column ADD CONSTRAINT dc_table_column_pk PRIMARY KEY (tid, column_alias, column_type);
+ALTER TABLE dc_table_column_map ADD CONSTRAINT dc_table_column_map_pk PRIMARY KEY (column_id, column_origin);
 
 -- dc_table_history definition
 CREATE TABLE dc_table_history (
@@ -115,7 +127,7 @@ CREATE TABLE dc_target (
 	thread_nbr               int4 NULL
 );
 
-ALTER TABLE dc_table_column ADD CONSTRAINT dc_table_column_dc_table_fk FOREIGN KEY (tid) REFERENCES dc_table(tid) ON DELETE CASCADE;
-ALTER TABLE dc_table_map    ADD CONSTRAINT dc_table_map_dc_table_fk    FOREIGN KEY (tid) REFERENCES dc_table(tid) ON DELETE CASCADE;
 
-
+ALTER TABLE dc_table_column      ADD CONSTRAINT dc_table_column_dc_table_fk FOREIGN KEY (tid)       REFERENCES dc_table(tid)              ON DELETE CASCADE;
+ALTER TABLE dc_table_map         ADD CONSTRAINT dc_table_map_dc_table_fk    FOREIGN KEY (tid)       REFERENCES dc_table(tid)              ON DELETE CASCADE;
+ALTER TABLE dc_table_column_map  ADD CONSTRAINT dc_table_column_map_dctc_fk FOREIGN KEY (column_id) REFERENCES dc_table_column(column_id) ON DELETE CASCADE;

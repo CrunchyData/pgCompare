@@ -16,6 +16,8 @@
 
 package com.crunchydata.services;
 
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -29,7 +31,8 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import static com.crunchydata.services.ColumnValidation.*;
-import static com.crunchydata.services.dbCommon.ShouldQuoteString;
+import static com.crunchydata.util.DataUtility.ShouldQuoteString;
+import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -55,25 +58,19 @@ public class dbMySQL {
      * Builds a SQL query for loading data from a MySQL table.
      *
      * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @param schema          Schema name of the table.
-     * @param tableName       Name of the table.
-     * @param pkColumns       Columns used as primary key.
-     * @param pkJSON          JSON representation of primary key columns.
-     * @param columns         Columns to select from the table.
-     * @param tableFilter     Optional filter condition for the WHERE clause.
      * @return SQL query string for loading data from the specified table.
      */
-    public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "lower(md5(" + pkColumns + ")) pk_hash, " + pkJSON + " pk, lower(md5(" + columns + ")) column_hash FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
+            sql += "lower(md5(" +  columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(md5(" + columnMetadata.getColumn() + ")) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         }
 
-        if ( tableFilter != null && !tableFilter.isEmpty()) {
-            sql += " AND " + tableFilter;
+        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
+            sql += " AND " + tableMap.getTableFilter();
         }
 
         return sql;
@@ -87,34 +84,35 @@ public class dbMySQL {
      */
     public static String columnValueMapMySQL(JSONObject column) {
         String colExpression;
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             switch (column.getString("dataType").toLowerCase()) {
                 case "float":
                 case "double":
-                    colExpression = "coalesce(if(" + column.getString("columnName") + "=0,'0.000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") + ")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 6),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                    colExpression = "coalesce(if(" + columnName + "=0,'0.000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 6),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
                     break;
                 default:
                     if (Props.getProperty("number-cast").equals("notation")) {
-                        colExpression = "coalesce(if(" + column.getString("columnName") + "=0,'0.0000000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") + ")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 10),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                        colExpression = "coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
                     } else {
-                        colExpression = "coalesce(if(instr(convert(" + column.getString("columnName") + ",char),'.')>0,concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(substring_index(convert(abs(" + column.getString("columnName") + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + column.getString("columnName") + ",char),'.',-1),22,'0')),concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(convert(" + column.getString("columnName") + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
+                        colExpression = "coalesce(if(instr(convert(" + columnName + ",char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(convert(abs(" + columnName + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + columnName + ",char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(convert(" + columnName + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
                     }
             }
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(convert(" + column.getString("columnName") + ",char),'0') = 'true' then '1' else '0' end";
+            colExpression = "case when coalesce(convert(" + columnName + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
-                colExpression = "coalesce(date_format(convert_tz(" + column.getString("columnName") + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')";
+                colExpression = "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')";
             } else {
-                colExpression = "coalesce(date_format(" + column.getString("columnName") + ",'%m%d%Y%H%i%S'),' ')";
+                colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + column.getString("columnName") + ",' ')";
+            colExpression = "coalesce(" + columnName + ",' ')";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + column.getString("columnName") +"), ' ')";
+            colExpression = "coalesce(md5(" + columnName +"), ' ')";
         } else {
-            colExpression = column.getString("columnName");
+            colExpression = columnName;
         }
 
         return colExpression;
@@ -152,8 +150,9 @@ public class dbMySQL {
                 column.put("dataScale",rs.getInt("data_scale"));
                 column.put("nullable",rs.getString("nullable").equals("Y"));
                 column.put("primaryKey",rs.getString("pk").equals("Y"));
-                column.put("valueExpression", columnValueMapMySQL(column));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
+                column.put("preserveCase",preserveCase(nativeCase,rs.getString("column_name")));
+                column.put("valueExpression", columnValueMapMySQL(column));
 
                 columnInfo.put(column);
             }

@@ -36,5 +36,9 @@ public class DCTableMap {
     private String tableFilter;
     private boolean tablePreserveCase = false;
     private boolean schemaPreserveCase = false;
-
+    //Not from Table
+    private Integer batchNbr;
+    private String compareSQL;
+    private String tableAlias;
+    private Integer pid;
 }

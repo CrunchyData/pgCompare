@@ -26,6 +26,8 @@ import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
 
 import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DCTable;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.DataUtility;
 import com.crunchydata.util.Logging;
@@ -49,18 +51,13 @@ public class threadReconcileCheck {
      * For each row, calls reCheck where the row is validated against source and target databases.
      *
      * @param repoConn           Repository database connection.
-     * @param sqlSource          SQL to use on the source database.
-     * @param sqlTarget          SQL to use on the target database.
      * @param sourceConn         Source database connection.
      * @param targetConn         Target database connection.
-     * @param sourceTable        Name of the table on the source database.
-     * @param targetTable        Name of the table on the target database.
      * @param ciSource           Column metadata from source database.
      * @param ciTarget           Column metadata from target database.
-     * @param batchNbr           Batch number identifier.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static void checkRows (Connection repoConn, String sqlSource, String sqlTarget, Connection sourceConn, Connection targetConn, Integer tid, String sourceTable, String targetTable, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer batchNbr, Integer cid) {
+    public static void checkRows (Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
         StringBuilder tableFilter;
@@ -70,14 +67,14 @@ public class threadReconcileCheck {
 
         try {
             PreparedStatement stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
-            stmt.setObject(1, tid);
-            stmt.setObject(2, tid);
+            stmt.setObject(1, dct.getTid());
+            stmt.setObject(2, dct.getTid());
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, batchNbr);
-                dcRow.setTid(tid);
-                dcRow.setTableName(targetTable);
+                DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, dct.getBatchNbr());
+                dcRow.setTid(dct.getTid());
+                dcRow.setTableName(dct.getTableAlias());
                 dcRow.setPkHash(rs.getString("pk_hash"));
                 dcRow.setPk(rs.getString("pk"));
                 dcRow.setCompareResult("compare_result");
@@ -101,14 +98,14 @@ public class threadReconcileCheck {
                 tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
                 Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s", pk));
 
-                reCheck(repoConn, sourceConn, targetConn, sqlSource, sqlTarget, tableFilter.toString(), ciTarget.pkList, binds, dcRow, cid);
+                reCheck(repoConn, sourceConn, targetConn, dctmSource.getCompareSQL(), dctmTarget.getCompareSQL(), tableFilter.toString(), ciTarget.pkList, binds, dcRow, cid);
 
             }
 
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s:  %s", targetTable, e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s:  %s", dct.getTableAlias(), e.getMessage()));
         }
 
     }

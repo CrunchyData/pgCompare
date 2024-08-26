@@ -39,7 +39,7 @@ import static com.crunchydata.util.Settings.Props;
  *
  * @author Brian Pace
  */
-public class dbLoader extends Thread  {
+public class threadLoader extends Thread  {
     private BlockingQueue<DataCompare[]> q;
     private Integer instanceNumber;
     private String stagingTable;
@@ -57,7 +57,7 @@ public class dbLoader extends Thread  {
      * @param stagingTable The name of the staging table in the repository database.
      * @param ts The ThreadSync object for coordinating thread synchronization.
      */
-    public dbLoader(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
+    public threadLoader(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
         this.q = q;
         this.instanceNumber = instanceNumber;
         this.stagingTable = stagingTable;
@@ -95,7 +95,7 @@ public class dbLoader extends Thread  {
             repoConn.setAutoCommit(false);
 
             // Prepare INSERT statement for the staging table
-            String sqlLoad = String.format("INSERT INTO %s (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)",stagingTable);
+            String sqlLoad = String.format("INSERT INTO %s (tid, pk_hash, column_hash, pk) VALUES (?, ?,?,(?)::jsonb)",stagingTable);
             repoConn.setAutoCommit(false);
             stmtLoad = repoConn.prepareStatement(sqlLoad);
 
@@ -111,9 +111,10 @@ public class dbLoader extends Thread  {
                     // Process each DataCompare object
                     for (DataCompare dataCompare : dc) {
                         if (dataCompare != null && dataCompare.getPk() != null) {
-                            stmtLoad.setString(1, dataCompare.getPkHash());
-                            stmtLoad.setString(2, dataCompare.getColumnHash());
-                            stmtLoad.setString(3, dataCompare.getPk());
+                            stmtLoad.setInt(1, dataCompare.getTid());
+                            stmtLoad.setString(2, dataCompare.getPkHash());
+                            stmtLoad.setString(3, dataCompare.getColumnHash());
+                            stmtLoad.setString(4, dataCompare.getPk());
                             stmtLoad.addBatch();
                             stmtLoad.clearParameters();
                         } else {

@@ -244,7 +244,7 @@ public interface SQLConstants {
                                   """;
 
     //
-    // Repository SQL
+    // Repository SQL - Compare Task SQL
     //
     String SQL_REPO_CLEARMATCH = """
                 WITH ds AS (DELETE FROM dc_source s
@@ -261,6 +261,49 @@ public interface SQLConstants {
                        AND ds.column_hash=dt.column_hash
                 """;
 
+    String SQL_REPO_DCSOURCE_MARKNOTEQUAL = """
+                                 UPDATE dc_source s SET compare_result = 'n'
+                                 WHERE s.tid=?
+                                       AND EXISTS (SELECT 1 FROM dc_target t WHERE t.tid=? AND s.pk_hash=t.pk_hash AND s.column_hash != t.column_hash)
+                                 """;
+
+    String SQL_REPO_DCSOURCE_MARKMISSING = """
+                                      UPDATE dc_target t SET compare_result = 'm'
+                                      WHERE t.tid=?
+                                            AND NOT EXISTS (SELECT 1 FROM dc_source s WHERE s.tid=? AND t.pk_hash=s.pk_hash)
+                                      """;
+
+    String SQL_REPO_DCTARGET_MARKMISSING = """
+                                      UPDATE dc_source s SET compare_result = 'm'
+                                      WHERE s.tid=?
+                                            AND NOT EXISTS (SELECT 1 FROM dc_target t WHERE t.tid=? AND s.pk_hash=t.pk_hash)
+                                      """;
+    String SQL_REPO_DCTARGET_MARKNOTEQUAL ="""
+                                UPDATE dc_target t SET compare_result = 'n'
+                                WHERE t.tid=?
+                                      AND EXISTS (SELECT 1 FROM dc_source s WHERE s.tid=? AND t.pk_hash=s.pk_hash AND t.column_hash != s.column_hash)
+                                """;
+
+    String SQL_REPO_SELECT_OUTOFSYNC_ROWS = """
+                        SELECT DISTINCT tid, table_name, pk_hash, pk
+                        FROM (SELECT table_name, pk_hash, pk
+                            FROM dc_source
+                            WHERE tid = ?
+                                  AND compare_result is not null
+                                  AND compare_result != 'e'
+                            UNION
+                            SELECT table_name, pk_hash, pk
+                            FROM dc_target
+                            WHERE tid = ?
+                                  AND compare_result is not null
+                                  AND compare_result != 'e') x
+                        ORDER BY table_name
+                       """;
+
+
+    //
+    // Repository SQL - DC_RESULT
+    //
     String SQL_REPO_DCRESULT_INSERT = "INSERT INTO dc_result (compare_dt, tid, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
     String SQL_REPO_DCRESULT_UPDATECNT = """
                                  UPDATE dc_result SET equal_cnt=equal_cnt+?
@@ -278,24 +321,30 @@ public interface SQLConstants {
                                  RETURNING equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, status
                                  """;
 
+    //
+    // Repository SQL - DC_SOURCE
+    //
+    String SQL_REPO_DCSOURCE_DELETEBYTIDBATCHNBR = "DELETE FROM dc_source WHERE tid=? AND batch_nbr=?";
+
     String SQL_REPO_DCSOURCE_DELETE = "DELETE FROM dc_source WHERE tid=? AND pk_hash=? AND batch_nbr=?";
     String SQL_REPO_DCSOURCE_INSERT = """
-                INSERT INTO dc_source (tid, table_name, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT ? tid, ? table_name, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr FROM stagingtable)
+                INSERT INTO dc_source (tid, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr) (SELECT ? tid, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr FROM stagingtable)
                 """;
-    String SQL_REPO_DCSOURCE_MARKNOTEQUAL = """
-                                 UPDATE dc_source s SET compare_result = 'n'
-                                 WHERE s.tid=?
-                                       AND EXISTS (SELECT 1 FROM dc_target t WHERE t.tid=? AND s.pk_hash=t.pk_hash AND s.column_hash != t.column_hash)
-                                 """;
 
-    String SQL_REPO_DCSOURCE_MARKMISSING = """
-                                      UPDATE dc_target t SET compare_result = 'm'
-                                      WHERE t.tid=?
-                                            AND NOT EXISTS (SELECT 1 FROM dc_source s WHERE s.tid=? AND t.pk_hash=s.pk_hash)
-                                      """;
-
+    //
+    // Repository SQL - DC_TARGET
+    //
+    String SQL_REPO_DCTARGET_DELETEBYTIDBATCHNBR = "DELETE FROM dc_target WHERE tid=? AND batch_nbr=?";
 
     String SQL_REPO_DCTARGET_DELETE = "DELETE FROM dc_target WHERE tid=? AND pk_hash=? AND batch_nbr=?";
+
+
+    //
+    // Repository SQL - DC_TABLE
+    //
+    String SQL_REPO_DCTABLE_DELETEBYPROJECT = "DELETE FROM dc_table WHERE pid=?";
+
+    String SQL_REPO_DCTABLE_DELETEBYTID = "DELETE FROM dc_table WHERE tid=?";
 
     String SQL_REPO_DCTABLE_INCOMPLETEMAP = """
                 SELECT t.tid, t.table_alias, count(1) cnt
@@ -305,59 +354,116 @@ public interface SQLConstants {
                 GROUP BY t.tid
                 HAVING count(1) < 2
                 """;
-
-    String SQL_REPO_DCTABLE_DELETEBYPROJECT = "DELETE FROM dc_table WHERE pid=?";
-
-    String SQL_REPO_DCTABLE_DELETEBYTID = "DELETE FROM dc_table WHERE tid=?";
-
     String SQL_REPO_DCTABLE_INSERT = "INSERT INTO dc_table (pid, table_alias, batch_nbr, status) VALUES (?, lower(?), 1, 'enabled') RETURNING tid";
+
+    String SQL_REPO_DCTABLE_SELECTBYPID = """
+                     SELECT pid, tid, table_alias, status, batch_nbr, parallel_degree
+                     FROM dc_table
+                     WHERE pid=?
+                     """;
 
     String SQL_REPO_DCTABLE_SELECT_BYNAME = "SELECT tid FROM dc_table WHERE table_alias = lower(?)";
 
 
-    String SQL_REPO_DCTABLE_COLUMN_DELETE = "DELETE FROM dc_table_column WHERE tid=?";
+    //
+    // Repository SQL - DC_TABLE_COLUMN
+    //
 
-    String SQL_REPO_DCTABLE_COLUMN_INSERT = "INSERT INTO dc_table_column (tid, column_alias, column_type, column_name, data_type, data_class, data_length, number_precission, number_scale, column_nullable, column_primarykey, map_expression, supported, case_sensitive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    String SQL_REPO_DCTABLECOLUMN_INSERT = "INSERT INTO dc_table_column (tid, column_alias) VALUES (?, ?) RETURNING column_id";
 
+    String SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS = "SELECT column_id FROM dc_table_column WHERE tid=? AND column_alias=lower(?)";
+
+    String SQL_REPO_DCTABLECOLUMN_DELETEBYCOLUMNID = "DELETE FROM dc_table_column WHERE column_id=?";
+
+    String SQL_REPO_DCTABLECOLUMN_DELETEBYPID = "DELETE FROM dc_table_column WHERE tid IN (SELECT tid FROM dc_table WHERE pid=?)";
+    String SQL_REPO_DCTABLECOLUMN_DELETEBYTID = "DELETE FROM dc_table_column WHERE tid=?";
+
+    String SQL_REPO_DCTABLECOLUMN_INCOMPLETEMAP = """
+                SELECT t.tid, t.column_id, t.column_alias, count(1) cnt
+                FROM dc_table_column t
+                     LEFT OUTER JOIN dc_table_column_map m ON (t.column_id = m.column_id)
+                WHERE t.tid = ?
+                GROUP BY t.tid, t.column_id, t.column_alias
+                HAVING count(1) < 2
+                """;
+
+    //
+    // Repository SQL - DC_TABLE_COLUMN_MAP
+    //
+    String SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID = """
+            WITH column_map AS (
+            	    SELECT
+            	        tcm.tid,
+            	        tcm.column_id,
+            	        tcm.column_origin,
+            	        jsonb_build_object(
+            	            'columnName', tcm.column_name,
+            	            'dataType', tcm.data_type,
+            	            'dataClass', tcm.data_class,
+            	            'dataLength', tcm.data_length,
+            	            'numberPrecision', tcm.number_precision,
+            	            'numberScale', tcm.number_scale,
+            	            'nullable', tcm.column_nullable,
+            	            'primaryKey', tcm.column_primarykey,
+            	            'valueExpression', tcm.map_expression,
+            	            'supported', tcm.supported,
+            	            'preserveCase', tcm.preserve_case,
+            	            'mapType', tcm.map_type
+            	        ) AS columnInfo
+            	    FROM dc_table_column_map tcm
+            	),
+            	tcmt AS (
+            	    SELECT tid, column_id, columnInfo
+            	    FROM column_map
+            	    WHERE column_origin = 'target'
+            	),
+            	tcms AS (
+            	    SELECT tid, column_id, columnInfo
+            	    FROM column_map
+            	    WHERE column_origin = 'source'
+            	)
+            SELECT
+                jsonb_build_object(
+                    'tid', t.tid,
+                    'tableAlias', t.table_alias,
+                    'columns', jsonb_agg(
+                        jsonb_build_object(
+                            'columnID', tc.column_id,
+                            'columnAlias', tc.column_alias,
+                            'source', tcms.columnInfo,
+                            'target', tcmt.columnInfo
+                        )
+                    )
+                )
+            FROM
+                dc_table t
+                JOIN dc_table_column tc ON t.tid = tc.tid
+                JOIN tcmt ON tc.tid = tcmt.tid AND tc.column_id = tcmt.column_id
+                JOIN tcms ON tc.tid = tcms.tid AND tc.column_id = tcms.column_id
+            WHERE
+                t.tid = ?
+            group by t.tid, t.table_alias            
+            """;
+    String SQL_REPO_DCTABLECOLUMNMAP_INSERT = "INSERT INTO dc_table_column_map (tid, column_id, column_origin, column_name, data_type, data_class, data_length, number_precision, number_scale, column_nullable, column_primarykey, map_expression, supported, preserve_case) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    //
+    // Repository SQL - DC_TABLE_HISTORY
+    //
     String SQL_REPO_DCTABLEHISTORY_INSERT = "INSERT INTO dc_table_history (tid, action_type, start_dt, load_id, batch_nbr, row_count) VALUES (?, ?, current_timestamp, ?, ?, 0)";
 
     String SQL_REPO_DCTABLEHISTORY_UPDATE = "UPDATE dc_table_history set end_dt=current_timestamp, row_count=?, action_result=?::jsonb WHERE tid=? AND action_type=? and load_id=? and batch_nbr=?";
 
+    //
+    // Repository SQL - DC_TABLE_MAP
+    //
+    String SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN = "SELECT tid, dest_type, schema_name, table_name, parallel_degree, mod_column, table_filter, schema_preserve_case, table_preserve_case FROM dc_table_map WHERE tid=? and dest_type=?";
     String SQL_REPO_DCTABLEMAP_INSERT = "INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name, schema_preserve_case, table_preserve_case) VALUES (?, ?, ?, ?, ?, ?)";
 
-    String SQL_REPO_DCTARGET_MARKMISSING = """
-                                      UPDATE dc_source s SET compare_result = 'm'
-                                      WHERE s.tid=?
-                                            AND NOT EXISTS (SELECT 1 FROM dc_target t WHERE t.tid=? AND s.pk_hash=t.pk_hash)
-                                      """;
-    String SQL_REPO_DCTARGET_MARKNOTEQUAL ="""
-                                UPDATE dc_target t SET compare_result = 'n'
-                                WHERE t.tid=?
-                                      AND EXISTS (SELECT 1 FROM dc_source s WHERE s.tid=? AND t.pk_hash=s.pk_hash AND t.column_hash != s.column_hash)
-                                """;
-
-    String SQL_REPO_DCTABLE_SELECT = """
-                     SELECT tid, source_schema, source_table,
-                            target_schema, target_table, table_filter,
-                            parallel_degree, status, batch_nbr, mod_column,
-                            coalesce(column_map::text,'{}') column_map
-                     FROM dc_table
-                     WHERE status=?
-                     """;
-
-    String SQL_REPO_SELECT_OUTOFSYNC_ROWS = """
-                        SELECT DISTINCT tid, table_name, pk_hash, pk
-                        FROM (SELECT table_name, pk_hash, pk
-                            FROM dc_source
-                            WHERE tid = ?
-                                  AND compare_result is not null
-                                  AND compare_result != 'e'
-                            UNION
-                            SELECT table_name, pk_hash, pk
-                            FROM dc_target
-                            WHERE tid = ?
-                                  AND compare_result is not null
-                                  AND compare_result != 'e') x
-                        ORDER BY table_name
-                       """;
-}
+    String SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGIN = """
+            SELECT t.tid, t.table_alias, m.schema_name, m.table_name
+            FROM dc_table t
+                 JOIN dc_table_map m ON (t.tid=m.tid)
+            WHERE t.pid = ?
+                  AND m.dest_type = ?
+    """;
+};

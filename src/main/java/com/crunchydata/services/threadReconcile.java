@@ -24,6 +24,9 @@ import java.text.DecimalFormat;
 import java.util.concurrent.BlockingQueue;
 
 import com.crunchydata.controller.RepoController;
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DCTable;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.*;
 
@@ -51,20 +54,20 @@ public class threadReconcile extends Thread {
     private ThreadSync ts;
     private Boolean useDatabaseHash;
 
-    public threadReconcile(Integer threadNumber, String targetType, String sql, String tableFilter, String modColumn, Integer parallelDegree, String schemaName, String tableName, Integer nbrColumns, Integer nbrPKColumns, Integer cid, ThreadSync ts, String pkList, Boolean useDatabaseHash, Integer batchNbr, Integer tid, String stagingTable, BlockingQueue<DataCompare[]> q) {
+    public threadReconcile(Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;
-        this.modColumn = modColumn;
-        this.parallelDegree = parallelDegree;
-        this.sql = sql;
-        this.targetType = targetType;
+        this.modColumn = dctm.getModColumn();
+        this.parallelDegree = dct.getParallelDegree();
+        this.sql = dctm.getCompareSQL();
+        this.targetType = dctm.getDestType();
         this.threadNumber = threadNumber;
-        this.nbrColumns = nbrColumns;
-        this.tid = tid;
+        this.nbrColumns = cm.getNbrColumns();
+        this.tid = dct.getTid();
         this.cid = cid;
         this.ts = ts;
-        this.pkList = pkList;
+        this.pkList = cm.getPkList();
         this.useDatabaseHash = useDatabaseHash;
-        this.batchNbr = batchNbr;
+        this.batchNbr = dct.getBatchNbr();
         this.stagingTable = stagingTable;
     }
 
@@ -85,7 +88,7 @@ public class threadReconcile extends Thread {
         PreparedStatement stmt = null;
         PreparedStatement stmtLoad = null;
         int totalRows = 0;
-        Boolean useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) == 0;
+        Boolean useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) > 0;
 
         try {
             // Connect to Repository
@@ -139,7 +142,7 @@ public class threadReconcile extends Thread {
             StringBuilder columnValue = new StringBuilder();
 
             if (!useLoaderThreads) {
-                String sqlLoad = "INSERT INTO " + stagingTable + " (pk_hash, column_hash, pk) VALUES (?,?,(?)::jsonb)";
+                String sqlLoad = "INSERT INTO " + stagingTable + " (tid, pk_hash, column_hash, pk) VALUES (?,?,?,(?)::jsonb)";
                 repoConn.setAutoCommit(false);
                 stmtLoad = repoConn.prepareStatement(sqlLoad);
             }
@@ -160,9 +163,10 @@ public class threadReconcile extends Thread {
                 if (useLoaderThreads) {
                     dc[cntRecord] = new DataCompare(tid,null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
                 } else {
-                    stmtLoad.setString(1, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
-                    stmtLoad.setString(2, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
-                    stmtLoad.setString(3, rs.getString("PK").replace(",}","}"));
+                    stmtLoad.setInt(1, tid);
+                    stmtLoad.setString(2, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
+                    stmtLoad.setString(3, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
+                    stmtLoad.setString(4, rs.getString("PK").replace(",}","}"));
                     stmtLoad.addBatch();
                     stmtLoad.clearParameters();
                 }

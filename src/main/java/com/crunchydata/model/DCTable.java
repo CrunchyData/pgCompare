@@ -31,4 +31,5 @@ public class DCTable {
     private String tableAlias;
     private Integer batchNbr = 1;
     private String status = "enabled";
+    private Integer parallelDegree = 1;
 }

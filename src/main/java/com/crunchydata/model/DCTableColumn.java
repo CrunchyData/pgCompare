@@ -27,17 +27,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DCTableColumn {
     private Integer tid;
+    private Integer columnID;
     private String columnAlias;
-    private String columnType;
-    private String columnName;
-    private String dataType;
-    private String dataClass;
-    private Integer dataLength;
-    private Integer numberPrecission;
-    private Integer numberScale;
-    private Boolean columnNullable;
-    private Boolean columnPrimaryKey;
-    private String mapExpression;
-    private Boolean supported;
-    private Boolean preserveCase;
 }

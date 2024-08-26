@@ -10,11 +10,12 @@ import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
 
+import static com.crunchydata.util.DataUtility.getNativeCase;
 import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstants.*;
 import static com.crunchydata.util.Settings.Props;
 
-public class DiscoveryController {
+public class TableController {
 
     private static final String THREAD_NAME = "DiscoveryController";
 
@@ -59,6 +60,36 @@ public class DiscoveryController {
         }
     }
 
+    public static DCTableMap getTableMap (Connection conn, Integer tid, String tableOrigin) {
+        ArrayList binds = new ArrayList();
+        binds.add(0,tid);
+        binds.add(1,tableOrigin);
+
+        DCTableMap result = new DCTableMap();
+
+        try {
+
+            CachedRowSet crs = dbCommon.simpleSelect(conn, SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN, binds);
+
+            while (crs.next()) {
+                result.setTid(crs.getInt("tid"));
+                result.setDestType(crs.getString("dest_type"));
+                result.setSchemaName(crs.getString("schema_name"));
+                result.setTableName(crs.getString("table_name"));
+                result.setParallelDegree(crs.getInt("parallel_degree"));
+                result.setModColumn(crs.getString("mod_column"));
+                result.setTableFilter(crs.getString("table_filter"));
+                result.setSchemaPreserveCase(crs.getBoolean("schema_preserve_case"));
+                result.setTablePreserveCase(crs.getBoolean("table_preserve_case"));
+            }
+        } catch (Exception e) {
+            Logging.write("severe", THREAD_NAME, String.format("Error retreiving table mapping for tid %d:  %s", tid, e.getMessage()));
+            return result;
+        }
+
+        return result;
+    }
+
     public static JSONArray getDatabaseTables (String databasePlatform, Connection conn, String schema) {
         return switch (databasePlatform) {
             case "oracle" -> dbCommon.getTables(conn, schema, SQL_ORACLE_SELECT_TABLES);
@@ -68,14 +99,6 @@ public class DiscoveryController {
         };
     }
 
-    public static String getNativeCase(String databasePlatform) {
-        return switch (databasePlatform) {
-            case "oracle" -> dbOracle.nativeCase;
-            case "mysql" -> dbMySQL.nativeCase;
-            case "mssql" -> dbMSSQL.nativeCase;
-            default -> dbPostgres.nativeCase;
-        };
-    }
 
     public static Integer loadTables(Integer pid, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
         String destType=Props.getProperty(destRole+"-type");
