@@ -106,6 +106,7 @@ public class threadReconcileCheck {
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s:  %s", dct.getTableAlias(), e.getMessage()));
+            e.printStackTrace();
         }
 
     }
@@ -154,6 +155,7 @@ public class threadReconcileCheck {
                 targetRow.next();
                 for (int i = 2; i <= rowMetadata.getColumnCount(); i++) {
                     String column = rowMetadata.getColumnName(i);
+
                     String sourceValue = (sourceRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) sourceRow.getObject(i)) : sourceRow.getString(i);
                     String targetValue = (targetRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) targetRow.getObject(i)) : targetRow.getString(i);
 
@@ -164,6 +166,7 @@ public class threadReconcileCheck {
                         arr.put(columnOutofSync, col);
                         columnOutofSync++;
                     }
+
                 }
 
                 if (columnOutofSync > 0) {

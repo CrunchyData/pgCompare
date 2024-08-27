@@ -51,12 +51,13 @@ public class ColumnController {
                 JSONObject joColumn = columnObject.getJSONObject(targetType);
 
                 if (joColumn.getBoolean("primaryKey")) {
+                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName")) : joColumn.getString("columnName").toLowerCase();
                     nbrPKColumns++;
                     pk.append(joColumn.getString("valueExpression"))
                             .append(concatOperator)
                             .append("'.'")
                             .append(concatOperator);
-                    pkList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append(",");
+                    pkList.append(pkColumn).append(",");
 
                     if (pkJSON.isEmpty()) {
                         pkJSON.append("'{'").append(concatOperator);
@@ -65,17 +66,17 @@ public class ColumnController {
                     }
 
                     if ( joColumn.getString("dataClass").equals("char") ) {
-                        pkJSON.append("'\"").append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append("\": \"' ")
-                                .append(concatOperator).append(" ").append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName")))
+                        pkJSON.append("'\"").append(pkColumn).append("\": \"' ")
+                                .append(concatOperator).append(" ").append(pkColumn)
                                 .append(" ").append(concatOperator).append(" '\"' ");
                     } else {
                         if (platform.equals("mssql")) {
-                            pkJSON.append("'\"").append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append("\": ' ")
+                            pkJSON.append("'\"").append(pkColumn).append("\": ' ")
                                     .append(concatOperator).append(" ").append("trim(cast(")
-                                    .append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append(" as varchar))");
+                                    .append(pkColumn).append(" as varchar))");
                         } else {
-                            pkJSON.append("'\"").append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append("\": ' ")
-                                    .append(concatOperator).append(" ").append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName")));
+                            pkJSON.append("'\"").append(pkColumn).append("\": ' ")
+                                    .append(concatOperator).append(" ").append(pkColumn);
                         }
                     }
                 } else {

@@ -106,7 +106,7 @@ CREATE INDEX dc_result_idx1 ON dc_result(table_name, compare_dt);
 -- dc_source definition
 CREATE TABLE dc_source (
     tid                       int8 null,
-    table_name                text NULL,
+    --table_name                text NULL,
     batch_nbr                 int4 NULL,
     pk                        jsonb NULL,
     pk_hash                   varchar(100) NULL,
@@ -118,7 +118,7 @@ CREATE TABLE dc_source (
 -- dc_target definition
 CREATE TABLE dc_target (
     tid                      int8 null,
-    table_name               text NULL,
+    --table_name               text NULL,
     batch_nbr                int4 NULL,
     pk                       jsonb NULL,
     pk_hash                  varchar(100) NULL,

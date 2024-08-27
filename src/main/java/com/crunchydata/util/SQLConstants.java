@@ -285,19 +285,19 @@ public interface SQLConstants {
                                 """;
 
     String SQL_REPO_SELECT_OUTOFSYNC_ROWS = """
-                        SELECT DISTINCT tid, table_name, pk_hash, pk
-                        FROM (SELECT table_name, pk_hash, pk
+                        SELECT DISTINCT tid, pk_hash, pk
+                        FROM (SELECT tid, pk_hash, pk
                             FROM dc_source
                             WHERE tid = ?
                                   AND compare_result is not null
                                   AND compare_result != 'e'
                             UNION
-                            SELECT table_name, pk_hash, pk
+                            SELECT tid, pk_hash, pk
                             FROM dc_target
                             WHERE tid = ?
                                   AND compare_result is not null
                                   AND compare_result != 'e') x
-                        ORDER BY table_name
+                        ORDER BY tid
                        """;
 
 
