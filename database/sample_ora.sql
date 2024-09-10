@@ -2,7 +2,7 @@ create user pgctest identified by "welcome1";
 grant unlimited tablespace to pgctest;
 grant connect,resource to pgctest;
 
-CREATE TABLEpgctesthr.emp (EID int generated always as identity increment by 1 start with 1 not null,
+CREATE TABLE pgctest.emp (EID int generated always as identity increment by 1 start with 1 not null,
                   first_name varchar2(40),
                   last_name varchar2(40),
                   email varchar2(100),
