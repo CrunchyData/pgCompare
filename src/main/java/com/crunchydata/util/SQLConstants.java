@@ -111,6 +111,38 @@ public interface SQLConstants {
     String SQL_ORACLE_SELECT_VERSION = "select version from v$version";
 
     //
+    // DB2 SQL
+    //
+    String SQL_DB2_SELECT_COLUMNS = """
+            SELECT c.TABSCHEMA AS owner,
+                   c.TABNAME AS table_name,
+                   c.COLNAME AS column_name,
+                   LOWER(c.TYPENAME) AS data_type,
+                   c.LENGTH AS data_length,
+                   COALESCE(c.NUMERIC_PRECISION, 44) AS data_precision,
+                   COALESCE(c.SCALE, 22) AS data_scale,
+                   c.NULLS AS nullable,
+                   CASE WHEN pkc.COLNAME IS NULL THEN 'N' ELSE 'Y' END AS pk
+            FROM SYSCAT.COLUMNS c
+                 LEFT JOIN (SELECT k.TABSCHEMA, k.TABNAME, k.COLNAME
+                            FROM SYSCAT.KEYCOLUSE k
+                                 JOIN SYSCAT.TABCONST tc ON (k.CONSTNAME = tc.CONSTNAME AND tc.TYPE = 'P')
+                           ) pkc ON (c.TABSCHEMA = pkc.TABSCHEMA AND c.TABNAME = pkc.TABNAME AND c.COLNAME = pkc.COLNAME)
+            WHERE LOWER(c.TABSCHEMA) = LOWER(?)
+              AND LOWER(c.TABNAME) = LOWER(?)
+            ORDER BY c.TABSCHEMA, c.TABNAME, c.COLNAME
+           """;
+
+    String SQL_DB2_SELECT_TABLES = """
+                SELECT TABSCHEMA AS owner, TABNAME AS table_name
+                FROM SYSCAT.TABLES
+                WHERE LOWER(TABSCHEMA) = LOWER(?)
+                ORDER BY TABSCHEMA, TABNAME
+                """;
+
+    String SQL_DB2_SELECT_VERSION = "SELECT service_level AS version FROM SYSIBMADM.ENV_INST_INFO";
+
+    //
     // Postgres SQL
     //
     String SQL_POSTGRES_SELECT_COLUMNS = """
