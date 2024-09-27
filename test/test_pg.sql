@@ -5,21 +5,21 @@ create schema pgctest;
 --
 DROP TABLE IF EXISTS pgctest."Test_Case";
 CREATE TABLE pgctest."Test_Case" (
-	eid int4,
-	first_name varchar(40) NULL,
-	last_name varchar(40) NULL,
-	email varchar(100) NULL,
-	hire_dt date NULL,
-	age int4 NULL,
-	"Zip" int4 NULL,
-	status bpchar(3) NULL,
-	salary numeric(12, 2) NULL,
-	last_login timestamp NULL,
-	bio text NULL,
-	CONSTRAINT "Emp_pkey" PRIMARY KEY (eid)
+    eid int4,
+    first_name varchar(40) NULL,
+    last_name varchar(40) NULL,
+    email varchar(100) NULL,
+    hire_dt date NULL,
+    age int4 NULL,
+    "Zip" int4 NULL,
+    status bpchar(3) NULL,
+    salary numeric(12, 2) NULL,
+    last_login timestamp NULL,
+    bio text NULL,
+    CONSTRAINT "Test_Case_pkey" PRIMARY KEY (eid)
 );
 
-INSERT INTO "Test_Case" (eid, first_name, last_name, email, hire_dt, age, "Zip", status, salary, last_login, bio) VALUES
+INSERT INTO pgctest."Test_Case" (eid, first_name, last_name, email, hire_dt, age, "Zip", status, salary, last_login, bio) VALUES
 (1,'John', 'Doe', 'john.doe@example.com', '2022-01-15', 30, 90210, 'ACT', 60000.00, '2024-08-20 09:30:00', 'Software Engineer with 5 years of experience.'),
 (2, 'Jane', 'Smith', 'jane.smith@example.com', '2021-05-23', 28, 10001, 'ACT', 65000.00, '2024-08-19 14:45:00', 'Data Scientist specializing in machine learning.'),
 (3, 'Alice', 'Johnson', 'alice.johnson@example.com', '2020-11-12', 34, 30303, 'ACT', 70000.00, '2024-08-18 17:00:00', 'Project Manager with a focus on agile methodologies.'),
@@ -41,10 +41,8 @@ INSERT INTO "Test_Case" (eid, first_name, last_name, email, hire_dt, age, "Zip",
 (19, 'Rachel', 'White', 'rachel.white@example.com', '2004-12-22', 32, 98109, 'INA', 72000.00, '2024-08-02 09:15:00', 'Graphic Designer with a background in branding.'),
 (20, 'Sam', 'Young', 'sam.young@example.com', '2003-01-17', 49, 60611, 'ACT', 91000.00, '2024-08-01 17:00:00', 'Product Manager with experience in e-commerce.');
 
-
-
-DROP TABLE IF EXISTS pgctest.test_common;
-CREATE TABLE pgctest.test_common
+DROP TABLE IF EXISTS pgctest.test_nbr;
+CREATE TABLE pgctest.test_nbr
 (   id              int NOT NULL PRIMARY KEY
 ,   col_small       smallint
 ,   col_int         int
@@ -54,28 +52,42 @@ CREATE TABLE pgctest.test_common
 ,   col_dec_10_2    decimal(10,2)
 ,   col_float32     real
 ,   col_float64     double precision
+,   col_dec_38_9    DECIMAL(38,9)
+,   col_dec_38_30   DECIMAL(38,30)
+);
+
+INSERT INTO pgctest.test_nbr VALUES
+(1, 1, 1, 1, 12345678901234567890, 1234567890123456789012345, 123.11, 123456.1, 12345678.1, 12345678901234567890123456789.123456789,12345678.123456789012345678901234567890),
+(2, 2, 2, 2, 12345678901234567890, 1234567890123456789012345, 123.22, 123456.2, 12345678.2, 22345678901234567890123456789.123456789,22345678.123456789012345678901234567890),
+(3, 3, 3, 3, 12345678901234567890, 1234567890123456789012345, 123.3 , 123456.3, 12345678.3, 32345678901234567890123456789.123456789,32345678.123456789012345678901234567890),
+(4, 4, 4, 4, null                , 1234567890123456789012345, 123.3 , 123456.3, 12345678.3, null                                   ,32345678.123456789012345678901234567890);
+
+DROP TABLE IF EXISTS pgctest.test_char;
+CREATE TABLE pgctest.test_char
+(   id              int NOT NULL PRIMARY KEY
 ,   col_charnull    varchar(30)
 ,   col_char_2      char(2)
 ,   col_string      text
+);
+
+INSERT INTO pgctest.test_char VALUES
+(1, 'abc','A ','when in the course of human events it becomes necessary...'),
+(2, ''   ,'B' ,'when in the course of human events it becomes necessary...'),
+(3, 'xyx','C ','when in the course of human events it becomes necessary...'),
+(4, null, 'D ','when in the course of human events it becomes necessary...');
+
+DROP TABLE IF EXISTS pgctest.test_dt;
+CREATE TABLE pgctest.test_dt
+(   id              int NOT NULL PRIMARY KEY
 ,   col_date        date
 ,   col_datetime    timestamp(3)
 ,   col_tstz        timestamp(3) with time zone
 ,   col_ts6         timestamp(6) without time zone
 ,   col_ts6tz       timestamp(6) with time zone
-,   col_dec_38_9    DECIMAL(38,9)
-,   col_dec_38_30   DECIMAL(38,30)
 );
 
-INSERT INTO pgctest.test_common VALUES
-(1,1,1,1 ,12345678901234567890,1234567890123456789012345,123.11,123456.1,12345678.1,'abc','A ','when in the course of human events it becomes necessary...', DATE'1970-01-01', TIMESTAMP'1776-07-04 00:00:01', TIMESTAMP WITH TIME ZONE'1776-07-04 00:00:01 -01:00', TIMESTAMP'1776-07-04 00:00:01.123456 -01:00',  TIMESTAMP WITH TIME ZONE'1776-07-04 00:00:01.123456 -01:00',12345678901234567890123456789.123456789,12345678.123456789012345678901234567890),
-(2,2,2,2 ,12345678901234567890,1234567890123456789012345,123.22,123456.2,12345678.2,'',   'B' ,'when in the course of human events it becomes necessary...', DATE'1970-01-02', TIMESTAMP'1991-01-02 00:00:02', TIMESTAMP WITH TIME ZONE'1991-01-02 00:00:02 -02:00', TIMESTAMP'1991-01-02 00:00:02.123456 -02:00',  TIMESTAMP WITH TIME ZONE'1991-01-02 00:00:02.123456 -02:00',22345678901234567890123456789.123456789,22345678.123456789012345678901234567890),
-(3,3,3,3 ,12345678901234567890,1234567890123456789012345,123.3,123456.3,12345678.3 ,'xyx','C ','when in the course of human events it becomes necessary...', DATE'1970-01-03', TIMESTAMP'2030-01-03 00:00:03', TIMESTAMP WITH TIME ZONE'2030-01-03 00:00:03 -03:00', TIMESTAMP'2030-01-03 00:00:03.123456 -03:00',  TIMESTAMP WITH TIME ZONE'2030-01-03 00:00:03.123456 -03:00',32345678901234567890123456789.123456789,32345678.123456789012345678901234567890);
-
-
--- Deleting eid 6 from Postgres, will keep in other platforms.
-DELETE FROM pgctest."Test_Case" WHERE eid=6;
-
--- Changing last_name of eid 1 to Smith, will keep same in other platforms.
-UPDATE pgctest."Test_Case" SET last_name = 'Smith' WHERE eid=1;
-
--- To test nulls, setting bio to empty string for eid
+INSERT INTO pgctest.test_dt VALUES
+(1, DATE'1970-01-01', TIMESTAMP'1976-07-04 01:00:01', TIMESTAMP WITH TIME ZONE'1976-07-04 02:00:01 -01:00', TIMESTAMP'1976-07-04 03:00:01.123456 -01:00',  TIMESTAMP WITH TIME ZONE'1976-07-04 04:00:01.123456 -01:00'),
+(2, DATE'1970-01-02', TIMESTAMP'1991-01-02 01:00:02', TIMESTAMP WITH TIME ZONE'1991-01-02 02:00:02 -02:00', TIMESTAMP'1991-01-02 03:00:02.123456 -02:00',  TIMESTAMP WITH TIME ZONE'1991-01-02 04:00:02.123456 -02:00'),
+(3, DATE'1970-01-03', TIMESTAMP'2030-01-03 01:00:03', TIMESTAMP WITH TIME ZONE'2030-01-03 02:00:03 -03:00', TIMESTAMP'2030-01-03 03:00:03.123456 -03:00',  TIMESTAMP WITH TIME ZONE'2030-01-03 04:00:03.123456 -03:00'),
+(4, DATE'1970-01-04', TIMESTAMP'2030-01-04 01:00:03', TIMESTAMP WITH TIME ZONE'2030-01-04 02:00:03 -03:00', null                                        ,  null                                                       );

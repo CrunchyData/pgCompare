@@ -128,6 +128,7 @@ public class ReconcileController {
                 case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
+                case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 default -> "";
             });
 
@@ -136,6 +137,7 @@ public class ReconcileController {
                 case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 default -> "";
             });
 
@@ -177,12 +179,12 @@ public class ReconcileController {
 
                         // Start Target Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile ctt = new threadReconcile(i, dct, dctmTarget, ciTarget, cid, ts, Boolean.parseBoolean(Props.getProperty("target-database-hash")), stagingTableTarget, qs);
+                        threadReconcile ctt = new threadReconcile(i, dct, dctmTarget, ciTarget, cid, ts, Boolean.parseBoolean(Props.getProperty("target-database-hash")), stagingTableTarget, qt);
                         ctt.start();
                         compareList.add(ctt);
 
                         // Start Loader Threads
-                        // Loader thread load data from the message queue into the approriate staging tables in the database.
+                        // Loader thread load data from the message queue into the appropriate staging tables in the database.
                         // A loader thread is started for source and target up to the limit specified by system parameter loader-threads.
                         if ( useLoaderThreads ) {
                             for (int li = 1; li <= Integer.parseInt(Props.getProperty("loader-threads")); li++) {

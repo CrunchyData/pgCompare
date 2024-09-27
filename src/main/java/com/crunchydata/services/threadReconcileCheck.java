@@ -199,6 +199,7 @@ public class threadReconcileCheck {
 
         } catch (Exception e) {
             Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values:  %s", e.getMessage()));
+            e.printStackTrace();
         }
 
     }

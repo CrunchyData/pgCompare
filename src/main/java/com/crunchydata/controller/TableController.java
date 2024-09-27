@@ -95,6 +95,7 @@ public class TableController {
             case "oracle" -> dbCommon.getTables(conn, schema, SQL_ORACLE_SELECT_TABLES);
             case "mysql" -> dbCommon.getTables(conn, schema, SQL_MYSQL_SELECT_TABLES);
             case "mssql" -> dbCommon.getTables(conn, schema, SQL_MSSQL_SELECT_TABLES);
+            case "db2" -> dbCommon.getTables(conn, schema, SQL_DB2_SELECT_TABLES);
             default -> dbCommon.getTables(conn, schema, SQL_POSTGRES_SELECT_TABLES);
         };
     }

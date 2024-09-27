@@ -86,11 +86,16 @@ public class dbMSSQL {
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression =   Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(to_char(" + columnName + ",'E10')),' '),'E+0,'e+'))"   : "coalesce(cast(format(" + columnName + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
+            colExpression = switch (column.getString("dataType").toLowerCase()) {
+                case "real", "float", "float4", "float8" ->
+                        "lower(replace(coalesce(trim(format(" + columnName + ",'E6')),' '),'E+0','e+'))";
+                default ->
+                        Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(format(" + columnName + ",'E10')),' '),'E+0','e+'))"   : "coalesce(cast(format(" + columnName + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
+            };
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when coalesce(cast(" + columnName + " as varchar),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(format(" + columnName + ",MMddyyyyHHMIss'),' ')";
+            colExpression = "coalesce(format(" + columnName + ",'MMddyyyyHHmmss'),' ')";
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(" + columnName + ",' ')";
         } else {

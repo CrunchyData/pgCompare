@@ -39,7 +39,7 @@ CREATE TABLE dc_table_column_map (
   column_id            int8 not null,
   column_origin        varchar(10) DEFAULT 'source' NOT NULL,
   column_name          varchar(50) NULL,
-  data_type            varchar(20) NOT NULL,
+  data_type            varchar(30) NOT NULL,
   data_class           varchar(20) DEFAULT 'string',
   data_length          int,
   number_precision     int,

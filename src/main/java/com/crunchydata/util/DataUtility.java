@@ -16,10 +16,7 @@
 
 package com.crunchydata.util;
 
-import com.crunchydata.services.dbMSSQL;
-import com.crunchydata.services.dbMySQL;
-import com.crunchydata.services.dbOracle;
-import com.crunchydata.services.dbPostgres;
+import com.crunchydata.services.*;
 
 import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
@@ -78,6 +75,7 @@ public class DataUtility {
             case "oracle" -> dbOracle.nativeCase;
             case "mysql" -> dbMySQL.nativeCase;
             case "mssql" -> dbMSSQL.nativeCase;
+            case "db2" -> dbDB2.nativeCase;
             default -> dbPostgres.nativeCase;
         };
     }
