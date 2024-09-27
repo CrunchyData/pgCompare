@@ -66,6 +66,59 @@ VALUES (20, 'Sam', 'Young', 'sam.young@example.com', '2003-01-17', 49, 60611, 'A
 
 
 
+
+DROP TABLE IF EXISTS pgctest.test_nbr;
+CREATE TABLE pgctest.test_nbr
+(   id              int NOT NULL PRIMARY KEY
+,   col_small       smallint
+,   col_int         int
+,   col_bigint      bigint
+,   col_dec_20      decimal(20)
+,   col_dec_38      decimal(31)
+,   col_dec_10_2    decimal(10,2)
+,   col_float32     real
+,   col_float64     double precision
+,   col_dec_38_9    DECIMAL(31,9)
+,   col_dec_38_30   DECIMAL(31,22)
+);
+
+INSERT INTO pgctest.test_nbr VALUES
+(1, 1, 1, 1, 12345678901234567890, 1234567890123456789012345, 123.11, 123456.1, 12345678.1, 12345678901234567890123456789.123456789,12345678.123456789012345678901234567890),
+(2, 2, 2, 2, 12345678901234567890, 1234567890123456789012345, 123.22, 123456.2, 12345678.2, 22345678901234567890123456789.123456789,22345678.123456789012345678901234567890),
+(3, 3, 3, 3, 12345678901234567890, 1234567890123456789012345, 123.3 , 123456.3, 12345678.3, 32345678901234567890123456789.123456789,32345678.123456789012345678901234567890),
+(4, 4, 4, 4, null                , 1234567890123456789012345, 123.3 , 123456.3, 12345678.3, null                                   ,32345678.123456789012345678901234567890);
+
+DROP TABLE IF EXISTS pgctest.test_char;
+CREATE TABLE pgctest.test_char
+(   id              int NOT NULL PRIMARY KEY
+,   col_charnull    varchar(30)
+,   col_char_2      character(2)
+,   col_string      varchar(32704)
+);
+
+INSERT INTO pgctest.test_char VALUES
+(1, 'abc','A ','when in the course of human events it becomes necessary...'),
+(2, ''   ,'B' ,'when in the course of human events it becomes necessary...'),
+(3, 'xyx','C ','when in the course of human events it becomes necessary...'),
+(4, null, 'D ','when in the course of human events it becomes necessary...');
+
+DROP TABLE IF EXISTS pgctest.test_dt;
+CREATE TABLE pgctest.test_dt
+(   id              int NOT NULL PRIMARY KEY
+,   col_date        date
+,   col_datetime    timestamp
+,   col_tstz        timestamp with time zone
+,   col_ts6         timestamp
+,   col_ts6tz       timestamp with time zone
+);
+
+INSERT INTO pgctest.test_dt VALUES
+(1, DATE'1970-01-01', TIMESTAMP'1976-07-04 01:00:01', TIMESTAMP WITH TIME ZONE'1976-07-04 02:00:01 -01:00', TIMESTAMP'1976-07-04 03:00:01.123456 -01:00',  TIMESTAMP WITH TIME ZONE'1976-07-04 04:00:01.123456 -01:00'),
+(2, DATE'1970-01-02', TIMESTAMP'1991-01-02 01:00:02', TIMESTAMP WITH TIME ZONE'1991-01-02 02:00:02 -02:00', TIMESTAMP'1991-01-02 03:00:02.123456 -02:00',  TIMESTAMP WITH TIME ZONE'1991-01-02 04:00:02.123456 -02:00'),
+(3, DATE'1970-01-03', TIMESTAMP'2030-01-03 01:00:03', TIMESTAMP WITH TIME ZONE'2030-01-03 02:00:03 -03:00', TIMESTAMP'2030-01-03 03:00:03.123456 -03:00',  TIMESTAMP WITH TIME ZONE'2030-01-03 04:00:03.123456 -03:00'),
+(4, DATE'1970-01-04', TIMESTAMP'2030-01-04 01:00:03', TIMESTAMP WITH TIME ZONE'2030-01-04 02:00:03 -03:00', null                                        ,  null                                                       );
+
+
 -- Creating the test_common table in DB2
 DROP TABLE IF EXISTS pgctest.test_common;
 CREATE TABLE pgctest.test_common

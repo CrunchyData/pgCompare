@@ -181,6 +181,7 @@ public class dbDB2 {
 
         try {
             conn = DriverManager.getConnection(url,dbProps);
+            conn.setAutoCommit(true);
         } catch (Exception e) {
             Logging.write("severe", THREAD_NAME, String.format("Error connecting to DB2 %s",e.getMessage()));
         }

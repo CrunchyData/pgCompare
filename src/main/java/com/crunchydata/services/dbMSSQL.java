@@ -95,9 +95,20 @@ public class dbMSSQL {
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when coalesce(cast(" + columnName + " as varchar),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(format(" + columnName + ",'MMddyyyyHHmmss'),' ')";
+            colExpression = switch (column.getString("dataType").toLowerCase()) {
+                case "date" ->
+                        "coalesce(format(" + columnName + ",'MMddyyyyHHmmss'),' ')";
+                default ->
+                        "coalesce(format(" + columnName + " at time zone 'UTC','MMddyyyyHHmmss'),' ')";
+            };
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + columnName + ",' ')";
+            colExpression = switch (column.getString("dataType").toLowerCase()) {
+                // Cannot use trim on text data type.
+                case "text" ->
+                        "coalesce(" + columnName + ",' ')";
+                default ->
+                        column.getInt("dataLength") > 1 ? "case when len(" + columnName + ")=0 then ' ' else coalesce(rtrim(ltrim(" + columnName + ")),' ') end" :  "case when len(" + columnName + ")=0 then ' ' else " + columnName + " end";
+            };
         } else {
             colExpression = columnName;
         }

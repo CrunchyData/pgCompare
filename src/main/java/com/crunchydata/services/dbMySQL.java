@@ -108,7 +108,8 @@ public class dbMySQL {
                 colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + columnName + ",' ')";
+            //colExpression = "coalesce(" + columnName + ",' ')";
+            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(md5(" + columnName +"), ' ')";
         } else {

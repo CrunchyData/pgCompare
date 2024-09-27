@@ -114,12 +114,12 @@ public interface SQLConstants {
     // DB2 SQL
     //
     String SQL_DB2_SELECT_COLUMNS = """
-            SELECT c.TABSCHEMA AS owner,
+            SELECT trim(c.TABSCHEMA) AS owner,
                    c.TABNAME AS table_name,
                    c.COLNAME AS column_name,
                    LOWER(c.TYPENAME) AS data_type,
                    c.LENGTH AS data_length,
-                   COALESCE(c.NUMERIC_PRECISION, 44) AS data_precision,
+                   COALESCE(c.length, 44) AS data_precision,
                    COALESCE(c.SCALE, 22) AS data_scale,
                    c.NULLS AS nullable,
                    CASE WHEN pkc.COLNAME IS NULL THEN 'N' ELSE 'Y' END AS pk
@@ -134,7 +134,7 @@ public interface SQLConstants {
            """;
 
     String SQL_DB2_SELECT_TABLES = """
-                SELECT TABSCHEMA AS owner, TABNAME AS table_name
+                SELECT trim(TABSCHEMA) AS owner, TABNAME AS table_name
                 FROM SYSCAT.TABLES
                 WHERE LOWER(TABSCHEMA) = LOWER(?)
                 ORDER BY TABSCHEMA, TABNAME

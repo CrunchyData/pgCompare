@@ -137,7 +137,7 @@ public class threadReconcile extends Thread {
                 sql += " ORDER BY " + pkList;
             }
 
-            conn.setAutoCommit(false);
+            //conn.setAutoCommit(false);
             stmt = conn.prepareStatement(sql);
             stmt.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
             rs = stmt.executeQuery();
