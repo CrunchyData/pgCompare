@@ -88,7 +88,7 @@ public class threadReconcile extends Thread {
         PreparedStatement stmt = null;
         PreparedStatement stmtLoad = null;
         int totalRows = 0;
-        Boolean useLoaderThreads = Integer.parseInt(Props.getProperty("message-queue-size")) > 0;
+        boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
 
         try {
             // Connect to Repository

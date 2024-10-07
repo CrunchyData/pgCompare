@@ -79,7 +79,8 @@ public class RepoController {
                 	pk_hash varchar(100) NULL,
                 	column_hash varchar(100) NULL,
                 	pk jsonb NULL,
-                	compare_result bpchar(1) NULL
+                	compare_result bpchar(1) NULL,
+                	CONSTRAINT dc_source_pk PRIMARY KEY (tid, pk_hash)
                 ) with (autovacuum_enabled=false, parallel_workers=
                 """ + Props.getProperty("stage-table-parallel") + ")";
 

@@ -86,15 +86,16 @@ public class Settings {
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("database-sort","true");
-        defaultProps.setProperty("loader-threads","2");
+        defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
-        defaultProps.setProperty("message-queue-size","100");
+        defaultProps.setProperty("message-queue-size","1000");
         defaultProps.setProperty("number-cast","notation");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");
         defaultProps.setProperty("stage-table-parallel","0");
+        defaultProps.setProperty("standard-number-format","0000000000000000000000.0000000000000000000000");
 
 
         // Repository

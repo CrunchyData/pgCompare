@@ -88,7 +88,7 @@ public class dbOracle {
                 case "float", "binary_float", "binary_double" ->
                         "lower(nvl(trim(to_char(" +columnName + ",'0.999999EEEE')),' '))";
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + columnName+ ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + columnName+ ",'0000000000000000000000.0000000000000000000000')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + columnName+ ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + columnName+ ",'" + Props.getProperty("standard-number-format") + "')),' ')";
             };
 
 

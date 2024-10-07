@@ -95,7 +95,7 @@ public class threadReconcileObserver extends Thread  {
         DecimalFormat formatter = new DecimalFormat("#,###");
         int lastRun = 0;
         RepoController rpc = new RepoController();
-        int sleepTime = 2000;
+        int sleepTime = 1000;
 
         // Connect to Repository
         Logging.write("info", threadName, "Connecting to repository database");
@@ -110,7 +110,11 @@ public class threadReconcileObserver extends Thread  {
             // do nothing
         }
 
-        try { dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {
+        try {
+            dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'");
+            dbCommon.simpleExecute(repoConn,"set work_mem='512MB'");
+            dbCommon.simpleExecute(repoConn,"set maintenance_work_mem='1024MB'");
+        } catch (Exception e) {
             // do nothing
         }
 
@@ -143,13 +147,13 @@ public class threadReconcileObserver extends Thread  {
                         stmtSUS.executeUpdate();
                         repoConn.commit();
                         deltaCount=0;
-                        ts.observerNotify();
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
                             dbCommon.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
                             repoConn.setAutoCommit(false);
                         }
+                        ts.observerNotify();
                     }
                 }
 

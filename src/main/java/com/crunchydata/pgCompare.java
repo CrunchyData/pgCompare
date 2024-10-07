@@ -71,6 +71,11 @@ public class pgCompare {
         Logging.write("info", THREAD_NAME, String.format("Version: %s",Settings.VERSION));
         Logging.write("info", THREAD_NAME, String.format("Batch Number: %s",batchParameter));
         Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s",check));
+
+        // Preflight
+        preflight.database("source");
+        preflight.database("target");
+
         Logging.write("info", THREAD_NAME, "Parameters: ");
 
         Props.entrySet().stream()

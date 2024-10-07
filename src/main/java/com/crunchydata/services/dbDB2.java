@@ -84,10 +84,10 @@ public class dbDB2 {
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
 
             colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "float", "binary_float", "binary_double" ->
-                        "lower(nvl(trim(to_char(" +columnName + ",'0.999999EEEE')),' '))";
+                case "real", "float", "binary_float", "binary_double", "double" ->
+                        scientificNotation(columnName);
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + columnName+ ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + columnName+ ",'0000000000000000000000.0000000000000000000000')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? scientificNotation(columnName) : "nvl(trim(to_char(" + columnName+ ", '" + Props.getProperty("standard-number-format") + "')),' ')";
             };
 
 
@@ -100,15 +100,7 @@ public class dbDB2 {
                 colExpression = "nvl(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            if (column.getString("dataType").toLowerCase().contains("lob")) {
-                colExpression = "nvl(trim(to_char(" + columnName + ")),' ')";
-            } else {
-                if (column.getInt("dataLength") > 1) {
-                    colExpression = "nvl(trim(" + columnName + "),' ')";
-                } else {
-                    colExpression = "nvl(" + columnName + ",' ')";
-                }
-            }
+            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when dbms_lob.getlength(" + columnName +") = 0 or " + columnName + " is null then ' ' else lower(dbms_crypto.hash(" + columnName + ",2)) end";
         } else {
@@ -188,6 +180,22 @@ public class dbDB2 {
 
         return conn;
 
+    }
+
+    /**
+     * DB2 does not support controlling the format of scientific notation.  Therefore,
+     * this routine will construct a column expression for SQL that will return a formatted
+     * scientific notation that matches other platforms.
+     *
+     * @param columnName Column name.
+     * @return String object with column expression.
+     */
+    public static String scientificNotation(String columnName) {
+        String sqlFunction = "";
+
+        sqlFunction = String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
+
+        return sqlFunction;
     }
 
 }

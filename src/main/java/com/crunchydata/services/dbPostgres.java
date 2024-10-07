@@ -86,12 +86,12 @@ public class dbPostgres {
                 case "float4", "float8" ->
                         "coalesce(trim(to_char(" + columnName + ",'0.999999EEEE')),' ')";
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'0000000000000000000000.0000000000000000000000')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
             };
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             String booleanConvert = "case when coalesce(" + columnName + "::text,'0') = 'true' then 1 else 0 end";
-            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'0000000000000000000000.0000000000000000000000')),' ')";
+            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
                 colExpression = "coalesce(to_char(" + columnName + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
@@ -174,6 +174,7 @@ public class dbPostgres {
         dbProps.setProperty("reWriteBatchedInserts", "true");
         dbProps.setProperty("preparedStatementCacheQueries", "5");
         dbProps.setProperty("ApplicationName", "pgCompare - " + module);
+        dbProps.setProperty("synchronous_commit", "off");
 
         try {
             conn = DriverManager.getConnection(url,dbProps);

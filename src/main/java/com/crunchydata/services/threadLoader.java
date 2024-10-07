@@ -92,6 +92,9 @@ public class threadLoader extends Thread  {
                 System.exit(1);
             }
 
+            dbCommon.simpleExecute(repoConn,"set synchronous_commit='off'");
+            dbCommon.simpleExecute(repoConn,"set work_mem='256MB'");
+
             repoConn.setAutoCommit(false);
 
             // Prepare INSERT statement for the staging table
@@ -105,7 +108,7 @@ public class threadLoader extends Thread  {
             while (stillLoading) {
 
                 // Poll for DataCompare array from the blocking queue
-                DataCompare[] dc = q.poll(1, TimeUnit.SECONDS);
+                DataCompare[] dc = q.poll(500, TimeUnit.MILLISECONDS);
 
                 if (dc != null && dc.length > 0) {
                     // Process each DataCompare object

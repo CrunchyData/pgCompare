@@ -90,7 +90,7 @@ public class dbMSSQL {
                 case "real", "float", "float4", "float8" ->
                         "lower(replace(coalesce(trim(format(" + columnName + ",'E6')),' '),'E+0','e+'))";
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(format(" + columnName + ",'E10')),' '),'E+0','e+'))"   : "coalesce(cast(format(" + columnName + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(format(" + columnName + ",'E10')),' '),'E+0','e+'))"   : "coalesce(cast(format(" + columnName + ", '"+ Props.getProperty("standard-number-format") + "') as text),' ')";
             };
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when coalesce(cast(" + columnName + " as varchar),'0') = 'true' then '1' else '0' end";
