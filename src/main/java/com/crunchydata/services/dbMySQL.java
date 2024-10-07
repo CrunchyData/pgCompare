@@ -33,7 +33,7 @@ import java.util.Properties;
 import static com.crunchydata.services.ColumnValidation.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
 
 /**

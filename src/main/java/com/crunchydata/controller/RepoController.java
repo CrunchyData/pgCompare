@@ -27,7 +27,7 @@ import com.crunchydata.model.DCTableMap;
 import com.crunchydata.services.dbCommon;
 import com.crunchydata.util.Logging;
 
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 /**

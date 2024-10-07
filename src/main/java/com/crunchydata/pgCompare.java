@@ -180,7 +180,7 @@ public class pgCompare {
         String sourceSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
         String targetSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
 
-        Logging.write("info", THREAD_NAME, String.format("Performaning table discovery"));
+        Logging.write("info", THREAD_NAME, "Performaning table discovery");
 
         // Discover Tables
         TableController.discoverTables(pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);

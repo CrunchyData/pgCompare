@@ -157,7 +157,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -420,7 +420,7 @@
           }
         ]
       },
-      "pluginVersion": "10.4.0",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -482,8 +482,8 @@
       {
         "current": {
           "selected": false,
-          "text": "player_game_stat",
-          "value": "player_game_stat"
+          "text": "",
+          "value": ""
         },
         "hide": 2,
         "includeAll": false,
@@ -498,13 +498,13 @@
     ]
   },
   "time": {
-    "from": "2023-07-12T13:39:24.377Z",
-    "to": "2024-07-12T13:39:24.377Z"
+    "from": "now-1y",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "pgCompare Summary",
   "uid": "pgcomparesummary",
-  "version": 12,
+  "version": 14,
   "weekStart": ""
 }

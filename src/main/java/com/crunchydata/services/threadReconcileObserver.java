@@ -26,8 +26,8 @@ import com.crunchydata.model.DCTable;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
-import static com.crunchydata.util.SQLConstants.SQL_REPO_CLEARMATCH;
-import static com.crunchydata.util.SQLConstants.SQL_REPO_DCRESULT_UPDATECNT;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -184,16 +184,13 @@ public class threadReconcileObserver extends Thread  {
 
         } catch (Exception e) {
             Logging.write("severe", threadName, "Error in observer process: " + e.getMessage());
-            e.printStackTrace();
             try { repoConn.rollback();
             } catch (Exception ee) {
                 Logging.write("warn", threadName, "Error rolling back transaction " + e.getMessage());
             }
         } finally {
             try {
-                if (!(repoConn == null)) {
-                    repoConn.close();
-                }
+                repoConn.close();
             } catch (Exception e) {
                 Logging.write("warn", threadName, "Error closing thread " + e.getMessage());
             }

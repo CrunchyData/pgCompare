@@ -12,7 +12,7 @@ import java.util.ArrayList;
 
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.JsonUtility.findOne;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 public class ColumnController {
@@ -220,7 +220,7 @@ public class ColumnController {
 
     }
 
-    public static Integer loadColumns(Integer pid, Integer tid, String schema, String tableName, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTableColumn) {
+    public static void loadColumns(Integer pid, Integer tid, String schema, String tableName, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTableColumn) {
         String destType=Props.getProperty(destRole+"-type");
         ArrayList<Object> binds = new ArrayList<>();
         Integer columnCount = 0;
@@ -284,7 +284,6 @@ public class ColumnController {
 
         Logging.write("info", THREAD_NAME, String.format("Discovered %d columns for table %s",columnCount, tableName));
 
-        return columnCount;
     }
 
 

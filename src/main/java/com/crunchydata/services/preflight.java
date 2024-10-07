@@ -1,12 +1,6 @@
 package com.crunchydata.services;
 
 import com.crunchydata.util.Logging;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 
 import static com.crunchydata.util.Settings.Props;
 

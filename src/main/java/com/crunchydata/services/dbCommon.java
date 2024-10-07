@@ -26,8 +26,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.DataUtility.isMixedCase;
-
 /**
  * Utility class that contains common actions performed against the database
  * which are agnostic to the database platform.

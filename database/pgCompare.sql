@@ -23,7 +23,7 @@ CREATE TABLE dc_table (
 
 ALTER TABLE dc_table ADD CONSTRAINT dc_table_pk PRIMARY KEY (tid);
 
-create table dc_table_column (
+CREATE TABLE dc_table_column (
   tid                  int8 not null,
   column_id            int8  NOT NULL GENERATED ALWAYS AS IDENTITY,
   column_alias         varchar(50) not null,
@@ -50,7 +50,7 @@ CREATE TABLE dc_table_column_map (
   supported            boolean DEFAULT true,
   preserve_case        boolean DEFAULT false,
   map_type             varchar(15) default 'column' not null
-)
+);
 
 ALTER TABLE dc_table_column_map ADD CONSTRAINT dc_table_column_map_pk PRIMARY KEY (column_id, column_origin);
 
@@ -106,7 +106,6 @@ CREATE INDEX dc_result_idx1 ON dc_result(table_name, compare_dt);
 -- dc_source definition
 CREATE TABLE dc_source (
     tid                       int8 null,
-    --table_name                text NULL,
     batch_nbr                 int4 NULL,
     pk                        jsonb NULL,
     pk_hash                   varchar(100) NULL,
@@ -118,7 +117,6 @@ CREATE TABLE dc_source (
 -- dc_target definition
 CREATE TABLE dc_target (
     tid                      int8 null,
-    --table_name               text NULL,
     batch_nbr                int4 NULL,
     pk                       jsonb NULL,
     pk_hash                  varchar(100) NULL,

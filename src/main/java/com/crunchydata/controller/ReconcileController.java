@@ -34,7 +34,7 @@ import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
 
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 import org.json.JSONObject;

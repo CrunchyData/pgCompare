@@ -35,7 +35,7 @@ import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 
 /**
  * Thread to perform reconciliation checks on rows that are out of sync.
@@ -106,7 +106,6 @@ public class threadReconcileCheck {
             stmt.close();
         } catch (Exception e) {
             Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s:  %s", dct.getTableAlias(), e.getMessage()));
-            e.printStackTrace();
         }
 
     }
@@ -199,7 +198,6 @@ public class threadReconcileCheck {
 
         } catch (Exception e) {
             Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values:  %s", e.getMessage()));
-            e.printStackTrace();
         }
 
     }

@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTableColumnMap;
 import com.crunchydata.model.DCTableMap;
 import com.crunchydata.util.Logging;
 
@@ -34,7 +33,7 @@ import org.json.JSONObject;
 import static com.crunchydata.services.ColumnValidation.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
 
 /**

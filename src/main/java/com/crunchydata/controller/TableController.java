@@ -12,7 +12,12 @@ import java.util.ArrayList;
 
 import static com.crunchydata.util.DataUtility.getNativeCase;
 import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 public class TableController {
@@ -101,7 +106,7 @@ public class TableController {
     }
 
 
-    public static Integer loadTables(Integer pid, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
+    public static void loadTables(Integer pid, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
         String destType=Props.getProperty(destRole+"-type");
         String schema=Props.getProperty(destRole+"-schema");
         ArrayList<Object> binds = new ArrayList<>();
@@ -158,6 +163,5 @@ public class TableController {
 
         Logging.write("info", THREAD_NAME, String.format("Discovered %d tables on %s for for schema %s",tableCount, destType, schema));
 
-        return tableCount;
     }
 }
