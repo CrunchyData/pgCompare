@@ -136,6 +136,20 @@ public class RepoController {
 
     }
 
+    /**
+     * Gets the project settings from dc_project table.
+     *
+     * @param conn        Database connection
+     * @param pid         Project ID
+     * @return String     Contents of project_config field
+     */
+    public static String getProjectConfig (Connection conn, Integer pid) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, pid);
+
+        return dbCommon.simpleSelectReturnString(conn, "SELECT project_config FROM dc_project WHERE pid=?", binds);
+    }
+
 
     /**
      * Retrieves table information from the database.

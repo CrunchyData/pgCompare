@@ -78,38 +78,40 @@ In the database directory are two scripts to deploy a sample table (EMP) to Orac
 
 ## Defining Table Mapping
 
-The initial step involves defining a set of tables to compare, achieved by inserting rows into the `dc_table` within the pgCompare repository.
-
-dc_table:
-- source_schema: Schema/user that owns the table on the source database.
-- source_table: Table name on the source database.
-- target_schema:  Schema/user that owns the table on the target database.
-- target_table: Table name on the target database.
-- table_filter:  Specify a valid predicate that would be used in the where clause of a select sql statement.
-- parallel_degree:  Data can be compared by splitting up the work among many threads.  The parallel_degree determines the number of threads.  To use parallel threads, the mod_column value must be specified.
-- status: Expected values are 'disabled', which is the default, and 'ready'.
-- batch_nbr:  Tables can be grouped into batches and compare jobs executed a batch, or grouping of tables.
-- mod_column:  Used in conjunction with the parallel_degree.  The work is divided up among the threads using a mod of the specified column.  Therefore, the value entered must be a single column with a numeric data type.
-- column_map:  Used to review or override column mapping used by compare functions.  See Column Map section for more details.
+The initial step involves defining a set of tables to compare, achieved by inserting rows into the `dc_table` and `dc_table_map` tables in the pgCompare repository.  This is best done using the automated process below.
 
 ### Automated Table Registry
 
-Use pgCompare to perform a discovery against the target database and populate the dc_table with the results using the following command (where hr is the schema to be scanned).
+Use pgCompare to perform a discovery against the target database and populate the dc_table with the results using the following command.  The schemas specified in the properties file will be used for the discovery process.
 
 ```shell
-java -jar pgcompare.jar --discovery hr
+java -jar pgcompare.jar --discover
 ```
-
-After automatic table registry, if there are tables that are case sensistive, those table names will need to be modified in the dc_table.source_table and dc_table.target_table columns as approriate.
 
 ### Manual Table Registry
 
-Example of loading a row into `dc_table`:
+Example of loading a row into `dc_table` and `dc_table_map`:
 
 ```sql
-INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, parallel_degree, status, batch_nbr)
-  VALUES ('hr','emp','hr','emp',1,'ready',1);
+INSERT INTO dc_table (table_alias)
+  VALUES ('emp');
+
+INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name)
+  VALUES (1, 'source', 'hr', 'emp');
+
+INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name)
+  VALUES (1, 'target', 'HR', 'EMP');
 ```
+
+After populating the list of tables, run the following to automatically map columns.
+
+```shell
+java -jar pgcompare.jar --batch=0 --maponly
+```
+
+### Projects
+
+Projects allow for the repository to maintain different mappings for different compare objectives.  This allows a central pgCompare repository to be used for multiple compare projects.  Each table has a `pid` column which is the project id.  If no project is specified, the default project (pid = 1) is used.
 
 ## Perform Data Compare
 
@@ -135,82 +137,13 @@ This recheck process is useful when transactions may be in flight during the ini
 
 ## Column Map
 
-The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the column_map column of the dc_table repository table. The column mapping is stored in the form of a JSON object.  This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column map is present in column_map, the program will not perform a remap.
+The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the `dc_table_column` and `dc_table_column_map` repository tables. This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column mapping is present, the program will not perform a remap unless instructed to using the `maponly` flag.
 
 To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
 
 ```shell
 java -jar pgcompare.jar --batch=0 --maponly
 ```
-
-### JSON Mapping Object
-
-Below is a sample of a column mapping.
-
-```json
-{
-  "columns": [
-    {
-      "alias": "cola",
-      "source": {
-        "dataType": "char",
-        "nullable": true,
-        "dataClass": "char",
-        "dataScale": 22,
-        "supported": true,
-        "columnName": "cola",
-        "dataLength": 2,
-        "primaryKey": false,
-        "dataPrecision": 44,
-        "valueExpression": "nvl(trim(col_char_2),' ')"
-      },
-      "status": "compare",
-      "target": {
-        "dataType": "bpchar",
-        "nullable": false,
-        "dataClass": "char",
-        "dataScale": 22,
-        "supported": true,
-        "columnName": "cola",
-        "dataLength": 2,
-        "primaryKey": false,
-        "dataPrecision": 44,
-        "valueExpression": "coalesce(col_char_2::text,' ')"
-      }
-    },
-    {
-      "alias": "id",
-      "source": {
-        "dataType": "number",
-        "nullable": false,
-        "dataClass": "numeric",
-        "dataScale": 0,
-        "supported": true,
-        "columnName": "id",
-        "dataLength": 22,
-        "primaryKey": true,
-        "dataPrecision": 8,
-        "valueExpression": "lower(nvl(trim(to_char(id,'0.9999999999EEEE')),' '))"
-      },
-      "status": "compare",
-      "target": {
-        "dataType": "int4",
-        "nullable": true,
-        "dataClass": "numeric",
-        "dataScale": 0,
-        "supported": true,
-        "columnName": "id",
-        "dataLength": 32,
-        "primaryKey": true,
-        "dataPrecision": 32,
-        "valueExpression": "coalesce(trim(to_char(id,'0.9999999999EEEE')),' ')"
-      }
-    }
-  ]
-}
-```
-
-Only Primary Key columns and columns with a status equal to 'compare' will be included in the final data compare.
 
 ## Properties
 
@@ -245,6 +178,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - source-name:  User defined name for the source.
 - source-password:  Database password.
 - source-port:  Database port.
+- source-schema:  Name of schema that owns the tables.
 - source-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
 - source-type:  Database type: oracle, postgres
 - source-user:   Database username.
@@ -257,9 +191,20 @@ Properties are categorized into four sections: system, repository, source, and t
 - target-name:  User defined name for the target.
 - target-password:  Database password.
 - target-port:  Database port.
+- target-schema:  Name of schema that owns the tables.
 - target-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
 - target-type:  Database type: oracle, postgres
 - target-user:  Database username.
+
+## Property Precedence
+
+The system contains default values for every parameter.  These can be over-ridden using environment variables, properties file, or values saved in the `dc_project` table.  The following is the order of precedence used:
+
+- Default values
+- Properties file
+- Environment variables
+- Settings stored in `dc_project` table
+
 
 # Data Compare Concepts
 

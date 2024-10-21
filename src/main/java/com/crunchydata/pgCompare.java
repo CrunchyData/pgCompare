@@ -19,6 +19,7 @@ package com.crunchydata;
 import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
+import java.util.Map;
 
 import com.crunchydata.controller.ColumnController;
 import com.crunchydata.controller.TableController;
@@ -36,6 +37,7 @@ import org.json.JSONObject;
 
 import static com.crunchydata.controller.TableController.getTableMap;
 import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.Settings.setProjectConfig;
 
 /**
  * @author Brian Pace
@@ -76,12 +78,6 @@ public class pgCompare {
         preflight.database("source");
         preflight.database("target");
 
-        Logging.write("info", THREAD_NAME, "Parameters: ");
-
-        Props.entrySet().stream()
-                .filter(e -> !e.getKey().toString().contains("password"))
-                .forEach(e -> Logging.write("info", THREAD_NAME, String.format("  %s",e)));
-
         // Connect to Repository
         Logging.write("info", THREAD_NAME, "Connecting to repository database");
         connRepo = dbPostgres.getConnection(Props, "repo", THREAD_NAME);
@@ -89,6 +85,16 @@ public class pgCompare {
             Logging.write("severe", THREAD_NAME, "Cannot connect to repository database");
             System.exit(1);
         }
+
+        // Load Properties from Project (dc_project)
+        setProjectConfig(connRepo, pid, Props);
+
+        // Output parameter settings
+        Logging.write("info", THREAD_NAME, "Parameters: ");
+
+        Props.entrySet().stream()
+                .filter(e -> !e.getKey().toString().contains("password"))
+                .forEach(e -> Logging.write("info", THREAD_NAME, String.format("  %s",e)));
 
         // Initialize pgCompare repository if the action is init.
         // After initialization, exit.

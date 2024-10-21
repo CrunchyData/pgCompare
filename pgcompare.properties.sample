@@ -122,6 +122,7 @@ source-user=appuser
 source-password=welcome1
 source-database-hash=false
 source-sslmode=disable
+source-schema=appuser
 # Postgres Example
 #source-name=pgsource
 #source-type=postgres
@@ -132,6 +133,7 @@ source-sslmode=disable
 #source-password=welcome1
 #source-database-hash=true
 #source-sslmode=disable
+#source-schema=appuser
 
 ##################################
 # target
@@ -146,6 +148,7 @@ target-user=postgres
 target-password=welcome1
 target-database-hash=true
 target-sslmode=disable
+target-schema=appuser
 # Oracle Example
 #target-name=orasource
 #target-type=oracle
@@ -156,3 +159,5 @@ target-sslmode=disable
 #target-password=welcome1
 #target-database-hash=true
 #target-sslmode=disable
+#target-schema=appuser
+

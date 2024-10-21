@@ -30,7 +30,7 @@ import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.util.ColumnValidation.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;

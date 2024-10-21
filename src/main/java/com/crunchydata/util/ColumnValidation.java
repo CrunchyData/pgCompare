@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.services;
+package com.crunchydata.util;
 
 import java.util.Arrays;
 

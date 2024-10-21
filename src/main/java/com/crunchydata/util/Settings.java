@@ -16,8 +16,11 @@
 
 package com.crunchydata.util;
 
+import com.crunchydata.controller.RepoController;
+
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.util.Properties;
 
 /**
@@ -80,7 +83,7 @@ public class Settings {
         Properties defaultProps = new Properties();
 
         // System Settings
-        defaultProps.setProperty("project", "1");
+        //defaultProps.setProperty("project", "1");
         defaultProps.setProperty("config-file", paramFile);
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
@@ -147,6 +150,35 @@ public class Settings {
                 prop.setProperty(k.replace("PGCOMPARE-","").toLowerCase(),v);
             }
         });
+
+        return prop;
+
+    }
+
+    /**
+     * Applies properties that are stored in the dc_project table.
+     *
+     * @param conn  Connection to the repository database.
+     * @param pid   Project ID.
+     * @param prop the {@code Properties} object to which environment variables are applied
+     *
+     * @return the updated {@code Properties} object with environment variables applied
+     */
+    public static Properties setProjectConfig (Connection conn, Integer pid, Properties prop) {
+
+        String projectConfig = RepoController.getProjectConfig(conn, pid);
+
+
+        if (projectConfig != null) {
+            // Split the string by newline
+            String[] lines = projectConfig.split("\n");
+
+            // Process the lines (e.g., print each line)
+            for (String line : lines) {
+                String[] keyValue = line.split("=", 2);
+                prop.setProperty(keyValue[0].trim(),keyValue[1].trim());
+            }
+        }
 
         return prop;
 

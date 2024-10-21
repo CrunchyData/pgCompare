@@ -30,7 +30,7 @@ import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
-import static com.crunchydata.services.ColumnValidation.*;
+import static com.crunchydata.util.ColumnValidation.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;

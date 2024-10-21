@@ -39,7 +39,11 @@ public class preflight {
                 break;
 
             case "mssql":
-                // No restrictions
+                // Database side hash is not supported for MSSQL
+                if (Props.getProperty(targetType + "-database-hash").equals("true")) {
+                    Logging.write("warning",THREAD_NAME,"Switching database-hash to false as required for MSSQL");
+                    Props.setProperty(targetType + "-database-hash","false");
+                }
                 break;
 
             case "oracle":

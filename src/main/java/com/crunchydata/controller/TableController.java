@@ -112,7 +112,7 @@ public class TableController {
         ArrayList<Object> binds = new ArrayList<>();
         Integer tableCount = 0;
 
-        Logging.write("info", THREAD_NAME, String.format("Performaning table discovery on %s for schema %s",destType,schema));
+        Logging.write("info", THREAD_NAME, String.format("Performing table discovery on %s for schema %s",destType,schema));
 
         // Get Tables based on Platform
         JSONArray tables = getDatabaseTables(destType,connDest,schema);
