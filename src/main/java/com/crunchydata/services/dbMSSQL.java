@@ -87,15 +87,15 @@ public class dbMSSQL {
         String colExpression;
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression =   Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(to_char(" + column.getString("columnName") + ",'E10')),' '),'E+0,'e+'))"   : "coalesce(cast(format(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
+            colExpression =   Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'E10')),' '),'E+0,'e+'))"   : "coalesce(cast(format(" + ShouldQuoteString(column.getString("columnName")) + ",'0000000000000000000000.0000000000000000000000') as text),' ')";
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(cast(" + column.getString("columnName") + " as varchar),'0') = 'true' then '1' else '0' end";
+            colExpression = "case when coalesce(cast(" + ShouldQuoteString(column.getString("columnName")) + " as varchar),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(format(" + column.getString("columnName") + ",MMddyyyyHHMIss'),' ')";
+            colExpression = "coalesce(format(" + ShouldQuoteString(column.getString("columnName")) + ",MMddyyyyHHMIss'),' ')";
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + column.getString("columnName") + ",' ')";
+            colExpression = "coalesce(" + ShouldQuoteString(column.getString("columnName")) + ",' ')";
         } else {
-            colExpression = column.getString("columnName");
+            colExpression = ShouldQuoteString(column.getString("columnName"));
         }
 
         return colExpression;

@@ -87,34 +87,34 @@ public class dbOracle {
 
             colExpression = switch (column.getString("dataType").toLowerCase()) {
                 case "float", "binary_float", "binary_double" ->
-                        "lower(nvl(trim(to_char(" + column.getString("columnName") + ",'0.999999EEEE')),' '))";
+                        "lower(nvl(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0.999999EEEE')),' '))";
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + column.getString("columnName") + ",'0000000000000000000000.0000000000000000000000')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0000000000000000000000.0000000000000000000000')),' ')";
             };
 
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "nvl(to_char(" + column.getString("columnName") + "),'0')";
+            colExpression = "nvl(to_char(" + ShouldQuoteString(column.getString("columnName")) + "),'0')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
-                colExpression = "nvl(to_char(" + column.getString("columnName") + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
+                colExpression = "nvl(to_char(" + ShouldQuoteString(column.getString("columnName")) + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
             } else {
-                colExpression = "nvl(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
+                colExpression = "nvl(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("lob")) {
-                colExpression = "nvl(trim(to_char(" + column.getString("columnName") + ")),' ')";
+                colExpression = "nvl(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ")),' ')";
             } else {
                 if (column.getInt("dataLength") > 1) {
-                    colExpression = "nvl(trim(" + column.getString("columnName") + "),' ')";
+                    colExpression = "nvl(trim(" + ShouldQuoteString(column.getString("columnName")) + "),' ')";
                 } else {
-                    colExpression = "nvl(" + column.getString("columnName") + ",' ')";
+                    colExpression = "nvl(" + ShouldQuoteString(column.getString("columnName")) + ",' ')";
                 }
             }
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when dbms_lob.getlength(" + column.getString("columnName") +") = 0 or " + column.getString("columnName") + " is null then ' ' else lower(dbms_crypto.hash(" + column.getString("columnName") + ",2)) end";
+            colExpression = "case when dbms_lob.getlength(" + ShouldQuoteString(column.getString("columnName")) +") = 0 or " + ShouldQuoteString(column.getString("columnName")) + " is null then ' ' else lower(dbms_crypto.hash(" + ShouldQuoteString(column.getString("columnName")) + ",2)) end";
         } else {
-            colExpression = column.getString("columnName");
+            colExpression = ShouldQuoteString(column.getString("columnName"));
         }
 
         return colExpression;

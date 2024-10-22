@@ -91,29 +91,29 @@ public class dbMySQL {
             switch (column.getString("dataType").toLowerCase()) {
                 case "float":
                 case "double":
-                    colExpression = "coalesce(if(" + column.getString("columnName") + "=0,'0.000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") + ")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 6),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                    colExpression = "coalesce(if(" + ShouldQuoteString(column.getString("columnName")) + "=0,'0.000000e+00',concat(if(" + ShouldQuoteString(column.getString("columnName")) + "<0, '-', ''),format(abs(" + ShouldQuoteString(column.getString("columnName")) + ")/pow(10, floor(log10(abs(" + ShouldQuoteString(column.getString("columnName")) + ")))), 6),'e',if(floor(log10(abs(" + ShouldQuoteString(column.getString("columnName")) + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + ShouldQuoteString(column.getString("columnName")) + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
                     break;
                 default:
                     if (Props.getProperty("number-cast").equals("notation")) {
-                        colExpression = "coalesce(if(" + column.getString("columnName") + "=0,'0.0000000000e+00',concat(if(" + column.getString("columnName") + "<0, '-', ''),format(abs(" + column.getString("columnName") + ")/pow(10, floor(log10(abs(" + column.getString("columnName") + ")))), 10),'e',if(floor(log10(abs(" + column.getString("columnName") + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + column.getString("columnName") + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                        colExpression = "coalesce(if(" + ShouldQuoteString(column.getString("columnName")) + "=0,'0.0000000000e+00',concat(if(" + ShouldQuoteString(column.getString("columnName")) + "<0, '-', ''),format(abs(" + ShouldQuoteString(column.getString("columnName")) + ")/pow(10, floor(log10(abs(" + ShouldQuoteString(column.getString("columnName")) + ")))), 10),'e',if(floor(log10(abs(" + ShouldQuoteString(column.getString("columnName")) + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + ShouldQuoteString(column.getString("columnName")) + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
                     } else {
-                        colExpression = "coalesce(if(instr(convert(" + column.getString("columnName") + ",char),'.')>0,concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(substring_index(convert(abs(" + column.getString("columnName") + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + column.getString("columnName") + ",char),'.',-1),22,'0')),concat(if(" + column.getString("columnName") + "<0,'-',''),lpad(convert(" + column.getString("columnName") + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
+                        colExpression = "coalesce(if(instr(convert(" + ShouldQuoteString(column.getString("columnName")) + ",char),'.')>0,concat(if(" + ShouldQuoteString(column.getString("columnName")) + "<0,'-',''),lpad(substring_index(convert(abs(" + ShouldQuoteString(column.getString("columnName")) + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + ShouldQuoteString(column.getString("columnName")) + ",char),'.',-1),22,'0')),concat(if(" + ShouldQuoteString(column.getString("columnName")) + "<0,'-',''),lpad(convert(" + ShouldQuoteString(column.getString("columnName")) + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
                     }
             }
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(convert(" + column.getString("columnName") + ",char),'0') = 'true' then '1' else '0' end";
+            colExpression = "case when coalesce(convert(" + ShouldQuoteString(column.getString("columnName")) + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
-                colExpression = "coalesce(date_format(convert_tz(" + column.getString("columnName") + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')";
+                colExpression = "coalesce(date_format(convert_tz(" + ShouldQuoteString(column.getString("columnName")) + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')";
             } else {
-                colExpression = "coalesce(date_format(" + column.getString("columnName") + ",'%m%d%Y%H%i%S'),' ')";
+                colExpression = "coalesce(date_format(" + ShouldQuoteString(column.getString("columnName")) + ",'%m%d%Y%H%i%S'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + column.getString("columnName") + ",' ')";
+            colExpression = "coalesce(" + ShouldQuoteString(column.getString("columnName")) + ",' ')";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + column.getString("columnName") +"), ' ')";
+            colExpression = "coalesce(md5(" + ShouldQuoteString(column.getString("columnName")) +"), ' ')";
         } else {
-            colExpression = column.getString("columnName");
+            colExpression = ShouldQuoteString(column.getString("columnName"));
         }
 
         return colExpression;

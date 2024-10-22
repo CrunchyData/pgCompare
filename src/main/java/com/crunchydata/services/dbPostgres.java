@@ -84,26 +84,26 @@ public class dbPostgres {
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = switch (column.getString("dataType").toLowerCase()) {
                 case "float4", "float8" ->
-                        "coalesce(trim(to_char(" + column.getString("columnName") + ",'0.999999EEEE')),' ')";
+                        "coalesce(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0.999999EEEE')),' ')";
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + column.getString("columnName") + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + column.getString("columnName") + "),'0000000000000000000000.0000000000000000000000')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + ShouldQuoteString(column.getString("columnName")) + "),'0000000000000000000000.0000000000000000000000')),' ')";
             };
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            String booleanConvert = "case when coalesce(" + column.getString("columnName") + "::text,'0') = 'true' then 1 else 0 end";
+            String booleanConvert = "case when coalesce(" + ShouldQuoteString(column.getString("columnName")) + "::text,'0') = 'true' then 1 else 0 end";
             colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'0000000000000000000000.0000000000000000000000')),' ')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
-                colExpression = "coalesce(to_char(" + column.getString("columnName") + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
+                colExpression = "coalesce(to_char(" + ShouldQuoteString(column.getString("columnName")) + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
             } else {
-                colExpression = "coalesce(to_char(" + column.getString("columnName") + ",'MMDDYYYYHH24MISS'),' ')";
+                colExpression = "coalesce(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + column.getString("columnName") + "::text,' ')";
+            colExpression = "coalesce(" + ShouldQuoteString(column.getString("columnName")) + "::text,' ')";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + column.getString("columnName") +"), ' ')";
+            colExpression = "coalesce(md5(" + ShouldQuoteString(column.getString("columnName")) +"), ' ')";
         } else {
-            colExpression = column.getString("columnName");
+            colExpression = ShouldQuoteString(column.getString("columnName"));
         }
 
         return colExpression;
