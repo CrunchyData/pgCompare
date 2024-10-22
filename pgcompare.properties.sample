@@ -23,7 +23,7 @@ message-queue-size = 100
 
 # Method used to cast number to string (notation|standard)
 # default: notation
-number-cast: notation
+number-cast=notation
 
 # When threshold is reached, observer-throttle-size, pause data loading
 # until cleared by observer process.
@@ -77,7 +77,7 @@ repo-schema=pgcompare
 
 # SSL mode to use for connection (disable|prefer|disable)
 # default: disable
-repo-sslmode: disable
+repo-sslmode=disable
 
 #####
 # Source and Target Parameters
@@ -116,6 +116,7 @@ source-user=appuser
 source-password=welcome1
 source-database-hash=false
 source-sslmode=disable
+source-schema=appuser
 # Postgres Example
 #source-name=pgsource
 #source-type=postgres
@@ -140,6 +141,7 @@ target-user=postgres
 target-password=welcome1
 target-database-hash=true
 target-sslmode=disable
+target-schema=public
 # Oracle Example
 #target-name=orasource
 #target-type=oracle
