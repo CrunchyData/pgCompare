@@ -56,7 +56,7 @@ import java.util.Properties;
 public class Settings {
 
     public static final Properties Props;
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.2.1";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
@@ -115,6 +115,7 @@ public class Settings {
         defaultProps.setProperty("source-sslmode","disable");
         defaultProps.setProperty("source-type","postgres");
         defaultProps.setProperty("source-user","postgres");
+        defaultProps.setProperty("source-schema",defaultProps.getProperty("source-user"));
 
         // Target
         defaultProps.setProperty("target-database-hash","true");
@@ -126,6 +127,7 @@ public class Settings {
         defaultProps.setProperty("target-sslmode","disable");
         defaultProps.setProperty("target-type","postgres");
         defaultProps.setProperty("target-user","postgres");
+        defaultProps.setProperty("target-schema",defaultProps.getProperty("target-user"));
 
         return defaultProps;
     }

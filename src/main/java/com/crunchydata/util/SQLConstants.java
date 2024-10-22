@@ -27,7 +27,7 @@ public interface SQLConstants {
     // MSSQL (Sql Server) SQL
     //
     String SQL_MSSQL_SELECT_COLUMNS = """
-                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
+                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, c.column_name, c.data_type,\s
                        coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
                        case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
@@ -58,7 +58,7 @@ public interface SQLConstants {
     // MYSQL SQL
     //
     String SQL_MYSQL_SELECT_COLUMNS =  """
-                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, lower(c.column_name) column_name, c.data_type,\s
+                SELECT lower(c.table_schema) owner, lower(c.table_name) table_name, c.column_name, c.data_type,\s
                        coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
                        case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
@@ -89,7 +89,7 @@ public interface SQLConstants {
     // Oracle SQL
     //
     String SQL_ORACLE_SELECT_COLUMNS = """
-                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, LOWER(c.column_name) column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
+                SELECT LOWER(c.owner) owner, LOWER(c.table_name) table_name, c.column_name, LOWER(c.data_type) data_type, c.data_length, nvl(c.data_precision,44) data_precision, nvl(c.data_scale,22) data_scale, c.nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
                 FROM all_tab_columns c
                      LEFT OUTER JOIN (SELECT con.owner, con.table_name, i.column_name, i.column_position
