@@ -16,8 +16,11 @@
 
 package com.crunchydata.util;
 
+import com.crunchydata.controller.RepoController;
+
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.util.Properties;
 
 /**
@@ -56,7 +59,7 @@ import java.util.Properties;
 public class Settings {
 
     public static final Properties Props;
-    public static final String VERSION = "0.2.1";
+    public static final String VERSION = "0.3.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
@@ -65,7 +68,7 @@ public class Settings {
         try (InputStream stream = new FileInputStream(paramFile)) {
             configProperties.load(stream);
         } catch (Exception e) {
-            System.out.println("Configuration file not found, using defaults and environment variables");
+            Logging.write("warning","Settings", "Configuration file not found, using defaults and environment variables");
         }
 
         Props = setEnvironment(configProperties);
@@ -80,20 +83,22 @@ public class Settings {
         Properties defaultProps = new Properties();
 
         // System Settings
+        //defaultProps.setProperty("project", "1");
         defaultProps.setProperty("config-file", paramFile);
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("database-sort","true");
-        defaultProps.setProperty("loader-threads","2");
+        defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
-        defaultProps.setProperty("message-queue-size","100");
+        defaultProps.setProperty("message-queue-size","1000");
         defaultProps.setProperty("number-cast","notation");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");
         defaultProps.setProperty("stage-table-parallel","0");
+        defaultProps.setProperty("standard-number-format","0000000000000000000000.0000000000000000000000");
 
 
         // Repository
@@ -112,6 +117,7 @@ public class Settings {
         defaultProps.setProperty("source-name","source");
         defaultProps.setProperty("source-password","welcome1");
         defaultProps.setProperty("source-port","5432");
+        defaultProps.setProperty("source-schema","");
         defaultProps.setProperty("source-sslmode","disable");
         defaultProps.setProperty("source-type","postgres");
         defaultProps.setProperty("source-user","postgres");
@@ -124,6 +130,7 @@ public class Settings {
         defaultProps.setProperty("target-name","target");
         defaultProps.setProperty("target-password","welcome1");
         defaultProps.setProperty("target-port","5432");
+        defaultProps.setProperty("target-schema","");
         defaultProps.setProperty("target-sslmode","disable");
         defaultProps.setProperty("target-type","postgres");
         defaultProps.setProperty("target-user","postgres");
@@ -145,6 +152,35 @@ public class Settings {
                 prop.setProperty(k.replace("PGCOMPARE-","").toLowerCase(),v);
             }
         });
+
+        return prop;
+
+    }
+
+    /**
+     * Applies properties that are stored in the dc_project table.
+     *
+     * @param conn  Connection to the repository database.
+     * @param pid   Project ID.
+     * @param prop the {@code Properties} object to which environment variables are applied
+     *
+     * @return the updated {@code Properties} object with environment variables applied
+     */
+    public static Properties setProjectConfig (Connection conn, Integer pid, Properties prop) {
+
+        String projectConfig = RepoController.getProjectConfig(conn, pid);
+
+
+        if (projectConfig != null) {
+            // Split the string by newline
+            String[] lines = projectConfig.split("\n");
+
+            // Process the lines (e.g., print each line)
+            for (String line : lines) {
+                String[] keyValue = line.split("=", 2);
+                prop.setProperty(keyValue[0].trim(),keyValue[1].trim());
+            }
+        }
 
         return prop;
 

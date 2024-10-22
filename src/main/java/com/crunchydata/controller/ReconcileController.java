@@ -26,13 +26,15 @@ import java.util.concurrent.BlockingQueue;
 import javax.sql.rowset.CachedRowSet;
 
 import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DCTable;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
 
-import static com.crunchydata.util.DatabaseUtility.*;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.controller.ColumnController.getColumnInfo;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 import org.json.JSONObject;
@@ -46,132 +48,158 @@ public class ReconcileController {
 
     private static final String THREAD_NAME = "ReconcileController";
 
+    private static RepoController rpc = new RepoController();
+
+    private static ThreadSync ts = new ThreadSync();
+
+    private static List<threadReconcile> compareList = new ArrayList<>();
+    private static List<threadLoader> loaderList = new ArrayList<>();
+    private static List<threadReconcileObserver> observerList = new ArrayList<>();
+
+    private static BlockingQueue<DataCompare[]> qs;
+    private static BlockingQueue<DataCompare[]> qt;
+    private static Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
+
     /**
      * Reconciles data between source and target databases.
      *
-     * @param repoConn       Connection to the repository database
-     * @param sourceConn     Connection to the source database
-     * @param targetConn     Connection to the target database
-     * @param sourceSchema   Source schema name
-     * @param sourceTable    Source table name
-     * @param targetSchema   Target schema name
-     * @param targetTable    Target table name
-     * @param tableFilter    Filter to apply on the table
-     * @param modColumn      Column used for modification tracking
-     * @param parallelDegree Degree of parallelism
+     * @param connRepo       Connection to the repository database
+     * @param connSource     Connection to the source database
+     * @param connTarget     Connection to the target database
      * @param rid            Reconciliation ID
      * @param check          Whether to perform a check
-     * @param batchNbr       Batch number
-     * @param tid            Task ID
-     * @param columnMapping  JSON string representing the column mapping
-     * @param mapOnly        Whether to only perform column mapping
      * @return JSON object with reconciliation results
      */
-    public static JSONObject reconcileData(Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSchema, String sourceTable, String targetSchema, String targetTable, String tableFilter, String modColumn, Integer parallelDegree, long rid, Boolean check, Integer batchNbr, Integer tid, String columnMapping, Boolean mapOnly) {
+    public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
 
         // Variables
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject columnMap = new JSONObject();
-        List<threadReconcile> compareList = new ArrayList<>();
-        List<dbLoader> loaderList = new ArrayList<>();
-        List<threadReconcileObserver> observerList = new ArrayList<>();
-        BlockingQueue<DataCompare[]> qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
-        BlockingQueue<DataCompare[]> qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+
+        if ( useLoaderThreads ) {
+           qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+           qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+        } else {
+           qs = null;
+           qt = null;
+        }
+
+        // Prepare JSON formatted results
         JSONObject result = new JSONObject();
-        RepoController rpc = new RepoController();
-        ThreadSync ts;
+        result.put("tableName", dct.getTableAlias());
+        result.put("status", "processing");
+        result.put("compareStatus", "processing");
+        result.put("missingSource", 0);
+        result.put("missingTarget", 0);
+        result.put("notEqual", 0);
+        result.put("equal", 0);
 
         try {
             // Get Column Info and Mapping
-            result.put("tableName", targetTable);
-            result.put("status", "processing");
-            result.put("compareStatus", "processing");
+            binds.clear();
+            binds.add(0, dct.getTid());
+            String columnMapping = dbCommon.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
 
-            if (columnMapping.equals("{}") || mapOnly) {
-                columnMap = getColumnMap("source", Props.getProperty("source-type"), sourceConn, sourceSchema, sourceTable, columnMap);
-                columnMap = getColumnMap("target", Props.getProperty("target-type"), targetConn, targetSchema, targetTable, columnMap);
-                Logging.write("info", THREAD_NAME, String.format("Saving column mapping for %s.",targetTable));
-                rpc.saveColumnMap(repoConn, tid, columnMap.toString());
 
-                if (mapOnly) {
-                    result.put("status", "complete");
-                    result.put("status", "map-only");
-                    return result;
-                }
-
-            } else {
-                columnMap = new JSONObject(columnMapping);
+            // Preflight checks
+            if ( ! reconcilePreflight(connRepo, connSource, connTarget, rid, check, dct, dctmSource, dctmTarget, columnMapping)) {
+                result.put("status", "failed");
+                result.put("compareStatus", "failed");
+                return result;
             }
 
-            ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), sourceSchema, sourceTable, !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
-            ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), targetSchema, targetTable, !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
+            columnMap = new JSONObject(columnMapping);
+
+            ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), dctmSource.getSchemaName(), dctmSource.getTableName(), !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
+            ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), dctmTarget.getSchemaName(), dctmTarget.getTableName(), !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
 
             Logging.write("info", THREAD_NAME, String.format("Source Columns: %s", ciSource.columnList));
             Logging.write("info", THREAD_NAME, String.format("Target Columns: %s", ciTarget.columnList));
             Logging.write("info", THREAD_NAME, String.format("Source PK Columns: %s", ciSource.pkList));
             Logging.write("info", THREAD_NAME, String.format("Target PK Columns: %s", ciTarget.pkList));
 
-            Integer cid = rpc.dcrCreate(repoConn, targetTable, rid);
+            Integer cid = rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
 
             // Set Source & Target Variables
-            String sqlSource = switch (Props.getProperty("source-type")) {
-                case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
-                case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
-                case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
-                case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), sourceSchema, sourceTable, ciSource.pk, ciSource.pkJSON, ciSource.column, tableFilter);
+            // For useDatabaseHash, we do not want to use has if we are performing a recheck (check=true) or
+            // use database hash has been specified for a normal compare run.
+            dctmSource.setCompareSQL(switch (Props.getProperty("source-type")) {
+                case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
+                case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
+                case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
+                case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
+                case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 default -> "";
-            };
+            });
 
-            String sqlTarget = switch (Props.getProperty("target-type")) {
-                case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
-                case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
-                case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
-                case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), targetSchema, targetTable, ciTarget.pk, ciTarget.pkJSON, ciTarget.column, tableFilter);
+            dctmTarget.setCompareSQL(switch (Props.getProperty("target-type")) {
+                case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 default -> "";
-            };
+            });
 
-            Logging.write("info", THREAD_NAME, String.format("Source Compare Hash SQL: %s", sqlSource));
-            Logging.write("info", THREAD_NAME, String.format("Target Compare Hash SQL: %s", sqlTarget));
+            Logging.write("info", THREAD_NAME, String.format("Source Compare Hash SQL: %s", dctmSource.getCompareSQL()));
+            Logging.write("info", THREAD_NAME, String.format("Target Compare Hash SQL: %s", dctmTarget.getCompareSQL()));
 
             if (check) {
-                threadReconcileCheck.checkRows(repoConn, sqlSource, sqlTarget, sourceConn, targetConn, sourceTable, targetTable, ciSource, ciTarget, batchNbr, cid);
+                threadReconcileCheck.checkRows(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
             } else {
                 // Execute Compare SQL
                 if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() || ciSource.pkList.isBlank() || ciSource.pkList.isEmpty()) {
-                    Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation",targetTable));
+                    Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation",dctmTarget.getTableName()));
                     result.put("status", "skipped");
                     result.put("compareStatus", "skipped");
                     binds.add(0, cid);
-                    dbCommon.simpleUpdate(repoConn, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
+                    dbCommon.simpleUpdate(connRepo, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
                 } else {
                     Logging.write("info", THREAD_NAME, "Starting compare hash threads");
 
-                    for (Integer i = 0; i < parallelDegree; i++) {
+                    // Start Reconciliation Threads
+                    for (Integer i = 0; i < dct.getParallelDegree(); i++) {
                         Logging.write("info", THREAD_NAME, "Creating data compare staging tables");
-                        String stagingTableSource = rpc.createStagingTable(repoConn, "source", tid, i);
-                        String stagingTableTarget = rpc.createStagingTable(repoConn, "target", tid, i);
+                        String stagingTableSource = rpc.createStagingTable(connRepo, "source", dct.getTid(), i);
+                        String stagingTableTarget = rpc.createStagingTable(connRepo, "target", dct.getTid(), i);
 
                         Logging.write("info", THREAD_NAME, String.format("Starting compare thread %s",i));
+
+                        // Start Observer Thread
                         ts = new ThreadSync();
-                        threadReconcileObserver rot = new threadReconcileObserver(targetSchema, targetTable, cid, ts, i, batchNbr, stagingTableSource, stagingTableTarget);
+                        threadReconcileObserver rot = new threadReconcileObserver(dct, cid, ts, i, stagingTableSource, stagingTableTarget);
                         rot.start();
                         observerList.add(rot);
-                        threadReconcile cst = new threadReconcile(i, "source", sqlSource, tableFilter, modColumn, parallelDegree, sourceSchema, sourceTable, ciSource.nbrColumns, ciSource.nbrPKColumns, cid, ts, ciSource.pkList, Boolean.parseBoolean(Props.getProperty("source-database-hash")), batchNbr, tid, stagingTableSource, qs);
+
+                        // Start Source Reconcile Thread
+                        // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
+                        threadReconcile cst = new threadReconcile(i, dct, dctmSource, ciSource, cid, ts, Boolean.parseBoolean(Props.getProperty("source-database-hash")), stagingTableSource, qs);
                         cst.start();
                         compareList.add(cst);
-                        threadReconcile ctt = new threadReconcile(i, "target", sqlTarget, tableFilter, modColumn, parallelDegree, targetSchema, targetTable, ciTarget.nbrColumns, ciTarget.nbrPKColumns, cid, ts, ciTarget.pkList, Boolean.parseBoolean(Props.getProperty("target-database-hash")), batchNbr, tid, stagingTableTarget, qt);
+
+                        // Start Target Reconcile Thread
+                        // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
+                        threadReconcile ctt = new threadReconcile(i, dct, dctmTarget, ciTarget, cid, ts, Boolean.parseBoolean(Props.getProperty("target-database-hash")), stagingTableTarget, qt);
                         ctt.start();
                         compareList.add(ctt);
-                        for (int li = 1; li <= Integer.parseInt(Props.getProperty("loader-threads")); li++) {
-                            dbLoader cls = new dbLoader(i, li, "source", qs, stagingTableSource, ts);
-                            cls.start();
-                            loaderList.add(cls);
-                            dbLoader clt = new dbLoader(i, li, "target", qt, stagingTableTarget, ts);
-                            clt.start();
-                            loaderList.add(clt);
+
+                        // Start Loader Threads
+                        // Loader thread load data from the message queue into the appropriate staging tables in the database.
+                        // A loader thread is started for source and target up to the limit specified by system parameter loader-threads.
+                        if ( useLoaderThreads ) {
+                            for (int li = 1; li <= Integer.parseInt(Props.getProperty("loader-threads")); li++) {
+                                threadLoader cls = new threadLoader(i, li, "source", qs, stagingTableSource, ts);
+                                cls.start();
+                                loaderList.add(cls);
+                                threadLoader clt = new threadLoader(i, li, "target", qt, stagingTableTarget, ts);
+                                clt.start();
+                                loaderList.add(clt);
+                            }
                         }
+
                         // Sleep to avoid flooding source and target databases with connections.
                         Thread.sleep(2000);
+
                     }
 
                     Logging.write("info", THREAD_NAME, "Waiting for hash threads to complete");
@@ -190,22 +218,22 @@ public class ReconcileController {
             ////////////////////////////////////////
             // Summarize Results
             ////////////////////////////////////////
-            dbCommon.simpleExecute(repoConn, "set enable_nestloop='off'");
+            dbCommon.simpleExecute(connRepo, "set enable_nestloop='off'");
 
             binds.clear();
-            binds.add(0, targetTable);
-            binds.add(1, targetTable);
+            binds.add(0, dct.getTid());
+            binds.add(1, dct.getTid());
 
             Logging.write("info", THREAD_NAME, "Analyzing: Step 1 of 3 - Missing on Source");
-            Integer missingSource = dbCommon.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
+            Integer missingSource = dbCommon.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
 
             Logging.write("info", THREAD_NAME, "Analyzing: Step 2 of 3 - Missing on Target");
-            Integer missingTarget = dbCommon.simpleUpdate(repoConn, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
+            Integer missingTarget = dbCommon.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
 
             Logging.write("info", THREAD_NAME, "Analyzing: Step 3 of 3 - Not Equal");
-            Integer notEqual = dbCommon.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
+            Integer notEqual = dbCommon.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
 
-            dbCommon.simpleUpdate(repoConn, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
+            dbCommon.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
 
             result.put("missingSource", missingSource);
             result.put("missingTarget", missingTarget);
@@ -221,7 +249,7 @@ public class ReconcileController {
             binds.add(2, notEqual);
             binds.add(3, result.getString("compareStatus"));
             binds.add(4, cid);
-            CachedRowSet crsResult = dbCommon.simpleUpdateReturning(repoConn, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds);
+            CachedRowSet crsResult = dbCommon.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds);
 
             while (crsResult.next()) {
                 result.put("equal", crsResult.getInt(1));
@@ -232,7 +260,7 @@ public class ReconcileController {
             DecimalFormat formatter = new DecimalFormat("#,###");
 
             String msgFormat = "Reconciliation Complete: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
-            Logging.write("info", THREAD_NAME, String.format(msgFormat,targetTable, result.getString("compareStatus"), formatter.format(result.getInt("equal")), formatter.format(result.getInt("notEqual")), formatter.format(result.getInt("missingSource")), formatter.format(result.getInt("missingTarget"))));
+            Logging.write("info", THREAD_NAME, String.format(msgFormat,dct.getTableAlias(), result.getString("compareStatus"), formatter.format(result.getInt("equal")), formatter.format(result.getInt("notEqual")), formatter.format(result.getInt("missingSource")), formatter.format(result.getInt("missingTarget"))));
 
             result.put("status", "success");
 
@@ -243,6 +271,22 @@ public class ReconcileController {
         }
 
         return result;
+    }
+
+    private static Boolean reconcilePreflight(Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, String columnMapping) {
+        // Ensure target and source have mod_column if parallel_degree > 1
+        if ( dct.getParallelDegree() > 1 && dctmSource.getModColumn().isEmpty() && dctmTarget.getModColumn().isEmpty() ) {
+            Logging.write("severe",THREAD_NAME, String.format("Parallel degree is greater than 1 for table %s, but no value specified for mod_column on source and/or target.",dct.getTableAlias()));
+            return false;
+        }
+
+        // Verify column mapping exists
+        if (columnMapping == null) {
+            Logging.write("severe",THREAD_NAME, String.format("No column map found for table %s.  Consider running with maponly option to create mappings.",dct.getTableAlias()));
+            return false;
+        }
+
+        return true;
     }
 
 }

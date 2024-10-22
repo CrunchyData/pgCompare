@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.services;
+package com.crunchydata.util;
 
 import java.util.Arrays;
 
@@ -35,7 +35,7 @@ public class ColumnValidation {
     /**
      * Array of data types classified as character.
      */
-    public static String[] charTypes = new String[]{"bpchar", "char", "clob", "json", "jsonb", "nchar", "nclob",
+    public static String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "json", "jsonb", "nchar", "nclob",
             "ntext", "nvarchar", "nvarchar2", "text", "varchar", "varchar2", "xml"};
 
     /**

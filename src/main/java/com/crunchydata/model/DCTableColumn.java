@@ -1,5 +1,7 @@
+package com.crunchydata.model;
+
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +16,6 @@
  * limitations under the License.
  */
 
-package com.crunchydata.model;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,12 +25,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ColumnMetadata {
-    public String columnList;
-    public Integer nbrColumns;
-    public Integer nbrPKColumns;
-    public String column;
-    public String pk;
-    public String pkList;
-    public String pkJSON;
+public class DCTableColumn {
+    private Integer tid;
+    private Integer columnID;
+    private String columnAlias;
 }

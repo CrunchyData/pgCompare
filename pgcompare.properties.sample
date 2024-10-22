@@ -38,6 +38,10 @@ observer-throttle-size = 2000000
 # default: true
 observer-vacuum = true
 
+# Project ID
+# default: 1
+project = 1
+
 # Location to write logging information.  Valid values are stdout or a fully qualified logfile name.
 # default: stdout
 log-destination = stdout
@@ -91,6 +95,8 @@ repo-sslmode=disable
 #      Database port.
 #  source|target-dbname:
 #       Database or service name to use in connection string.
+#  source|target-schema:
+#       Schema for table discovery.
 #  source|target-user:
 #       Database user to use for authentication.
 #  source|target-password:
@@ -117,6 +123,7 @@ source-password=welcome1
 source-database-hash=false
 source-sslmode=disable
 source-schema=appuser
+source-schema=appuser
 # Postgres Example
 #source-name=pgsource
 #source-type=postgres
@@ -127,6 +134,7 @@ source-schema=appuser
 #source-password=welcome1
 #source-database-hash=true
 #source-sslmode=disable
+#source-schema=appuser
 
 ##################################
 # target
@@ -152,3 +160,5 @@ target-schema=public
 #target-password=welcome1
 #target-database-hash=true
 #target-sslmode=disable
+#target-schema=appuser
+

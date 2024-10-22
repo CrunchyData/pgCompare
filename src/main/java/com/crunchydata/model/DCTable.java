@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ColumnMetadata {
-    public String columnList;
-    public Integer nbrColumns;
-    public Integer nbrPKColumns;
-    public String column;
-    public String pk;
-    public String pkList;
-    public String pkJSON;
+public class DCTable {
+    private Integer pid;
+    private Integer tid;
+    private String tableAlias;
+    private Integer batchNbr = 1;
+    private String status = "enabled";
+    private Integer parallelDegree = 1;
 }

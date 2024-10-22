@@ -20,10 +20,14 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import javax.sql.rowset.CachedRowSet;
 
+import com.crunchydata.model.DCTable;
+import com.crunchydata.model.DCTableColumn;
+import com.crunchydata.model.DCTableColumnMap;
+import com.crunchydata.model.DCTableMap;
 import com.crunchydata.services.dbCommon;
 import com.crunchydata.util.Logging;
 
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -71,10 +75,12 @@ public class RepoController {
         // Dynamic SQL
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
+                    tid     int8 NOT NULL,
                 	pk_hash varchar(100) NULL,
                 	column_hash varchar(100) NULL,
                 	pk jsonb NULL,
-                	compare_result bpchar(1) NULL
+                	compare_result bpchar(1) NULL,
+                	CONSTRAINT dc_source_pk PRIMARY KEY (tid, pk_hash)
                 ) with (autovacuum_enabled=false, parallel_workers=
                 """ + Props.getProperty("stage-table-parallel") + ")";
 
@@ -91,25 +97,23 @@ public class RepoController {
      * Deletes data comparison results from the specified table.
      *
      * @param conn      Database connection
-     * @param location  Location identifier (source or target)
-     * @param table     Table name
+     * @param tid       Table ID
      * @param batchNbr  Batch number
      */
-    public void deleteDataCompare(Connection conn, String location, String  table, Integer batchNbr) {
-        // Dynamic SQL
-        String sql = String.format("DELETE from dc_%s WHERE table_name=? and batch_nbr=?",location);
-
+    public void deleteDataCompare(Connection conn, Integer tid, Integer batchNbr) {
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,table);
+        binds.add(0,tid);
         binds.add(1,batchNbr);
 
         try {
-            dbCommon.simpleUpdate(conn, sql, binds, true);
+            dbCommon.simpleUpdate(conn,SQL_REPO_DCSOURCE_DELETEBYTIDBATCHNBR, binds, true);
+            dbCommon.simpleUpdate(conn,SQL_REPO_DCTARGET_DELETEBYTIDBATCHNBR, binds, true);
 
             boolean currentAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(true);
             binds.clear();
-            dbCommon.simpleUpdate(conn, String.format("vacuum dc_%s",location), binds, false);
+            dbCommon.simpleUpdate(conn, "vacuum dc_source", binds, false);
+            dbCommon.simpleUpdate(conn, "vacuum dc_target", binds, false);
             conn.setAutoCommit(currentAutoCommit);
         } catch (Exception e) {
             System.out.printf("Error clearing staging tables: %s%n",e.getMessage());
@@ -132,6 +136,20 @@ public class RepoController {
 
     }
 
+    /**
+     * Gets the project settings from dc_project table.
+     *
+     * @param conn        Database connection
+     * @param pid         Project ID
+     * @return String     Contents of project_config field
+     */
+    public static String getProjectConfig (Connection conn, Integer pid) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, pid);
+
+        return dbCommon.simpleSelectReturnString(conn, "SELECT project_config FROM dc_project WHERE pid=?", binds);
+    }
+
 
     /**
      * Retrieves table information from the database.
@@ -142,12 +160,12 @@ public class RepoController {
      * @param check     Check flag for filtering results
      * @return CachedRowSet containing the result set
      */
-    public CachedRowSet getTables(Connection conn, Integer batchNbr, String table, Boolean check) {
+    public CachedRowSet getTables(Integer pid, Connection conn, Integer batchNbr, String table, Boolean check) {
 
-        String sql = SQL_REPO_DCTABLE_SELECT;
+        String sql = SQL_REPO_DCTABLE_SELECTBYPID;
 
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,"ready");
+        binds.add(0, pid);
 
         if ( batchNbr > 0 ) {
             binds.add(binds.size(), batchNbr);
@@ -156,17 +174,17 @@ public class RepoController {
 
         if (!table.isEmpty()) {
             binds.add(binds.size(),table);
-            sql += " AND target_table=?";
+            sql += " AND table_alias=?";
         }
 
         if (check) {
             sql += """ 
-                    AND (target_table IN (SELECT table_name FROM dc_target WHERE compare_result != 'e')
-                         OR  source_table IN (SELECT table_name FROM dc_source WHERE compare_result != 'e'))
+                    AND (tid IN (SELECT tid FROM dc_target WHERE compare_result != 'e')
+                         OR  tid IN (SELECT tid FROM dc_source WHERE compare_result != 'e'))
                    """;
         }
 
-        sql += " ORDER BY target_table";
+        sql += " ORDER BY table_alias";
         
         return dbCommon.simpleSelect(conn, sql, binds);
 
@@ -178,52 +196,100 @@ public class RepoController {
      * @param conn         Database connection
      * @param location     Location identifier (source or target)
      * @param stagingTable Staging table name
-     * @param tableName    Main table name
      * @param batchNbr     Batch number
      * @param threadNbr    Thread number
      */
-    public void loadFindings (Connection conn, String location, String stagingTable, String tableName, Integer batchNbr, Integer threadNbr) {
+    public void loadFindings (Connection conn, String location, Integer tid, String stagingTable, Integer batchNbr, Integer threadNbr) {
 
         String sqlFinal = SQL_REPO_DCSOURCE_INSERT.replaceAll("dc_source", String.format("dc_%s",location)).replaceAll("stagingtable", stagingTable);
 
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,tableName);
-        binds.add(1,threadNbr);
-        binds.add(2,batchNbr);
+        binds.add(0, tid);
+        binds.add(1, threadNbr);
+        binds.add(2, batchNbr);
         dbCommon.simpleUpdate(conn, sqlFinal, binds, true);
-    }
-
-    /**
-     * Saves the column map to the database.
-     *
-     * @param conn       Database connection
-     * @param tid        Table ID
-     * @param columnMap  JSON string representing the column map
-     */
-    public void saveColumnMap (Connection conn, Integer tid, String columnMap) {
-        ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,columnMap);
-        binds.add(1,tid);
-
-        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLE_UPDATE_COLUMNMAP,binds, true);
     }
 
     /**
      * Saves the table information to the database.
      *
      * @param conn      Database connection
-     * @param schema    Schema name
-     * @param tableName Table name
+     * @param dcTable   Table model
      */
-    public static void saveTable (Connection conn, String schema, String tableName) {
+    public static DCTable saveTable (Connection conn, DCTable dcTable) {
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,schema);
-        binds.add(1,tableName);
-        binds.add(2,schema);
-        binds.add(3,tableName);
+        binds.add(0, dcTable.getPid());
+        binds.add(1, dcTable.getTableAlias());
 
-        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLE_INSERT,binds, true);
+        Integer tid = dbCommon.simpleUpdateReturningInteger(conn,SQL_REPO_DCTABLE_INSERT,binds);
+
+        dcTable.setTid(tid);
+
+        return dcTable;
     }
+
+    /**
+     * Starts table detail for table map.
+     *
+     * @param conn        Database connection
+     * @param dcTableMap  Table Map record.
+     */
+    public static void saveTableMap (Connection conn, DCTableMap dcTableMap) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, dcTableMap.getTid());
+        binds.add(1, dcTableMap.getDestType());
+        binds.add(2,dcTableMap.getSchemaName());
+        binds.add(3,dcTableMap.getTableName());
+        binds.add(4,dcTableMap.isSchemaPreserveCase());
+        binds.add(5,dcTableMap.isTablePreserveCase());
+
+        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLEMAP_INSERT,binds,true);
+    }
+
+    /**
+     * Saves DCTableColumn to dc_table_column.
+     *
+     * @param conn      Database connection
+     * @param dctc      Table Column record
+     */
+    public static DCTableColumn saveTableColumn (Connection conn, DCTableColumn dctc) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, dctc.getTid());
+        binds.add(1, dctc.getColumnAlias());
+
+        Integer cid = dbCommon.simpleUpdateReturningInteger(conn,SQL_REPO_DCTABLECOLUMN_INSERT,binds);
+
+        dctc.setColumnID(cid);
+
+        return dctc;
+    }
+
+    /**
+     * Saves DCTableColumnMap to dc_table_column_map.
+     *
+     * @param conn               Database connection
+     * @param dctcm             Table Column Map record.
+     */
+    public static void saveTableColumnMap (Connection conn, DCTableColumnMap dctcm) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, dctcm.getTid());
+        binds.add(1, dctcm.getColumnID());
+        binds.add(2, dctcm.getColumnOrigin());
+        binds.add(3,dctcm.getColumnName());
+        binds.add(4,dctcm.getDataType());
+        binds.add(5,dctcm.getDataClass());
+        binds.add(6,dctcm.getDataLength());
+        binds.add(7,dctcm.getNumberPrecission());
+        binds.add(8,dctcm.getNumberScale());
+        binds.add(9,dctcm.getColumnNullable());
+        binds.add(10,dctcm.getColumnPrimaryKey());
+        binds.add(11,dctcm.getMapExpression());
+        binds.add(12,dctcm.getSupported());
+        binds.add(13,dctcm.getPreserveCase());
+
+        dbCommon.simpleUpdate(conn,SQL_REPO_DCTABLECOLUMNMAP_INSERT,binds,true);
+    }
+
 
     /**
      * Starts a new table history record.
@@ -250,10 +316,11 @@ public class RepoController {
      * @param rid       Reconciliation ID
      * @return The comparison ID (cid)
      */
-    public Integer dcrCreate (Connection conn, String tableName, long rid) {
+    public Integer dcrCreate (Connection conn, int tid, String tableName, long rid) {
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,tableName);
-        binds.add(1,rid);
+        binds.add(0, tid);
+        binds.add(1, tableName);
+        binds.add(2, rid);
 
         CachedRowSet crs = dbCommon.simpleUpdateReturning(conn, SQL_REPO_DCRESULT_INSERT, binds);
         int cid = -1;

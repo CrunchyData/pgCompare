@@ -16,6 +16,13 @@
 
 package com.crunchydata.services;
 
+
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DCTableMap;
+import com.crunchydata.util.Logging;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -23,33 +30,27 @@ import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
-import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTableMap;
-import com.crunchydata.util.Logging;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import static com.crunchydata.util.ColumnValidation.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
+import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
 
 /**
- * Utility class for interacting with Postgres databases.
+ * Utility class for interacting with DB2 databases.
  * This class provides methods for database connection, SQL query generation,
  * column information retrieval, and data type mapping.
  *
+ *
  * @author Brian Pace
  */
-public class dbPostgres {
-    public static final String nativeCase = "lower";
+public class dbDB2 {
+    public static final String nativeCase = "upper";
 
-    private static final String THREAD_NAME = "dbPostgres";
+    private static final String THREAD_NAME = "dbDB2";
 
     /**
-     * Builds a SQL query for loading data from a Postgres table.
+     * Builds a SQL query for loading data from a DB2 table.
      *
      * @param useDatabaseHash Whether to use MD5 hash for database columns.
      * @return SQL query string for loading data from the specified table.
@@ -58,7 +59,7 @@ public class dbPostgres {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "md5(concat_ws('|'," + columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, md5(concat_ws(''," + columnMetadata.getColumn() + ")) FROM " +  ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql += "LOWER(HASH(" +  columnMetadata.getPk() + ",'MD5')) pk_hash, " + columnMetadata.getPkJSON() + " pk, LOWER(HASH(" + columnMetadata.getColumn() + ",'MD5')) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         } else {
             sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         }
@@ -71,36 +72,37 @@ public class dbPostgres {
     }
 
     /**
-     * Generates a column value expression for Postgres based on the column's data type.
+     * Generates a column value expression for DB2 based on the column's data type.
      *
      * @param column JSONObject containing column information.
      * @return String representing the column value expression.
      */
-    public static String columnValueMapPostgres(JSONObject column) {
+    public static String columnValueMapDB2(JSONObject column) {
         String colExpression;
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
+
             colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "float4", "float8" ->
-                        "coalesce(trim(to_char(" + columnName + ",'0.999999EEEE')),' ')";
+                case "real", "float", "binary_float", "binary_double", "double" ->
+                        scientificNotation(columnName);
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? scientificNotation(columnName) : "nvl(trim(to_char(" + columnName+ ", '" + Props.getProperty("standard-number-format") + "')),' ')";
             };
 
+
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            String booleanConvert = "case when coalesce(" + columnName + "::text,'0') = 'true' then 1 else 0 end";
-            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
+            colExpression = "nvl(to_char(" + columnName + "),'0')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
-                colExpression = "coalesce(to_char(" + columnName + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
+                colExpression = "nvl(to_char(" + columnName + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
             } else {
-                colExpression = "coalesce(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
+                colExpression = "nvl(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(case when length(" + columnName + ")=0 then ' ' else " + columnName + "::text end,' ')";
+            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + columnName +"), ' ')";
+            colExpression = "case when dbms_lob.getlength(" + columnName +") = 0 or " + columnName + " is null then ' ' else lower(dbms_crypto.hash(" + columnName + ",2)) end";
         } else {
             colExpression = columnName;
         }
@@ -110,9 +112,9 @@ public class dbPostgres {
     }
 
     /**
-     * Retrieves column metadata for a specified table in Postgres database.
+     * Retrieves column metadata for a specified table in DB2 database.
      *
-     * @param conn   Database connection to Postgres server.
+     * @param conn   Database connection to DB2 server.
      * @param schema Schema name of the table.
      * @param table  Table name.
      * @return JSONArray containing metadata for each column in the table.
@@ -121,7 +123,7 @@ public class dbPostgres {
         JSONArray columnInfo = new JSONArray();
 
         try {
-            PreparedStatement stmt = conn.prepareStatement(SQL_POSTGRES_SELECT_COLUMNS);
+            PreparedStatement stmt = conn.prepareStatement(SQL_DB2_SELECT_COLUMNS);
             stmt.setObject(1, schema);
             stmt.setObject(2,table);
             ResultSet rs = stmt.executeQuery();
@@ -129,7 +131,6 @@ public class dbPostgres {
                 JSONObject column = new JSONObject();
                 if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
                     Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
-                    //System.exit(1);
                     column.put("supported",false);
                 } else {
                     column.put("supported",true);
@@ -139,52 +140,62 @@ public class dbPostgres {
                 column.put("dataLength",rs.getInt("data_length"));
                 column.put("dataPrecision",rs.getInt("data_precision"));
                 column.put("dataScale",rs.getInt("data_scale"));
-                column.put("nullable",rs.getString("nullable").equals("Y"));
+                column.put("nullable", rs.getString("nullable").equals("Y"));
                 column.put("primaryKey",rs.getString("pk").equals("Y"));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
                 column.put("preserveCase",preserveCase(nativeCase,rs.getString("column_name")));
-                column.put("valueExpression", columnValueMapPostgres(column));
+                column.put("valueExpression", columnValueMapDB2(column));
 
                 columnInfo.put(column);
             }
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s", schema, table, e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s",schema,table,e.getMessage()));
         }
         return columnInfo;
     }
 
     /**
-     * Establishes a connection to a Postgres database using the provided connection properties.
+     * Establishes a connection to an DB2 database using the provided connection properties.
      *
      * @param connectionProperties Properties containing database connection information.
      * @param destType             Type of destination (e.g., source, target).
-     * @return Connection object to Postgres database.
+     * @return Connection object to DB2 database.
      */
-    public static Connection getConnection(Properties connectionProperties, String destType, String module) {
+    public static Connection getConnection(Properties connectionProperties, String destType) {
         Connection conn = null;
-        String url = "jdbc:postgresql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?sslmode="+connectionProperties.getProperty(destType+"-sslmode");
+        String url = "jdbc:db2://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname");
         Properties dbProps = new Properties();
 
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
         dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
-        dbProps.setProperty("options","-c search_path="+connectionProperties.getProperty(destType+"-schema")+",public,pg_catalog");
-        dbProps.setProperty("reWriteBatchedInserts", "true");
-        dbProps.setProperty("preparedStatementCacheQueries", "5");
-        dbProps.setProperty("ApplicationName", "pgCompare - " + module);
-        dbProps.setProperty("synchronous_commit", "off");
 
         try {
             conn = DriverManager.getConnection(url,dbProps);
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(true);
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error connecting to Postgres:  %s", e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error connecting to DB2 %s",e.getMessage()));
         }
 
         return conn;
 
     }
 
+    /**
+     * DB2 does not support controlling the format of scientific notation.  Therefore,
+     * this routine will construct a column expression for SQL that will return a formatted
+     * scientific notation that matches other platforms.
+     *
+     * @param columnName Column name.
+     * @return String object with column expression.
+     */
+    public static String scientificNotation(String columnName) {
+        String sqlFunction = "";
+
+        sqlFunction = String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
+
+        return sqlFunction;
+    }
 
 }

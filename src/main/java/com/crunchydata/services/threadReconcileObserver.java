@@ -22,11 +22,12 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import com.crunchydata.controller.RepoController;
+import com.crunchydata.model.DCTable;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
-import static com.crunchydata.util.SQLConstants.SQL_REPO_CLEARMATCH;
-import static com.crunchydata.util.SQLConstants.SQL_REPO_DCRESULT_UPDATECNT;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -45,35 +46,36 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class threadReconcileObserver extends Thread  {
-    private String tableName;
+
+    private Integer tid;
+    private String tableAlias;
     private Integer cid;
     private Integer threadNbr;
     private Integer batchNbr;
     private String stagingTableSource;
     private String stagingTableTarget;
-
     private ThreadSync ts;
+    private static Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
+
 
     /**
      * Constructs a thread to observe the reconciliation process.
      *
-     * @param schemaName         Schema name of the tables being reconciled.
-     * @param tableName          Name of the table being reconciled.
      * @param cid                Identifier for the reconciliation process.
      * @param ts                 Thread synchronization object for coordinating threads.
      * @param threadNbr          Thread number identifier.
-     * @param batchNbr           Batch number identifier.
      * @param stagingTableSource Staging table name for the source data.
      * @param stagingTableTarget Staging table name for the target data.
      *
      * @author Brian Pace
      */
-    public threadReconcileObserver(String schemaName, String tableName, Integer cid, ThreadSync ts, Integer threadNbr, Integer batchNbr, String stagingTableSource, String stagingTableTarget) {
-        this.tableName = tableName;
+    public threadReconcileObserver(DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
+        this.tid = dct.getTid();
+        this.tableAlias = dct.getTableAlias();
         this.cid = cid;
         this.ts = ts;
         this.threadNbr = threadNbr;
-        this.batchNbr = batchNbr;
+        this.batchNbr = dct.getBatchNbr();
         this.stagingTableSource = stagingTableSource;
         this.stagingTableTarget = stagingTableTarget;
     }
@@ -93,7 +95,7 @@ public class threadReconcileObserver extends Thread  {
         DecimalFormat formatter = new DecimalFormat("#,###");
         int lastRun = 0;
         RepoController rpc = new RepoController();
-        int sleepTime = 2000;
+        int sleepTime = 1000;
 
         // Connect to Repository
         Logging.write("info", threadName, "Connecting to repository database");
@@ -108,7 +110,11 @@ public class threadReconcileObserver extends Thread  {
             // do nothing
         }
 
-        try { dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'"); } catch (Exception e) {
+        try {
+            dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'");
+            dbCommon.simpleExecute(repoConn,"set work_mem='512MB'");
+            dbCommon.simpleExecute(repoConn,"set maintenance_work_mem='1024MB'");
+        } catch (Exception e) {
             // do nothing
         }
 
@@ -141,18 +147,18 @@ public class threadReconcileObserver extends Thread  {
                         stmtSUS.executeUpdate();
                         repoConn.commit();
                         deltaCount=0;
-                        ts.observerNotify();
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
                             dbCommon.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
                             repoConn.setAutoCommit(false);
                         }
+                        ts.observerNotify();
                     }
                 }
 
                 // Update and Check Status
-                if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && ts.loaderThreadComplete == Integer.parseInt(Props.getProperty("loader-threads"))*2 ) {
+                if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && (ts.loaderThreadComplete == Integer.parseInt(Props.getProperty("loader-threads"))*2 || ! useLoaderThreads) ) {
                     lastRun++;
                 }
 
@@ -167,8 +173,11 @@ public class threadReconcileObserver extends Thread  {
 
             Logging.write("info", threadName, "Staging table cleanup");
 
-            rpc.loadFindings(repoConn, "source", stagingTableSource, tableName, batchNbr, threadNbr);
-            rpc.loadFindings(repoConn, "target", stagingTableTarget, tableName, batchNbr, threadNbr);
+            // Move Out-of-Sync rows from temporary staging tables to dc_source and dc_target
+            rpc.loadFindings(repoConn, "source", tid, stagingTableSource, batchNbr, threadNbr);
+            rpc.loadFindings(repoConn, "target", tid, stagingTableTarget, batchNbr, threadNbr);
+
+            // Drop staging tables
             rpc.dropStagingTable(repoConn, stagingTableSource);
             rpc.dropStagingTable(repoConn, stagingTableTarget);
 
@@ -181,9 +190,7 @@ public class threadReconcileObserver extends Thread  {
             }
         } finally {
             try {
-                if (!(repoConn == null)) {
-                    repoConn.close();
-                }
+                repoConn.close();
             } catch (Exception e) {
                 Logging.write("warn", threadName, "Error closing thread " + e.getMessage());
             }

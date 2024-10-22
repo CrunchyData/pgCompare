@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,21 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ColumnMetadata {
-    public String columnList;
-    public Integer nbrColumns;
-    public Integer nbrPKColumns;
-    public String column;
-    public String pk;
-    public String pkList;
-    public String pkJSON;
+public class DCTableColumnMap {
+        private Integer tid;
+        private Integer columnID;
+        private String mapType;
+        private String columnOrigin;
+        private String columnName;
+        private String dataType;
+        private String dataClass;
+        private Integer dataLength;
+        private Integer numberPrecission;
+        private Integer numberScale;
+        private Boolean columnNullable;
+        private Boolean columnPrimaryKey;
+        private String mapExpression;
+        private Boolean supported;
+        private Boolean preserveCase;
 }
+

@@ -14,6 +14,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/com.ibm.db2/jcc -->
+        <dependency>
+            <groupId>com.ibm.db2</groupId>
+            <artifactId>jcc</artifactId>
+            <version>11.5.8.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -61,6 +73,7 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.14.0</version>
         </dependency>
+
     </dependencies>
 
     <build>
