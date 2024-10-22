@@ -41,6 +41,12 @@ The following are current limitations of the compare utility:
 2. Unsupported data types: blob, long, longraw, bytea.
 3. Limitations with data type boolean when performing cross-platform compare. 
 
+## Upgrading
+
+### Upgrade to 0.3.0
+
+
+
 ## Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
 
