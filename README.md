@@ -31,7 +31,8 @@ Before initiating the build and installation process, ensure the following prere
 1. Java version 21 or higher.
 2. Maven 3.9 or higher.
 3. Postgres version 15 or higher (to use for the pgCompare Data Compare repository).
-4. Necessary JDBC drivers (Postgres and Oracle currently supported).
+4. Necessary JDBC drivers (Postgres, MySQL, MSSQL and Oracle currently supported).
+5. Postgres connections must not go through a connection pooler like pgBouncer.
 
 ## Limitations
 
