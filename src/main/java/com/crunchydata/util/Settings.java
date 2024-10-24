@@ -17,10 +17,12 @@
 package com.crunchydata.util;
 
 import com.crunchydata.controller.RepoController;
+import org.json.JSONObject;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.sql.Connection;
+import java.util.Iterator;
 import java.util.Properties;
 
 /**
@@ -68,7 +70,7 @@ public class Settings {
         try (InputStream stream = new FileInputStream(paramFile)) {
             configProperties.load(stream);
         } catch (Exception e) {
-            Logging.write("warning","Settings", "Configuration file not found, using defaults and environment variables");
+            Logging.write("warning","Settings", "Configuration file not found, using defaults, project, and environment variables");
         }
 
         Props = setEnvironment(configProperties);
@@ -114,7 +116,6 @@ public class Settings {
         defaultProps.setProperty("source-database-hash","true");
         defaultProps.setProperty("source-dbname","postgres");
         defaultProps.setProperty("source-host","localhost");
-        defaultProps.setProperty("source-name","source");
         defaultProps.setProperty("source-password","welcome1");
         defaultProps.setProperty("source-port","5432");
         defaultProps.setProperty("source-schema","");
@@ -127,7 +128,6 @@ public class Settings {
         defaultProps.setProperty("target-database-hash","true");
         defaultProps.setProperty("target-dbname","postgres");
         defaultProps.setProperty("target-host","localhost");
-        defaultProps.setProperty("target-name","target");
         defaultProps.setProperty("target-password","welcome1");
         defaultProps.setProperty("target-port","5432");
         defaultProps.setProperty("target-schema","");
@@ -168,17 +168,19 @@ public class Settings {
      */
     public static Properties setProjectConfig (Connection conn, Integer pid, Properties prop) {
 
-        String projectConfig = RepoController.getProjectConfig(conn, pid);
+        JSONObject projectConfig = new JSONObject(RepoController.getProjectConfig(conn, pid));
 
 
         if (projectConfig != null) {
-            // Split the string by newline
-            String[] lines = projectConfig.split("\n");
 
-            // Process the lines (e.g., print each line)
-            for (String line : lines) {
-                String[] keyValue = line.split("=", 2);
-                prop.setProperty(keyValue[0].trim(),keyValue[1].trim());
+            Iterator<String> keys = projectConfig.keys();
+
+            while (keys.hasNext()) {
+                String key = keys.next();
+                String value = projectConfig.get(key).toString();
+
+                Props.setProperty(key, value);
+
             }
         }
 

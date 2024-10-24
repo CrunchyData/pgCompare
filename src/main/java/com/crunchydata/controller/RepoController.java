@@ -147,7 +147,7 @@ public class RepoController {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0, pid);
 
-        return dbCommon.simpleSelectReturnString(conn, "SELECT project_config FROM dc_project WHERE pid=?", binds);
+        return dbCommon.simpleSelectReturnString(conn, "SELECT coalesce(project_config,'{}') project_config FROM dc_project WHERE pid=?", binds);
     }
 
 

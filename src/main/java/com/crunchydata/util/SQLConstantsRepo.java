@@ -22,189 +22,163 @@ public interface SQLConstantsRepo {
     //
     String REPO_DDL_SCHEMA="CREATE SCHEMA IF NOT EXISTS  %s AUTHORIZATION %s";
 
-    //
     // DC_PROJECT
-    //
-    String REPO_DDL_DCPROJECT = """
+    String REPO_DDL_DC_PROJECT = """
             CREATE TABLE dc_project (
-            pid            int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
-            project_name   text NOT NULL default 'default',
-            project_config text NULL)
+            	pid int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
+            	project_name text DEFAULT 'default'::text NOT NULL,
+            	project_config jsonb NULL,
+            	CONSTRAINT dc_project_pk PRIMARY KEY (pid)
+            )
             """;
 
-
-    String REPO_DDL_DCPROJECT_PK = """
-            ALTER TABLE dc_project ADD CONSTRAINT dc_project_pk PRIMARY KEY (pid)
-            """;
-
-    String REPO_DDL_DCPROJECT_DATA = """
+    String REPO_DDL_DC_PROJECT_DATA = """
             INSERT INTO dc_project (project_name) VALUES ('default')
             """;
 
-    //
-    // DC_TABLE
-    //
-    String REPO_DDL_DCTABLE = """
-            CREATE TABLE dc_table (
-                pid                  int8 NOT NULL default 1,
-                tid                  int8 NOT NULL GENERATED ALWAYS AS IDENTITY,
-                table_alias          text NULL,
-                status               varchar(10) NULL DEFAULT 'disabled'::character varying,
-                batch_nbr            int4 NULL DEFAULT 1
-            """;
-
-    String REPO_DDL_DCTABLE_PK = """
-            ALTER TABLE dc_table ADD CONSTRAINT dc_table_pk PRIMARY KEY (tid)
-            """;
-
-    //
-    // DC_TABLE_COLUMN
-    //
-    String REPO_DDL_DCTABLE_COLUMN = """
-            CREATE TABLE dc_table_column (
-              tid                  int8 not null,
-              column_id            int8  NOT NULL GENERATED ALWAYS AS IDENTITY,
-              column_alias         varchar(50) not null,
-              status               varchar(15) default 'compare'
-            )
-            """;
-
-    String REPO_DDL_DCTABLE_COLUMN_PK = """
-            ALTER TABLE dc_table_column ADD CONSTRAINT dc_table_column_pk PRIMARY KEY (column_id)
-            """;
-
-    String REPO_DDL_DCTABLE_COLUMN_FK = """
-            ALTER TABLE dc_table_column ADD CONSTRAINT dc_table_column_dc_table_fk FOREIGN KEY (tid) REFERENCES dc_table(tid) ON DELETE CASCADE;
-            """;
-    //
-    // DC_TABLE_COLUMN_MAP
-    //
-    String REPO_DDL_DCTABLE_COLUMN_MAP = """
-            CREATE TABLE dc_table_column_map (
-              tid                  int8 NOT NULL,
-              column_id            int8 not null,
-              column_origin        varchar(10) DEFAULT 'source' NOT NULL,
-              column_name          varchar(50) NULL,
-              data_type            varchar(30) NOT NULL,
-              data_class           varchar(20) DEFAULT 'string',
-              data_length          int,
-              number_precision     int,
-              number_scale         int,
-              column_nullable      boolean DEFAULT true,
-              column_primarykey    boolean DEFAULT false,
-              map_expression       varchar(500),
-              supported            boolean DEFAULT true,
-              preserve_case        boolean DEFAULT false,
-              map_type             varchar(15) default 'column' not null
-            )
-            """;
-
-    String REPO_DDL_DCTABLE_COLUMN_MAP_PK = """
-            ALTER TABLE dc_table_column_map ADD CONSTRAINT dc_table_column_map_pk PRIMARY KEY (column_id, column_origin)
-            """;
-
-    String REPO_DDL_DCTABLE_COLUMN_MAP_FK = """
-            ALTER TABLE dc_table_column_map  ADD CONSTRAINT dc_table_column_map_dctc_fk FOREIGN KEY (column_id) REFERENCES dc_table_column(column_id) ON DELETE CASCADE
-            """;
-
-    //
-    // DC_TABLE_HISTORY
-    //
-    String REPO_DDL_DCTABLE_HISTORY = """
-            CREATE TABLE dc_table_history (
-                tid              int8 NOT NULL,
-                load_id          varchar(100) NULL,
-                batch_nbr        int4 NOT NULL,
-                start_dt         timestamptz NOT NULL,
-                end_dt           timestamptz NULL,
-                action_result    jsonb NULL,
-                action_type      varchar(20) NOT NULL,
-                row_count        int8 NULL)
-           """;
-
-    String REPO_DDL_DCTABLE_HISTORY_IDX1 = """
-            CREATE INDEX dc_table_history_idx1 ON dc_table_history(tid, start_dt)
-            """;
-
-
-    //
-    // DC_TABLE_MAP
-    //
-    String REPO_DDL_DCTABLE_MAP = """
-            CREATE TABLE dc_table_map  (
-                tid                   int8 NOT NULL,
-                dest_type             varchar(20) DEFAULT 'target' NOT NULL,
-                schema_name           text NOT NULL,
-                table_name            text NOT NULL,
-                parallel_degree       int DEFAULT 1,
-                mod_column            varchar(200),
-                table_filter          varchar(200),
-                schema_preserve_case  boolean DEFAULT false,
-                table_preserve_case   boolean DEFAULT false
-            )
-            """;
-
-    String REPO_DDL_DCTABLE_MAP_PK = """
-            ALTER TABLE dc_table_map ADD CONSTRAINT dc_table_map_pk PRIMARY KEY (tid, dest_type, schema_name, table_name)
-            """;
-
-    String REPO_DDL_DCTABLE_MAP_FK = """
-            ALTER TABLE dc_table_map         ADD CONSTRAINT dc_table_map_dc_table_fk    FOREIGN KEY (tid)       REFERENCES dc_table(tid)              ON DELETE CASCADE
-            """;
-
-
-    //
     // DC_RESULT
-    //
-    String REPO_DDL_DCRESULT ="""
+    String REPO_DDL_DC_RESULT = """
             CREATE TABLE dc_result (
-                cid                   serial4 NOT NULL,
-                rid                   numeric null,
-                tid                   int8 null,
-                table_name            text NULL,
-                status                varchar NULL,
-                compare_dt            timestamptz NULL,
-                equal_cnt             int4 NULL,
-                missing_source_cnt    int4 NULL,
-                missing_target_cnt    int4 NULL,
-                not_equal_cnt         int4 NULL,
-                source_cnt            int4 NULL,
-                target_cnt            int4 NULL,
-                CONSTRAINT dc_result_pk PRIMARY KEY (cid))
+                cid serial4 NOT NULL,
+                rid numeric NULL,
+                tid int8 NULL,
+                table_name text NULL,
+                status varchar NULL,
+                compare_start timestamptz NULL,
+                equal_cnt int4 NULL,
+                missing_source_cnt int4 NULL,
+                missing_target_cnt int4 NULL,
+                not_equal_cnt int4 NULL,
+                source_cnt int4 NULL,
+                target_cnt int4 NULL,
+                compare_end timestamptz NULL,
+                CONSTRAINT dc_result_pk PRIMARY KEY (cid)
+            )
             """;
 
-
-    String REPO_DDL_DCRESULT_IDX1 = """
-            CREATE INDEX dc_result_idx1 ON dc_result(table_name, compare_dt)
+    String REPO_DDL_DC_RESULT_IDX1 = """
+            CREATE INDEX dc_result_idx1 ON dc_result USING btree (table_name, compare_start)
             """;
 
-
-    //
     // DC_SOURCE
-    //
-    String REPO_DDL_DCSOURCE = """
+    String REPO_DDL_DC_SOURCE = """
             CREATE TABLE dc_source (
-            tid                       int8 null,
-            batch_nbr                 int4 NULL,
-            pk                        jsonb NULL,
-            pk_hash                   varchar(100) NULL,
-            column_hash               varchar(100) NULL,
-            compare_result            bpchar(1) NULL,
-            thread_nbr                int4 NULL)
+                tid int8 NULL,
+                table_name text NULL,
+                batch_nbr int4 NULL,
+                pk jsonb NULL,
+                pk_hash varchar(100) NULL,
+                column_hash varchar(100) NULL,
+                compare_result bpchar(1) NULL,
+                thread_nbr int4 NULL
+            )
             """;
 
-    //
+    // DC_TABLE
+    String REPO_DDL_DC_TABLE = """
+            CREATE TABLE dc_table (
+            	pid int8 DEFAULT 1 NOT NULL,
+            	tid int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
+            	table_alias text NULL,
+            	status varchar(10) DEFAULT 'disabled'::character varying NULL,
+            	batch_nbr int4 DEFAULT 1 NULL,
+            	parallel_degree int4 DEFAULT 1 NULL,
+            	CONSTRAINT dc_table_pk PRIMARY KEY (tid)
+            )
+            """;
+
+    // DC_TABLE_COLUMN
+    String REPO_DDL_DC_TABLE_COLUMN = """
+            CREATE TABLE dc_table_column (
+            	tid int8 NOT NULL,
+            	column_id int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
+            	column_alias varchar(50) NOT NULL,
+            	status varchar(15) DEFAULT 'compare'::character varying NULL,
+            	CONSTRAINT dc_table_column_pk PRIMARY KEY (column_id)
+            )
+            """;
+
+    String REPO_DDL_DC_TABLE_COLUMN_FK = """
+            ALTER TABLE dc_table_column ADD CONSTRAINT dc_table_column_fk FOREIGN KEY (tid) REFERENCES dc_table(tid) ON DELETE CASCADE
+            """;
+
+    // DC_TABLE_COLUMN_MAP
+    String REPO_DDL_DC_TABLE_COLUMN_MAP = """
+            CREATE TABLE dc_table_column_map (
+            	tid int8 NOT NULL,
+            	column_id int8 NOT NULL,
+            	column_origin varchar(10) DEFAULT 'source'::character varying NOT NULL,
+            	column_name varchar(50) NOT NULL,
+            	data_type varchar(30) NOT NULL,
+            	data_class varchar(20) DEFAULT 'string'::character varying NULL,
+            	data_length int4 NULL,
+            	number_precision int4 NULL,
+            	number_scale int4 NULL,
+            	column_nullable bool DEFAULT true NULL,
+            	column_primarykey bool DEFAULT false NULL,
+            	map_expression varchar(500) NULL,
+            	supported bool DEFAULT true NULL,
+            	preserve_case bool DEFAULT false NULL,
+            	map_type varchar(15) DEFAULT 'column'::character varying NOT NULL,
+            	CONSTRAINT dc_table_column_map_pk PRIMARY KEY (column_id, column_origin, column_name)
+            )
+            """;
+
+    String REPO_DDL_DC_TABLE_COLUMN_MAP_FK = """
+            ALTER TABLE dc_table_column_map ADD CONSTRAINT dc_table_column_map_fk FOREIGN KEY (column_id) REFERENCES dc_table_column(column_id) ON DELETE CASCADE
+            """;
+
+
+    // DC_TABLE_HISTORY
+    String REPO_DDL_DC_TABLE_HISTORY = """
+            CREATE TABLE dc_table_history (
+            	tid int8 NOT NULL,
+            	load_id varchar(100) NULL,
+            	batch_nbr int4 NOT NULL,
+            	start_dt timestamptz NOT NULL,
+            	end_dt timestamptz NULL,
+            	action_result jsonb NULL,
+            	action_type varchar(20) NOT NULL,
+            	row_count int8 NULL
+            )
+            """;
+
+    String REPO_DDL_DC_TABLE_HISTORY_IDX1 = """
+            CREATE INDEX dc_table_history_idx1 ON dc_table_history USING btree (tid, start_dt)
+            """;
+
+    // DC_TABLE_MAP
+    String REPO_DDL_DC_TABLE_MAP = """
+            CREATE TABLE dc_table_map (
+            	tid int8 NOT NULL,
+            	dest_type varchar(20) DEFAULT 'target'::character varying NOT NULL,
+            	schema_name text NOT NULL,
+            	table_name text NOT NULL,
+            	parallel_degree int4 DEFAULT 1 NULL,
+            	mod_column varchar(200) NULL,
+            	table_filter varchar(200) NULL,
+            	schema_preserve_case bool DEFAULT false NULL,
+            	table_preserve_case bool DEFAULT false NULL,
+            	CONSTRAINT dc_table_map_pk PRIMARY KEY (tid, dest_type, schema_name, table_name)
+            )
+            """;
+
+    String REPO_DDL_DC_TABLE_MAP_FK = """
+            ALTER TABLE dc_table_map ADD CONSTRAINT dc_table_map_fk FOREIGN KEY (tid) REFERENCES dc_table(tid) ON DELETE CASCADE
+            """;
+
     // DC_TARGET
-    //
-    String REPO_DDL_DCTARGET = """
+    String REPO_DDL_DC_TARGET = """
             CREATE TABLE dc_target (
-                tid                      int8 null,
-                batch_nbr                int4 NULL,
-                pk                       jsonb NULL,
-                pk_hash                  varchar(100) NULL,
-                column_hash              varchar(100) NULL,
-                compare_result           bpchar(1) NULL,
-                thread_nbr               int4 NULL)
+            	tid int8 NULL,
+            	table_name text NULL,
+            	batch_nbr int4 NULL,
+            	pk jsonb NULL,
+            	pk_hash varchar(100) NULL,
+            	column_hash varchar(100) NULL,
+            	compare_result bpchar(1) NULL,
+            	thread_nbr int4 NULL
+            )
             """;
 
 
@@ -269,7 +243,7 @@ public interface SQLConstantsRepo {
     //
     // Repository SQL - DC_RESULT
     //
-    String SQL_REPO_DCRESULT_INSERT = "INSERT INTO dc_result (compare_dt, tid, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
+    String SQL_REPO_DCRESULT_INSERT = "INSERT INTO dc_result (compare_start, tid, table_name, equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, source_cnt, target_cnt, status, rid) values (current_timestamp, ?, ?, 0, 0, 0, 0, 0, 0, 'running', ?) returning cid";
     String SQL_REPO_DCRESULT_UPDATECNT = """
                                  UPDATE dc_result SET equal_cnt=equal_cnt+?
                                  WHERE cid=?
@@ -281,7 +255,7 @@ public interface SQLConstantsRepo {
                                  """;
 
     String SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT = """
-                                 UPDATE dc_result SET missing_source_cnt=?, missing_target_cnt=?, not_equal_cnt=?, status=?
+                                 UPDATE dc_result SET missing_source_cnt=?, missing_target_cnt=?, not_equal_cnt=?, status=?, compare_end=current_timestamp
                                  WHERE cid=?
                                  RETURNING equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, status
                                  """;

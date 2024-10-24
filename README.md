@@ -44,9 +44,18 @@ The following are current limitations of the compare utility:
 
 ## Upgrading
 
-### Upgrade to 0.3.0
+### Version 0.3.0
 
+#### Enhancements / Fixes
 
+- Added support for DB2.
+- Support for case sensitive table and column names are now supported.
+- Replaced json object used for column mapping with new tables for easier management.
+- Added Projects to allow multiple configurations to be stored in the repository instead of managing multiple properties files.
+
+#### Upgrading to 0.3.0
+
+Due to the changes required for the repository, the repository must be dropped and recreated to upgrade to version 0.3.0.
 
 ## Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
@@ -68,6 +77,8 @@ mvn clean install
 Copy the `pgcompare.properties.sample` file to pgcompare.properties and define the repository, source, and target connection parameters.  Refer to the Properties section for more details on the settings.
 
 By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
+
+At a minimal the repo-xxxxx parameters are required in the properties file (or specified by environment parameters).  Besides the properties file and environment variables, another alternative is to store the property settings in the `dc_project` table.  Settings can be stored in the `project_config` column in JSON format ({"parameter": "value"}).
 
 ## Configure Repository Database
 
@@ -182,7 +193,6 @@ Properties are categorized into four sections: system, repository, source, and t
 - source-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - source-dbname:  Database or service name.
 - source-host:  Database server name.
-- source-name:  User defined name for the source.
 - source-password:  Database password.
 - source-port:  Database port.
 - source-schema:  Name of schema that owns the tables.
@@ -195,7 +205,6 @@ Properties are categorized into four sections: system, repository, source, and t
 - target-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - target-dbname:  Database or service name.
 - target-host:  Database server name.
-- target-name:  User defined name for the target.
 - target-password:  Database password.
 - target-port:  Database port.
 - target-schema:  Name of schema that owns the tables.
@@ -233,7 +242,7 @@ A summary is printed at the end of each run.  To view results at a later time, t
 
 ```sql
 WITH mr AS (SELECT max(rid) rid FROM dc_result)
-SELECT compare_dt, table_name, status, source_cnt total_cnt, equal_cnt, not_equal_cnt, missing_source_cnt+missing_target_cnt missing_cnt
+SELECT compare_start, table_name, status, source_cnt total_cnt, equal_cnt, not_equal_cnt, missing_source_cnt+missing_target_cnt missing_cnt
 FROM dc_result r
      JOIN mr ON (mr.rid=r.rid)
 ORDER BY table_name;
