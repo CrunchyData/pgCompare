@@ -31,7 +31,7 @@ Before initiating the build and installation process, ensure the following prere
 1. Java version 21 or higher.
 2. Maven 3.9 or higher.
 3. Postgres version 15 or higher (to use for the pgCompare Data Compare repository).
-4. Necessary JDBC drivers (Postgres, MySQL, MSSQL and Oracle currently supported).
+4. Necessary JDBC drivers (DB2, Postgres, MySQL, MSSQL and Oracle currently supported).
 5. Postgres connections must not go through a connection pooler like pgBouncer.
 
 ## Limitations
@@ -41,6 +41,21 @@ The following are current limitations of the compare utility:
 1. Date/Timestamp only compared with a precision of second (DDMMYYYYHH24MISS).
 2. Unsupported data types: blob, long, longraw, bytea.
 3. Limitations with data type boolean when performing cross-platform compare. 
+
+## Upgrading
+
+### Version 0.3.0
+
+#### Enhancements / Fixes
+
+- Added support for DB2.
+- Support for case sensitive table and column names are now supported.
+- Replaced json object used for column mapping with new tables for easier management.
+- Added Projects to allow multiple configurations to be stored in the repository instead of managing multiple properties files.
+
+#### Upgrading to 0.3.0
+
+Due to the changes required for the repository, the **repository must be dropped and recreated** to upgrade to version 0.3.0.
 
 ## Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
@@ -63,6 +78,8 @@ Copy the `pgcompare.properties.sample` file to pgcompare.properties and define t
 
 By default, the application looks for the properties file in the execution directory.  Use the PGCOMPARE_CONFIG environment variable override the default and point to a file in a different location.
 
+At a minimal the repo-xxxxx parameters are required in the properties file (or specified by environment parameters).  Besides the properties file and environment variables, another alternative is to store the property settings in the `dc_project` table.  Settings can be stored in the `project_config` column in JSON format ({"parameter": "value"}).
+
 ## Configure Repository Database
 
 pgCompare necessitates a hosted Postgres repository. To configure, connect to a Postgres database and execute the provided pgCompare.sql script in the database directory.  The repository may also be created using the `--init` flag.
@@ -79,45 +96,47 @@ In the database directory are two scripts to deploy a sample table (EMP) to Orac
 
 ## Defining Table Mapping
 
-The initial step involves defining a set of tables to compare, achieved by inserting rows into the `dc_table` within the pgCompare repository.
-
-dc_table:
-- source_schema: Schema/user that owns the table on the source database.
-- source_table: Table name on the source database.
-- target_schema:  Schema/user that owns the table on the target database.
-- target_table: Table name on the target database.
-- table_filter:  Specify a valid predicate that would be used in the where clause of a select sql statement.
-- parallel_degree:  Data can be compared by splitting up the work among many threads.  The parallel_degree determines the number of threads.  To use parallel threads, the mod_column value must be specified.
-- status: Expected values are 'disabled', which is the default, and 'ready'.
-- batch_nbr:  Tables can be grouped into batches and compare jobs executed a batch, or grouping of tables.
-- mod_column:  Used in conjunction with the parallel_degree.  The work is divided up among the threads using a mod of the specified column.  Therefore, the value entered must be a single column with a numeric data type.
-- column_map:  Used to review or override column mapping used by compare functions.  See Column Map section for more details.
+The initial step involves defining a set of tables to compare, achieved by inserting rows into the `dc_table` and `dc_table_map` tables in the pgCompare repository.  This is best done using the automated process below.
 
 ### Automated Table Registry
 
-Use pgCompare to perform a discovery against the target database and populate the dc_table with the results using the following command (where hr is the schema to be scanned).
+Use pgCompare to perform a discovery against the target database and populate the dc_table with the results using the following command.  The schemas specified in the properties file will be used for the discovery process.
 
 ```shell
-java -jar pgcompare.jar --discovery hr
+java -jar pgcompare.jar --discover
 ```
-
-After automatic table registry, if there are tables that are case sensistive, those table names will need to be modified in the dc_table.source_table and dc_table.target_table columns as approriate.
 
 ### Manual Table Registry
 
-Example of loading a row into `dc_table`:
+Example of loading a row into `dc_table` and `dc_table_map`:
 
 ```sql
-INSERT INTO dc_table (source_schema, source_table, target_schema, target_table, parallel_degree, status, batch_nbr)
-  VALUES ('hr','emp','hr','emp',1,'ready',1);
+INSERT INTO dc_table (table_alias)
+  VALUES ('emp');
+
+INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name)
+  VALUES (1, 'source', 'hr', 'emp');
+
+INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name)
+  VALUES (1, 'target', 'HR', 'EMP');
 ```
+
+After populating the list of tables, run the following to automatically map columns.
+
+```shell
+java -jar pgcompare.jar --batch=0 --maponly
+```
+
+### Projects
+
+Projects allow for the repository to maintain different mappings for different compare objectives.  This allows a central pgCompare repository to be used for multiple compare projects.  Each table has a `pid` column which is the project id.  If no project is specified, the default project (pid = 1) is used.
 
 ## Perform Data Compare
 
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
 
 ```shell
-java -jar pgcompare.jar --batch=0
+java -jar pgcompare.jar --batch 0
 ```
 
 Using a batch value of 0 will execute the action for all batches.  The batch number may also be specified using the environment variable PGCOMPARE-BATCH.  The default value for batch number is 0 (all batches).
@@ -127,7 +146,7 @@ Using a batch value of 0 will execute the action for all batches.  The batch num
 If discrepancies are detected, run the comparison with the 'check' option:
 
 ```shell
-java -jar pgcompare.jar --batch=0 --check
+java -jar pgcompare.jar --batch 0 --check
 ```
 
 This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a discrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
@@ -136,82 +155,13 @@ This recheck process is useful when transactions may be in flight during the ini
 
 ## Column Map
 
-The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the column_map column of the dc_table repository table. The column mapping is stored in the form of a JSON object.  This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column map is present in column_map, the program will not perform a remap.
+The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the `dc_table_column` and `dc_table_column_map` repository tables. This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column mapping is present, the program will not perform a remap unless instructed to using the `maponly` flag.
 
 To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
 
 ```shell
-java -jar pgcompare.jar --batch=0 --maponly
+java -jar pgcompare.jar --batch 0 --maponly
 ```
-
-### JSON Mapping Object
-
-Below is a sample of a column mapping.
-
-```json
-{
-  "columns": [
-    {
-      "alias": "cola",
-      "source": {
-        "dataType": "char",
-        "nullable": true,
-        "dataClass": "char",
-        "dataScale": 22,
-        "supported": true,
-        "columnName": "cola",
-        "dataLength": 2,
-        "primaryKey": false,
-        "dataPrecision": 44,
-        "valueExpression": "nvl(trim(col_char_2),' ')"
-      },
-      "status": "compare",
-      "target": {
-        "dataType": "bpchar",
-        "nullable": false,
-        "dataClass": "char",
-        "dataScale": 22,
-        "supported": true,
-        "columnName": "cola",
-        "dataLength": 2,
-        "primaryKey": false,
-        "dataPrecision": 44,
-        "valueExpression": "coalesce(col_char_2::text,' ')"
-      }
-    },
-    {
-      "alias": "id",
-      "source": {
-        "dataType": "number",
-        "nullable": false,
-        "dataClass": "numeric",
-        "dataScale": 0,
-        "supported": true,
-        "columnName": "id",
-        "dataLength": 22,
-        "primaryKey": true,
-        "dataPrecision": 8,
-        "valueExpression": "lower(nvl(trim(to_char(id,'0.9999999999EEEE')),' '))"
-      },
-      "status": "compare",
-      "target": {
-        "dataType": "int4",
-        "nullable": true,
-        "dataClass": "numeric",
-        "dataScale": 0,
-        "supported": true,
-        "columnName": "id",
-        "dataLength": 32,
-        "primaryKey": true,
-        "dataPrecision": 32,
-        "valueExpression": "coalesce(trim(to_char(id,'0.9999999999EEEE')),' ')"
-      }
-    }
-  ]
-}
-```
-
-Only Primary Key columns and columns with a status equal to 'compare' will be included in the final data compare.
 
 ## Properties
 
@@ -221,13 +171,15 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
+- database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
+- log-level:   Level to determine the amount of log messages written to the log destination.
+- log-destination:  Location where log messages will be written.  Default is stdout.
 - message-queue-size:  Size of message queue used by loader threads (nbr messages).  Default is 100.
 - number-cast: Defines how numbers are cast for hash function (notation|standard).  Default is notation (for scientific notation).
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
-- stage-table-parallel: Sets the number of parallel workers for the temporary staging tables.  Default is 0.
 
 ### Repository
 - repo-dbname:  Repository database name.
@@ -243,9 +195,9 @@ Properties are categorized into four sections: system, repository, source, and t
 - source-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - source-dbname:  Database or service name.
 - source-host:  Database server name.
-- source-name:  User defined name for the source.
 - source-password:  Database password.
 - source-port:  Database port.
+- source-schema:  Name of schema that owns the tables.
 - source-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
 - source-type:  Database type: oracle, postgres
 - source-user:   Database username.
@@ -255,12 +207,22 @@ Properties are categorized into four sections: system, repository, source, and t
 - target-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - target-dbname:  Database or service name.
 - target-host:  Database server name.
-- target-name:  User defined name for the target.
 - target-password:  Database password.
 - target-port:  Database port.
+- target-schema:  Name of schema that owns the tables.
 - target-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
 - target-type:  Database type: oracle, postgres
 - target-user:  Database username.
+
+## Property Precedence
+
+The system contains default values for every parameter.  These can be over-ridden using environment variables, properties file, or values saved in the `dc_project` table.  The following is the order of precedence used:
+
+- Default values
+- Properties file
+- Environment variables
+- Settings stored in `dc_project` table
+
 
 # Data Compare Concepts
 
@@ -282,7 +244,7 @@ A summary is printed at the end of each run.  To view results at a later time, t
 
 ```sql
 WITH mr AS (SELECT max(rid) rid FROM dc_result)
-SELECT compare_dt, table_name, status, source_cnt total_cnt, equal_cnt, not_equal_cnt, missing_source_cnt+missing_target_cnt missing_cnt
+SELECT compare_start, table_name, status, source_cnt total_cnt, equal_cnt, not_equal_cnt, missing_source_cnt+missing_target_cnt missing_cnt
 FROM dc_result r
      JOIN mr ON (mr.rid=r.rid)
 ORDER BY table_name;

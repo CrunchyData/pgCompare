@@ -20,8 +20,12 @@ import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
 
+import com.crunchydata.controller.ColumnController;
+import com.crunchydata.controller.TableController;
 import com.crunchydata.controller.ReconcileController;
 import com.crunchydata.controller.RepoController;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.Settings;
@@ -30,90 +34,106 @@ import org.apache.commons.cli.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.controller.TableController.getTableMap;
 import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.Settings.setProjectConfig;
 
 /**
  * @author Brian Pace
  */
 public class pgCompare {
     private static final String THREAD_NAME = "main";
-    private static int batchParameter;
+
+    private static String action = "reconcile";
+    private static Integer batchParameter;
     private static boolean check;
     private static CommandLine cmd;
     private static boolean mapOnly;
-    private static Connection repoConn;
-    private static Connection sourceConn;
+    private static Integer pid = 1;
+    private static Connection connRepo;
+    private static Connection connSource;
     private static long startStopWatch;
-    private static Connection targetConn;
+    private static Connection connTarget;
 
     public static void main(String[] args) {
 
         // Catch Shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> Logging.write("info", THREAD_NAME, "Shutting down")));
 
+        // Capture the start time for the compare run.
         startStopWatch = System.currentTimeMillis();
 
         // Command Line Options
         cmd = parseCommandLine(args);
         if (cmd == null) return;
 
-        // Capture Argument Values
-        batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("PGCOMPARE-BATCH") == null) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
-        check = cmd.hasOption("check");
-        mapOnly = cmd.hasOption("maponly");
-
-        String action = "reconcile";
-        action = (cmd.hasOption("discovery")) ? "discovery" : action;
-        action = (cmd.hasOption("init")) ? "init" : action;
-
         // Process Startup
         Logging.write("info", THREAD_NAME,  String.format("Starting - rid: %s", startStopWatch));
         Logging.write("info", THREAD_NAME, String.format("Version: %s",Settings.VERSION));
         Logging.write("info", THREAD_NAME, String.format("Batch Number: %s",batchParameter));
         Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s",check));
+
+        // Preflight
+        preflight.database("source");
+        preflight.database("target");
+
+        // Connect to Repository
+        Logging.write("info", THREAD_NAME, "Connecting to repository database");
+        connRepo = dbPostgres.getConnection(Props, "repo", THREAD_NAME);
+        if (connRepo == null) {
+            Logging.write("severe", THREAD_NAME, "Cannot connect to repository database");
+            System.exit(1);
+        }
+
+        // Load Properties from Project (dc_project)
+        setProjectConfig(connRepo, pid, Props);
+
+        // Output parameter settings
         Logging.write("info", THREAD_NAME, "Parameters: ");
 
         Props.entrySet().stream()
                 .filter(e -> !e.getKey().toString().contains("password"))
                 .forEach(e -> Logging.write("info", THREAD_NAME, String.format("  %s",e)));
 
-        // Connect to Repository
-        Logging.write("info", THREAD_NAME, "Connecting to repository database");
-        repoConn = dbPostgres.getConnection(Props, "repo", THREAD_NAME);
-        if (repoConn == null) {
-            Logging.write("severe", THREAD_NAME, "Cannot connect to repository database");
-            System.exit(1);
-        }
-
+        // Initialize pgCompare repository if the action is init.
+        // After initialization, exit.
         if ("init".equals(action)) {
-            dbRepository.createRepository(repoConn);
+            dbRepository.createRepository(connRepo);
             try {
-                repoConn.close();
+                connRepo.close();
             } catch (Exception e) {
                 Logging.write("severe", THREAD_NAME, String.format("Error closing connection to repository: %s",e.getMessage()));
             }
             System.exit(0);
         }
 
+
         // Connect to Source
         Logging.write("info", THREAD_NAME, "Connecting to source database");
-        sourceConn = getDatabaseConnection(Props.getProperty("source-type"), "source");
+        connSource = getDatabaseConnection(Props.getProperty("source-type"), "source");
 
-        if (sourceConn == null) {
+        if (connSource == null) {
             Logging.write("severe", THREAD_NAME, "Cannot connect to source database");
             System.exit(1);
         }
 
         // Connect to Target
         Logging.write("info", THREAD_NAME, "Connecting to target database");
-        targetConn = getDatabaseConnection(Props.getProperty("target-type"), "target");
+        connTarget = getDatabaseConnection(Props.getProperty("target-type"), "target");
 
-        if (targetConn == null) {
+        if (connTarget == null) {
             Logging.write("severe", THREAD_NAME, "Cannot connect to target database");
             System.exit(1);
         }
 
+        // Refresh Column Map (maponly)
+        if (cmd.hasOption("maponly")) {
+            // Discover Columns
+            ColumnController.discoverColumns(pid, connRepo, connSource, connTarget);
+            System.exit(0);
+        }
+
+        // Call module/function to perform desired action
         switch (action) {
             case "discovery":
                 performDiscovery();
@@ -128,55 +148,50 @@ public class pgCompare {
         }
 
         try {
-            repoConn.close();
+            connRepo.close();
         } catch (Exception e) {
             // do nothing
         }
         try {
-            targetConn.close();
+            connTarget.close();
         } catch (Exception e) {
             // do nothing
         }
         try {
-            sourceConn.close();
+            connSource.close();
         } catch (Exception e) {
             // do nothing
         }
 
     }
 
+    //
     // Database Connection
+    //
     private static Connection getDatabaseConnection(String dbType, String destType) {
         return switch (dbType) {
             case "oracle" -> dbOracle.getConnection(Props, destType);
             case "mysql" -> dbMySQL.getConnection(Props, destType);
             case "mssql" -> dbMSSQL.getConnection(Props, destType);
+            case "db2" -> dbDB2.getConnection(Props, destType);
             default -> dbPostgres.getConnection(Props, destType, THREAD_NAME);
         };
     }
 
+    //
     // Discovery
+    //
     private static void performDiscovery() {
-        String discoverySchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
+        String sourceSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
+        String targetSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
 
-        Logging.write("info", THREAD_NAME, String.format("Performaning table discovery for schema: %s",discoverySchema));
+        Logging.write("info", THREAD_NAME, "Performaning table discovery");
 
-        JSONArray tables = switch (Props.getProperty("target-type")) {
-            case "oracle" -> dbCommon.getTables(targetConn, discoverySchema, SQL_ORACLE_SELECT_TABLES);
-            case "mysql" -> dbCommon.getTables(targetConn, discoverySchema, SQL_MYSQL_SELECT_TABLES);
-            case "mssql" -> dbCommon.getTables(targetConn, discoverySchema, SQL_MSSQL_SELECT_TABLES);
-            default -> dbCommon.getTables(targetConn, discoverySchema, SQL_POSTGRES_SELECT_TABLES);
-        };
+        // Discover Tables
+        TableController.discoverTables(pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
 
-        for (int i = 0; i < tables.length(); i++) {
-            String schema = tables.getJSONObject(i).getString("schemaName");
-            String tableName = tables.getJSONObject(i).getString("tableName");
-
-            RepoController.saveTable(repoConn, schema, tableName);
-
-            Logging.write("info", THREAD_NAME, String.format("Discovered Table: %s",tableName));
-        }
-
+        // Discover Columns
+        ColumnController.discoverColumns(pid, connRepo, connSource, connTarget);
     }
 
     //
@@ -186,38 +201,42 @@ public class pgCompare {
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "";
         RepoController rpc = new RepoController();
         int tablesProcessed = 0;
-        CachedRowSet crsTable = rpc.getTables(repoConn, batchParameter, table, check);
+        CachedRowSet crsTable = rpc.getTables(pid, connRepo, batchParameter, table, check);
         JSONArray runResult = new JSONArray();
 
         try {
             while (crsTable.next()) {
                 tablesProcessed++;
 
-                Logging.write("info", THREAD_NAME, "Start reconciliation");
-                rpc.startTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"));
+                // Construct DCTable Class
+                DCTable dct = new DCTable();
+                dct.setPid(pid);
+                dct.setTid(crsTable.getInt("tid"));
+                dct.setStatus(crsTable.getString("status"));
+                dct.setBatchNbr(crsTable.getInt("batch_nbr"));
+                dct.setParallelDegree(crsTable.getInt("parallel_degree"));
+                dct.setTableAlias(crsTable.getString("table_alias"));
 
+                Logging.write("info", THREAD_NAME, "Start reconciliation");
+
+                // Construct DCTableMap Class for Source
+                DCTableMap sourceTableMap = createTableMap("source",dct);
+
+                // Construct DCTableMap Class for Target
+                DCTableMap targetTableMap = createTableMap("target",dct);
+
+                // Create Table History Entry
+                rpc.startTableHistory(connRepo,dct.getTid(), "reconcile", dct.getBatchNbr());
+
+                // Clear previous reconciliation results if not recheck.
                 if (!check) {
                     Logging.write("info", THREAD_NAME, "Clearing data compare findings");
-                    rpc.deleteDataCompare(repoConn, "source", crsTable.getString("source_table"), crsTable.getInt("batch_nbr"));
-                    rpc.deleteDataCompare(repoConn, "target", crsTable.getString("target_table"), crsTable.getInt("batch_nbr"));
+                    rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
                 }
 
-                JSONObject actionResult = ReconcileController.reconcileData(repoConn,
-                        sourceConn,
-                        targetConn,
-                        crsTable.getString("source_schema"), crsTable.getString("source_table"),
-                        crsTable.getString("target_schema"), crsTable.getString("target_table"),
-                        crsTable.getString("table_filter"),
-                        crsTable.getString("mod_column"),
-                        crsTable.getInt("parallel_degree"),
-                        startStopWatch,
-                        check,
-                        crsTable.getInt("batch_nbr"),
-                        crsTable.getInt("tid"),
-                        crsTable.getString("column_map"),
-                        mapOnly);
+                JSONObject actionResult = ReconcileController.reconcileData(connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
 
-                rpc.completeTableHistory(repoConn, crsTable.getInt("tid"), "reconcile", crsTable.getInt("batch_nbr"), 0, actionResult.toString());
+                rpc.completeTableHistory(connRepo, dct.getTid(), "reconcile", dct.getBatchNbr(), 0, actionResult.toString());
 
                 runResult.put(actionResult);
 
@@ -236,6 +255,18 @@ public class pgCompare {
     }
 
     //
+    // Create Table Map
+    //
+    private static DCTableMap createTableMap(String tableOrigin, DCTable dct) {
+        DCTableMap dctm = getTableMap(connRepo, dct.getTid(),tableOrigin);
+        dctm.setBatchNbr(dct.getBatchNbr());
+        dctm.setPid(pid);
+        dctm.setTableAlias(dct.getTableAlias());
+
+        return dctm;
+    }
+
+    //
     // Command Line Options
     //
     private static CommandLine parseCommandLine(String[] args) {
@@ -243,10 +274,11 @@ public class pgCompare {
 
         options.addOption(Option.builder("b").longOpt("batch").argName("batch").hasArg(true).desc("Batch Number").build());
         options.addOption(Option.builder("c").longOpt("check").argName("check").hasArg(false).desc("Recheck out of sync rows").build());
-        options.addOption(Option.builder("d").longOpt("discovery").argName("discovery").hasArg(true).desc("Discover tables in database").build());
+        options.addOption(Option.builder("d").longOpt("discovery").argName("discovery").hasArg(false).desc("Discover tables in database").build());
         options.addOption(Option.builder("h").longOpt("help").argName("help").hasArg(false).desc("Usage and help").build());
         options.addOption(Option.builder("i").longOpt("init").argName("init").hasArg(false).desc("Initialize repository").build());
         options.addOption(Option.builder("m").longOpt("maponly").argName("maponly").hasArg(false).desc("Perform column mapping only").build());
+        options.addOption(Option.builder("p").longOpt("project").argName("project").hasArg(true).desc("Project ID").build());
         options.addOption(Option.builder("t").longOpt("table").argName("table").hasArg(true).desc("Limit to specified table").build());
         options.addOption(Option.builder("v").longOpt("version").argName("version").hasArg(false).desc("Version").build());
 
@@ -262,6 +294,22 @@ public class pgCompare {
                 showVersion();
                 return null;
             }
+
+            if (cmd.hasOption("project")) {
+                pid = Integer.parseInt(cmd.getOptionValue("project"));
+            }
+
+            // Capture Argument Values
+            batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("PGCOMPARE-BATCH") == null) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
+            check = cmd.hasOption("check");
+            mapOnly = cmd.hasOption("maponly");
+
+            // Determine the desired action, reconcile, discovery or init.
+            //   reconcile = Perform comparison between source and target databases.
+            //   discovery = Perform table discovery on source and target.
+            //   init      = Initilize the pgCompare repository.
+            action = (cmd.hasOption("discovery")) ? "discovery" : action;
+            action = (cmd.hasOption("init")) ? "init" : action;
 
             return cmd;
         } catch (ParseException e) {
@@ -308,6 +356,7 @@ public class pgCompare {
         System.out.println("   -c|--check Check out of sync rows");
         System.out.println("   -d|--discovery <schema> Discover tables in database");
         System.out.println("   -m|--maponly Only perform column mapping");
+        System.out.println("   -p|--project Projrect ID");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");
         System.out.println();

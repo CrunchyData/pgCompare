@@ -19,7 +19,7 @@ package com.crunchydata.services;
 import java.sql.Connection;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -42,20 +42,27 @@ public class dbRepository {
         dbCommon.simpleUpdate(conn,String.format(REPO_DDL_SCHEMA,Props.getProperty("repo-schema"),Props.getProperty("repo-user")),binds, true);
 
         // Create Tables
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCRESULT, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCSOURCE, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCTARGET, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCTABLE, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCTABLEHISTORY, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCOBJECT, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_PROJECT, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_RESULT, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_SOURCE, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_MAP, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_HISTORY, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_MAP, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TARGET, binds, true);
 
         // Create Indexes
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCRESULT_IDX1, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCTABLEHISTORY_IDX1, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_RESULT_IDX1, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_HISTORY_IDX1, binds, true);
 
         // Add Constraints
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCTABLE_PK, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DCOBJECT_PK, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_FK, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_MAP_FK, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_MAP_FK, binds, true);
+
+        // Data
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_PROJECT_DATA, binds, true);
 
     }
 }

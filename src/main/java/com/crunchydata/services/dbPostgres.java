@@ -23,14 +23,17 @@ import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.services.ColumnValidation.*;
-import static com.crunchydata.services.dbCommon.ShouldQuoteString;
-import static com.crunchydata.util.SQLConstants.*;
+import static com.crunchydata.util.ColumnValidation.*;
+import static com.crunchydata.util.DataUtility.ShouldQuoteString;
+import static com.crunchydata.util.DataUtility.preserveCase;
+import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -41,6 +44,7 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class dbPostgres {
+    public static final String nativeCase = "lower";
 
     private static final String THREAD_NAME = "dbPostgres";
 
@@ -48,25 +52,19 @@ public class dbPostgres {
      * Builds a SQL query for loading data from a Postgres table.
      *
      * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @param schema          Schema name of the table.
-     * @param tableName       Name of the table.
-     * @param pkColumns       Columns used as primary key.
-     * @param pkJSON          JSON representation of primary key columns.
-     * @param columns         Columns to select from the table.
-     * @param tableFilter     Optional filter condition for the WHERE clause.
      * @return SQL query string for loading data from the specified table.
      */
-    public static String buildLoadSQL (Boolean useDatabaseHash, String schema, String tableName, String pkColumns, String pkJSON, String columns, String tableFilter) {
+    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "md5(concat_ws('|'," + pkColumns + ")) pk_hash, " + pkJSON + " pk, md5(concat_ws(''," + columns + ")) FROM " +  ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
+            sql += "md5(concat_ws('|'," + columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, md5(concat_ws(''," + columnMetadata.getColumn() + ")) FROM " +  ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         } else {
-            sql += pkColumns + " pk_hash, " + pkJSON + " pk, " + columns + " FROM " + ShouldQuoteString(schema) + "." + ShouldQuoteString(tableName) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
         }
 
-        if (tableFilter != null && !tableFilter.isEmpty()) {
-            sql += " AND " + tableFilter;
+        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
+            sql += " AND " + tableMap.getTableFilter();
         }
 
         return sql;
@@ -80,30 +78,31 @@ public class dbPostgres {
      */
     public static String columnValueMapPostgres(JSONObject column) {
         String colExpression;
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = switch (column.getString("dataType").toLowerCase()) {
                 case "float4", "float8" ->
-                        "coalesce(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0.999999EEEE')),' ')";
+                        "coalesce(trim(to_char(" + columnName + ",'0.999999EEEE')),' ')";
                 default ->
-                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + ShouldQuoteString(column.getString("columnName")) + "),'0000000000000000000000.0000000000000000000000')),' ')";
+                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
             };
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            String booleanConvert = "case when coalesce(" + ShouldQuoteString(column.getString("columnName")) + "::text,'0') = 'true' then 1 else 0 end";
-            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'0000000000000000000000.0000000000000000000000')),' ')";
+            String booleanConvert = "case when coalesce(" + columnName + "::text,'0') = 'true' then 1 else 0 end";
+            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
-                colExpression = "coalesce(to_char(" + ShouldQuoteString(column.getString("columnName")) + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
+                colExpression = "coalesce(to_char(" + columnName + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
             } else {
-                colExpression = "coalesce(to_char(" + ShouldQuoteString(column.getString("columnName")) + ",'MMDDYYYYHH24MISS'),' ')";
+                colExpression = "coalesce(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(" + ShouldQuoteString(column.getString("columnName")) + "::text,' ')";
+            colExpression = "coalesce(case when length(" + columnName + ")=0 then ' ' else " + columnName + "::text end,' ')";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + ShouldQuoteString(column.getString("columnName")) +"), ' ')";
+            colExpression = "coalesce(md5(" + columnName +"), ' ')";
         } else {
-            colExpression = ShouldQuoteString(column.getString("columnName"));
+            colExpression = columnName;
         }
 
         return colExpression;
@@ -142,8 +141,9 @@ public class dbPostgres {
                 column.put("dataScale",rs.getInt("data_scale"));
                 column.put("nullable",rs.getString("nullable").equals("Y"));
                 column.put("primaryKey",rs.getString("pk").equals("Y"));
-                column.put("valueExpression", columnValueMapPostgres(column ));
                 column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
+                column.put("preserveCase",preserveCase(nativeCase,rs.getString("column_name")));
+                column.put("valueExpression", columnValueMapPostgres(column));
 
                 columnInfo.put(column);
             }
@@ -173,6 +173,7 @@ public class dbPostgres {
         dbProps.setProperty("reWriteBatchedInserts", "true");
         dbProps.setProperty("preparedStatementCacheQueries", "5");
         dbProps.setProperty("ApplicationName", "pgCompare - " + module);
+        dbProps.setProperty("synchronous_commit", "off");
 
         try {
             conn = DriverManager.getConnection(url,dbProps);

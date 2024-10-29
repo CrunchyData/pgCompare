@@ -38,6 +38,10 @@ observer-throttle-size = 2000000
 # default: true
 observer-vacuum = true
 
+# Project ID
+# default: 1
+project = 1
+
 # Location to write logging information.  Valid values are stdout or a fully qualified logfile name.
 # default: stdout
 log-destination = stdout
@@ -81,8 +85,6 @@ repo-sslmode=disable
 
 #####
 # Source and Target Parameters
-# source|target-name:
-#      User-defined name for the target.
 #  source|target-type:
 #      Database type.  Valid values are oracle and postgres.
 #  source|target-host:
@@ -91,6 +93,8 @@ repo-sslmode=disable
 #      Database port.
 #  source|target-dbname:
 #       Database or service name to use in connection string.
+#  source|target-schema:
+#       Schema for table discovery.
 #  source|target-user:
 #       Database user to use for authentication.
 #  source|target-password:
@@ -107,7 +111,6 @@ repo-sslmode=disable
 # source
 ##################################
 # Oracle Example
-source-name=orasource
 source-type=oracle
 source-host=myorahost
 source-port=1521
@@ -117,8 +120,8 @@ source-password=welcome1
 source-database-hash=false
 source-sslmode=disable
 source-schema=appuser
+source-schema=appuser
 # Postgres Example
-#source-name=pgsource
 #source-type=postgres
 #source-host=localhost
 #source-port=5432
@@ -127,12 +130,12 @@ source-schema=appuser
 #source-password=welcome1
 #source-database-hash=true
 #source-sslmode=disable
+#source-schema=appuser
 
 ##################################
 # target
 ##################################
 # Postgres Example
-target-name=pgtarget
 target-type=postgres
 target-host=mynewhost
 target-port=5432
@@ -143,7 +146,6 @@ target-database-hash=true
 target-sslmode=disable
 target-schema=public
 # Oracle Example
-#target-name=orasource
 #target-type=oracle
 #target-host=myorahost
 #target-port=1521
@@ -152,3 +154,5 @@ target-schema=public
 #target-password=welcome1
 #target-database-hash=true
 #target-sslmode=disable
+#target-schema=appuser
+

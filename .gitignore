@@ -2,3 +2,5 @@ confero.properties
 target/*
 database/local_test.sql
 .DS_Store
+._*
+test_local.txt

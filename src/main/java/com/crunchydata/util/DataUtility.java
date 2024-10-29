@@ -16,6 +16,8 @@
 
 package com.crunchydata.util;
 
+import com.crunchydata.services.*;
+
 import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -48,6 +50,37 @@ public class DataUtility {
         }
     }
 
+    public static boolean allLower(String str) {
+        for (char c : str.toCharArray()) {
+            if (! Character.isLowerCase(c) && Character.isAlphabetic(c) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean allUpper(String str) {
+        for (char c : str.toCharArray()) {
+            if (! Character.isUpperCase(c) && Character.isAlphabetic(c) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static String getNativeCase(String databasePlatform) {
+        return switch (databasePlatform) {
+            case "oracle" -> dbOracle.nativeCase;
+            case "mysql" -> dbMySQL.nativeCase;
+            case "mssql" -> dbMSSQL.nativeCase;
+            case "db2" -> dbDB2.nativeCase;
+            default -> dbPostgres.nativeCase;
+        };
+    }
+
+
     public static boolean isMixedCase(String str) {
         boolean hasUpper = false;
         boolean hasLower = false;
@@ -67,5 +100,13 @@ public class DataUtility {
 
         // Not mixed case if only one or neither is true
         return false;
+    }
+
+    public static boolean preserveCase(String expectedCase, String str) {
+        return (expectedCase.equals("lower")) ? ! allLower(str) : ! allUpper(str);
+    }
+
+    public static String ShouldQuoteString(Boolean preserveCase, String str) {
+        return (preserveCase) ? String.format("\"%s\"",str) :  str;
     }
 }

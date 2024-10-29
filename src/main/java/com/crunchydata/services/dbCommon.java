@@ -26,8 +26,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.DataUtility.isMixedCase;
-
 /**
  * Utility class that contains common actions performed against the database
  * which are agnostic to the database platform.
@@ -38,14 +36,8 @@ public class dbCommon {
     private static final String THREAD_NAME = "dbCommon";
 
 
-    public static String ShouldQuoteString(String str) {
 
-        if (isMixedCase(str)) {
-            str = String.format("\"%s\"",str);
-        }
 
-        return str;
-    }
     /**
      * Utility method to execute a provided SQL query and retrieve a list of tables.
      *
@@ -154,6 +146,102 @@ public class dbCommon {
     }
 
     /**
+     * Utility method to execute a parameterized SQL query and return a single Integer.
+     *
+     * <p>This method prepares a PreparedStatement with the provided SQL query and binds parameters
+     * from the given ArrayList. It then executes the query, extracts the the first row and first
+     * column and returns the value.</p>
+     *
+     * <p>If any exception occurs during the execution, a severe-level log message is written
+     * using the Logging utility.</p>
+     *
+     * @param conn The database Connection object to use for executing the query.
+     * @param sql The SQL query to execute, with placeholders for parameters.
+     * @param binds The ArrayList containing the parameters to bind to the PreparedStatement.
+     * @return Integer.
+     */
+    public static Integer simpleSelectReturnInteger(Connection conn, String sql, ArrayList<Object> binds) {
+        ResultSet rs;
+        PreparedStatement stmt;
+        Integer returnValue=null;
+
+        try {
+            // Prepare the PreparedStatement with the provided SQL query
+            stmt = conn.prepareStatement(sql);
+
+            // Bind parameters to the PreparedStatement
+            for (int counter = 0; counter < binds.size(); counter++) {
+                stmt.setObject(counter+1, binds.get(counter));
+            }
+
+            // Execute the query and populate the ResultSet
+            rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                returnValue = rs.getInt(1);
+            }
+
+            // Close the ResultSet and PreparedStatement
+            rs.close();
+            stmt.close();
+        } catch (Exception e) {
+            // Log severe-level error if an exception occurs
+            Logging.write("severe", THREAD_NAME, "Error executing simple select (" + sql + "):  " + e.getMessage());
+        }
+
+        // Return the CachedRowSet containing the query results
+        return returnValue;
+    }
+
+    /**
+     * Utility method to execute a parameterized SQL query and return a single Integer.
+     *
+     * <p>This method prepares a PreparedStatement with the provided SQL query and binds parameters
+     * from the given ArrayList. It then executes the query, extracts the the first row and first
+     * column and returns the value.</p>
+     *
+     * <p>If any exception occurs during the execution, a severe-level log message is written
+     * using the Logging utility.</p>
+     *
+     * @param conn The database Connection object to use for executing the query.
+     * @param sql The SQL query to execute, with placeholders for parameters.
+     * @param binds The ArrayList containing the parameters to bind to the PreparedStatement.
+     * @return Integer.
+     */
+    public static String simpleSelectReturnString(Connection conn, String sql, ArrayList<Object> binds) {
+        ResultSet rs;
+        PreparedStatement stmt;
+        String returnValue=null;
+
+        try {
+            // Prepare the PreparedStatement with the provided SQL query
+            stmt = conn.prepareStatement(sql);
+
+            // Bind parameters to the PreparedStatement
+            for (int counter = 0; counter < binds.size(); counter++) {
+                stmt.setObject(counter+1, binds.get(counter));
+            }
+
+            // Execute the query and populate the ResultSet
+            rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                returnValue = rs.getString(1);
+            }
+
+            // Close the ResultSet and PreparedStatement
+            rs.close();
+            stmt.close();
+        } catch (Exception e) {
+            // Log severe-level error if an exception occurs
+            Logging.write("severe", THREAD_NAME, "Error executing simple select (" + sql + "):  " + e.getMessage());
+        }
+
+        // Return the CachedRowSet containing the query results
+        return returnValue;
+    }
+
+    /**
      * Utility method to execute a parameterized DML SQL query and return the count of rows impacted.
      *
      * <p>This method prepares a PreparedStatement with the provided SQL query (DML) and binds parameters
@@ -255,6 +343,54 @@ public class dbCommon {
         }
 
         return crs;
+    }
+
+    /**
+     * Utility method to execute a parameterized SQL query (DML) and return a single Integer value.
+     *
+     * <p>This method prepares a PreparedStatement with the provided SQL query and binds parameters
+     * from the given ArrayList. It then executes the query, returns a single Integer value.</p>
+     *
+     * <p>If any exception occurs during the execution, a severe-level log message is written
+     * using the Logging utility.</p>
+     *
+     * @param conn The database Connection object to use for executing the query.
+     * @param sql The SQL query to execute, with placeholders for parameters.
+     * @param binds The ArrayList containing the parameters to bind to the PreparedStatement.
+     * @return Integer.
+     */
+    public static Integer simpleUpdateReturningInteger(Connection conn, String sql, ArrayList<Object> binds) {
+        Integer returnValue = null;
+
+        try {
+            // Prepare the PreparedStatement with the provided SQL query
+            PreparedStatement stmt = conn.prepareStatement(sql);
+
+            // Bind parameters to the PreparedStatement
+            for (int counter = 0; counter < binds.size(); counter++) {
+                stmt.setObject(counter+1, binds.get(counter));
+            }
+
+            // Execute the query and populate the ResultSet
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                returnValue = rs.getInt(1);
+            }
+
+            // Close the ResultSet and PreparedStatement
+            rs.close();
+            stmt.close();
+            conn.commit();
+
+        } catch (Exception e) {
+            Logging.write("severe", THREAD_NAME, "Error executing simple update with returning (" + sql + "):  " + e.getMessage());
+            try { conn.rollback(); } catch (Exception ee) {
+                // do nothing
+            }
+        }
+
+        return returnValue;
     }
 
     /**
