@@ -1,6 +1,6 @@
 package com.crunchydata.controller;
 
-import com.crunchydata.model.*;
+import com.crunchydata.models.*;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
@@ -267,7 +267,7 @@ public class ColumnController {
                 dctcm.setDataType(columns.getJSONObject(i).getString("dataType"));
                 dctcm.setDataClass(columns.getJSONObject(i).getString("dataClass"));
                 dctcm.setDataLength(columns.getJSONObject(i).getInt("dataLength"));
-                dctcm.setNumberPrecission(columns.getJSONObject(i).getInt("dataPrecision"));
+                dctcm.setNumberPrecision(columns.getJSONObject(i).getInt("dataPrecision"));
                 dctcm.setNumberScale(columns.getJSONObject(i).getInt("dataScale"));
                 dctcm.setColumnNullable(columns.getJSONObject(i).getBoolean("nullable"));
                 dctcm.setColumnPrimaryKey(columns.getJSONObject(i).getBoolean("primaryKey"));

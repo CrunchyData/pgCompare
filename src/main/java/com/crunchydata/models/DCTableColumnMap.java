@@ -1,5 +1,3 @@
-package com.crunchydata.model;
-
 /*
  * Copyright 2012-2024 the original author or authors.
  *
@@ -16,17 +14,30 @@ package com.crunchydata.model;
  * limitations under the License.
  */
 
+package com.crunchydata.models;
+
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class DCTableColumn {
-    private Integer tid;
-    private Integer columnID;
-    private String columnAlias;
+public class DCTableColumnMap {
+        private Integer tid;
+        private Integer columnID;
+        private String mapType;
+        private String columnOrigin;
+        private String columnName;
+        private String dataType;
+        private String dataClass;
+        private Integer dataLength;
+        private Integer numberPrecision;
+        private Integer numberScale;
+        private Boolean columnNullable;
+        private Boolean columnPrimaryKey;
+        private String mapExpression;
+        private Boolean supported;
+        private Boolean preserveCase;
 }
+

@@ -14,32 +14,20 @@
  * limitations under the License.
  */
 
-package com.crunchydata.model;
+package com.crunchydata.models;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class DCTableColumnMap {
-        private Integer tid;
-        private Integer columnID;
-        private String mapType;
-        private String columnOrigin;
-        private String columnName;
-        private String dataType;
-        private String dataClass;
-        private Integer dataLength;
-        private Integer numberPrecission;
-        private Integer numberScale;
-        private Boolean columnNullable;
-        private Boolean columnPrimaryKey;
-        private String mapExpression;
-        private Boolean supported;
-        private Boolean preserveCase;
+public class DCTable {
+    private Integer pid;
+    private Integer tid;
+    private String tableAlias;
+    private Integer batchNbr = 1;
+    private String status = "enabled";
+    private Integer parallelDegree = 1;
 }
-

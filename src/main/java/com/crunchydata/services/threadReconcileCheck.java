@@ -25,10 +25,10 @@ import javax.sql.RowSetMetaData;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
 
-import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableMap;
-import com.crunchydata.model.DataCompare;
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableMap;
+import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.DataUtility;
 import com.crunchydata.util.Logging;
 

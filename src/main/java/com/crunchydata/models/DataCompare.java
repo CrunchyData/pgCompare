@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-package com.crunchydata.model;
+package com.crunchydata.models;
+
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class DCTable {
-    private Integer pid;
+public class DataCompare {
     private Integer tid;
-    private String tableAlias;
-    private Integer batchNbr = 1;
-    private String status = "enabled";
-    private Integer parallelDegree = 1;
+    private String tableName;
+    private String pkHash;
+    private String columnHash;
+    private String pk;
+    private String compareResult;
+    private Integer threadNbr;
+    private Integer batchNbr;
 }

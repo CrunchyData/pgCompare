@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.model;
+package com.crunchydata.models;
 
 @SuppressWarnings("CanBeFinal")
 public class ColumnInfo {

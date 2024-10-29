@@ -24,8 +24,8 @@ import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
-import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTableMap;
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
 
 import org.json.JSONArray;

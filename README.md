@@ -31,7 +31,7 @@ Before initiating the build and installation process, ensure the following prere
 1. Java version 21 or higher.
 2. Maven 3.9 or higher.
 3. Postgres version 15 or higher (to use for the pgCompare Data Compare repository).
-4. Necessary JDBC drivers (Postgres, MySQL, MSSQL and Oracle currently supported).
+4. Necessary JDBC drivers (DB2, Postgres, MySQL, MSSQL and Oracle currently supported).
 5. Postgres connections must not go through a connection pooler like pgBouncer.
 
 ## Limitations
@@ -55,7 +55,7 @@ The following are current limitations of the compare utility:
 
 #### Upgrading to 0.3.0
 
-Due to the changes required for the repository, the repository must be dropped and recreated to upgrade to version 0.3.0.
+Due to the changes required for the repository, the **repository must be dropped and recreated** to upgrade to version 0.3.0.
 
 ## Compile
 Once the prerequisites are met, begin by forking the repository and cloning it to your host machine:
@@ -136,7 +136,7 @@ Projects allow for the repository to maintain different mappings for different c
 With the table mapping defined, execute the comparison and provide the mandatory batch command line argument:
 
 ```shell
-java -jar pgcompare.jar --batch=0
+java -jar pgcompare.jar --batch 0
 ```
 
 Using a batch value of 0 will execute the action for all batches.  The batch number may also be specified using the environment variable PGCOMPARE-BATCH.  The default value for batch number is 0 (all batches).
@@ -146,7 +146,7 @@ Using a batch value of 0 will execute the action for all batches.  The batch num
 If discrepancies are detected, run the comparison with the 'check' option:
 
 ```shell
-java -jar pgcompare.jar --batch=0 --check
+java -jar pgcompare.jar --batch 0 --check
 ```
 
 This recheck process is useful when transactions may be in flight during the initial comparison.  The recheck only checks the rows that have been flagged with a discrepancy.  If the rows still do not match, details will be reported.  Otherwise, the rows will be cleared and marked in-sync.
@@ -160,7 +160,7 @@ The system will automatically generate a column mapping during the first executi
 To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
 
 ```shell
-java -jar pgcompare.jar --batch=0 --maponly
+java -jar pgcompare.jar --batch 0 --maponly
 ```
 
 ## Properties
@@ -171,13 +171,15 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
+- database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
+- log-level:   Level to determine the amount of log messages written to the log destination.
+- log-destination:  Location where log messages will be written.  Default is stdout.
 - message-queue-size:  Size of message queue used by loader threads (nbr messages).  Default is 100.
 - number-cast: Defines how numbers are cast for hash function (notation|standard).  Default is notation (for scientific notation).
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
-- stage-table-parallel: Sets the number of parallel workers for the temporary staging tables.  Default is 0.
 
 ### Repository
 - repo-dbname:  Repository database name.

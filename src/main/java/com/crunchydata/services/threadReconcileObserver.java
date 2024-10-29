@@ -22,7 +22,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import com.crunchydata.controller.RepoController;
-import com.crunchydata.model.DCTable;
+import com.crunchydata.models.DCTable;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 

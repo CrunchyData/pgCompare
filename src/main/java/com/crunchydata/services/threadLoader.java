@@ -16,7 +16,7 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.model.DataCompare;
+import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 

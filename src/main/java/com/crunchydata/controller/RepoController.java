@@ -20,10 +20,10 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import javax.sql.rowset.CachedRowSet;
 
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableColumn;
-import com.crunchydata.model.DCTableColumnMap;
-import com.crunchydata.model.DCTableMap;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableColumn;
+import com.crunchydata.models.DCTableColumnMap;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.dbCommon;
 import com.crunchydata.util.Logging;
 
@@ -279,7 +279,7 @@ public class RepoController {
         binds.add(4,dctcm.getDataType());
         binds.add(5,dctcm.getDataClass());
         binds.add(6,dctcm.getDataLength());
-        binds.add(7,dctcm.getNumberPrecission());
+        binds.add(7,dctcm.getNumberPrecision());
         binds.add(8,dctcm.getNumberScale());
         binds.add(9,dctcm.getColumnNullable());
         binds.add(10,dctcm.getColumnPrimaryKey());

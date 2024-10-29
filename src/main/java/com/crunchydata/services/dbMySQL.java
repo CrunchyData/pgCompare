@@ -16,8 +16,8 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTableMap;
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;

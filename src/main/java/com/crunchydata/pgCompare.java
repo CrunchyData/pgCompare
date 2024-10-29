@@ -19,14 +19,13 @@ package com.crunchydata;
 import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
-import java.util.Map;
 
 import com.crunchydata.controller.ColumnController;
 import com.crunchydata.controller.TableController;
 import com.crunchydata.controller.ReconcileController;
 import com.crunchydata.controller.RepoController;
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableMap;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.Settings;

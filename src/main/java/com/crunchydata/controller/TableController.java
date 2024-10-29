@@ -1,7 +1,7 @@
 package com.crunchydata.controller;
 
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableMap;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;

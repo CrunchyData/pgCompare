@@ -25,10 +25,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import javax.sql.rowset.CachedRowSet;
 
-import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableMap;
-import com.crunchydata.model.DataCompare;
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableMap;
+import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
