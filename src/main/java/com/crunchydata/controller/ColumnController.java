@@ -10,6 +10,7 @@ import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
 
+import static com.crunchydata.util.ColumnUtility.getColumns;
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.JsonUtility.findOne;
 import static com.crunchydata.util.SQLConstantsRepo.*;
@@ -115,7 +116,7 @@ public class ColumnController {
     /**
      * Retrieves column details for a given table and maps the columns.
      *
-     * @param targetType  The target type of columns
+     * @param destRole  The target type of columns
      * @param platform    The database platform (e.g., "oracle", "mysql")
      * @param conn        The database connection
      * @param schema      The schema of the table
@@ -123,16 +124,10 @@ public class ColumnController {
      * @param columnData  JSON object containing column data
      * @return            A JSON object with updated column mappings
      */
-    public static JSONObject createColumnMap(String targetType, String platform, Connection conn, String schema, String table, JSONObject columnData) {
+    public static JSONObject createColumnMap(String destRole, String platform, Connection conn, String schema, String table, JSONObject columnData) {
         Logging.write("info", THREAD_NAME, String.format("Getting columns for table %s.%s",schema,table));
 
-        JSONArray colExpression = switch (platform) {
-            case "oracle" -> dbOracle.getColumns(conn, schema, table);
-            case "mysql" -> dbMySQL.getColumns(conn, schema, table);
-            case "mssql" -> dbMSSQL.getColumns(conn, schema, table);
-            case "db2" -> dbDB2.getColumns(conn, schema, table);
-            default -> dbPostgres.getColumns(conn, schema, table);
-        };
+        JSONArray colExpression = getColumns(conn, schema, table, destRole);
 
         JSONArray columns = columnData.optJSONArray("columns") != null ? columnData.getJSONArray("columns") : new JSONArray();
 
@@ -158,7 +153,7 @@ public class ColumnController {
                 columnDetail.put("status", "ignore");
             }
 
-            columnDetail.put(targetType, colExpression.getJSONObject(i));
+            columnDetail.put(destRole, colExpression.getJSONObject(i));
 
             if (columnPosition == -1) {
                 columns.put(columnDetail);
@@ -228,7 +223,7 @@ public class ColumnController {
         Logging.write("info", THREAD_NAME, String.format("Performing column discovery on %s for table %s", destType, tableName));
 
         // Get Tables based on Platform
-        JSONArray columns = getTableColumns(destType,connDest,schema,tableName);
+        JSONArray columns = getColumns(connDest,schema,tableName, destRole);
 
         // Get Default Case for Platform
         String nativeCase = getNativeCase(destType);
@@ -284,17 +279,6 @@ public class ColumnController {
 
         Logging.write("info", THREAD_NAME, String.format("Discovered %d columns for table %s",columnCount, tableName));
 
-    }
-
-
-    public static JSONArray getTableColumns (String databasePlatform, Connection conn, String schema, String tableName) {
-        return switch (databasePlatform) {
-            case "oracle" -> dbOracle.getColumns(conn, schema, tableName);
-            case "mysql" -> dbMySQL.getColumns(conn, schema, tableName);
-            case "mssql" -> dbMSSQL.getColumns(conn, schema, tableName);
-            case "db2" -> dbDB2.getColumns(conn, schema, tableName);
-            default -> dbPostgres.getColumns(conn, schema, tableName);
-        };
     }
 
 }
