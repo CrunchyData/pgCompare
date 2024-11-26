@@ -29,6 +29,8 @@ RUN mkdir /opt/pgcompare \
 
 COPY docker/start.sh /opt/pgcompare/
 
+COPY target/* /opt/pgcompare/
+
 RUN chmod 770 /opt/pgcompare/start.sh
 
 #############################################
@@ -36,7 +38,7 @@ RUN chmod 770 /opt/pgcompare/start.sh
 # Copy in pgCompare Compiled Application
 # -------------------------------------------
 #############################################
-USER 1000
+USER 1001
 
 # Environment variables
 # -------------------------------------------------------------
