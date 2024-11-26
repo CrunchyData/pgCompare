@@ -30,7 +30,7 @@ import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
-import static com.crunchydata.util.ColumnValidation.*;
+import static com.crunchydata.util.ColumnUtility.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
@@ -109,51 +109,6 @@ public class dbDB2 {
 
         return colExpression;
 
-    }
-
-    /**
-     * Retrieves column metadata for a specified table in DB2 database.
-     *
-     * @param conn   Database connection to DB2 server.
-     * @param schema Schema name of the table.
-     * @param table  Table name.
-     * @return JSONArray containing metadata for each column in the table.
-     */
-    public static JSONArray getColumns (Connection conn, String schema, String table) {
-        JSONArray columnInfo = new JSONArray();
-
-        try {
-            PreparedStatement stmt = conn.prepareStatement(SQL_DB2_SELECT_COLUMNS);
-            stmt.setObject(1, schema);
-            stmt.setObject(2,table);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                JSONObject column = new JSONObject();
-                if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase()) ) {
-                    Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
-                    column.put("supported",false);
-                } else {
-                    column.put("supported",true);
-                }
-                column.put("columnName",rs.getString("column_name"));
-                column.put("dataType",rs.getString("data_type"));
-                column.put("dataLength",rs.getInt("data_length"));
-                column.put("dataPrecision",rs.getInt("data_precision"));
-                column.put("dataScale",rs.getInt("data_scale"));
-                column.put("nullable", rs.getString("nullable").equals("Y"));
-                column.put("primaryKey",rs.getString("pk").equals("Y"));
-                column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
-                column.put("preserveCase",preserveCase(nativeCase,rs.getString("column_name")));
-                column.put("valueExpression", columnValueMapDB2(column));
-
-                columnInfo.put(column);
-            }
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s",schema,table,e.getMessage()));
-        }
-        return columnInfo;
     }
 
     /**

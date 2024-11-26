@@ -22,6 +22,9 @@ import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Arrays;
+
+import static com.crunchydata.util.ColumnUtility.reservedWords;
 
 /**
  * A utility class for working with CLOB data.
@@ -103,7 +106,7 @@ public class DataUtility {
     }
 
     public static boolean preserveCase(String expectedCase, String str) {
-        return (expectedCase.equals("lower")) ? ! allLower(str) : ! allUpper(str);
+        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || Arrays.asList(reservedWords).contains(str));
     }
 
     public static String ShouldQuoteString(Boolean preserveCase, String str) {

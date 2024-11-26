@@ -301,7 +301,7 @@ public interface SQLConstantsRepo {
                      WHERE pid=?
                      """;
 
-    String SQL_REPO_DCTABLE_SELECT_BYNAME = "SELECT tid FROM dc_table WHERE table_alias = lower(?)";
+    String SQL_REPO_DCTABLE_SELECT_BYNAME = "SELECT tid FROM dc_table WHERE table_alias = lower(?) AND pid=?";
 
 
     //

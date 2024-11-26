@@ -21,8 +21,8 @@ public interface SQLConstantsMYSQL {
     // MYSQL SQL
     //
     String SQL_MYSQL_SELECT_COLUMNS =  """
-                SELECT c.table_schema owner, c.table_name, c.column_name, c.data_type,\s
-                       coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,\s
+                SELECT c.table_schema owner, c.table_name, c.column_name, c.data_type,
+                       coalesce(c.character_maximum_length,c.numeric_precision) data_length, coalesce(c.numeric_precision,44) data_precision, coalesce(c.numeric_scale,22) data_scale,
                        case when c.is_nullable='YES' then 'Y' else 'N' end nullable,
                        CASE WHEN pkc.column_name IS NULL THEN 'N' ELSE 'Y' END pk
                 FROM information_schema.columns c

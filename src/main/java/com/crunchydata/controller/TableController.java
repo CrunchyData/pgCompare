@@ -127,6 +127,7 @@ public class TableController {
 
             binds.clear();
             binds.add(0,tableName);
+            binds.add(1,pid);
 
             Integer tid = dbCommon.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
 
