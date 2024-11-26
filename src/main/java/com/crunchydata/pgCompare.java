@@ -20,6 +20,10 @@ import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
 
+import static com.crunchydata.controller.TableController.getTableMap;
+import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.Settings.setProjectConfig;
+
 import com.crunchydata.controller.ColumnController;
 import com.crunchydata.controller.TableController;
 import com.crunchydata.controller.ReconcileController;
@@ -33,10 +37,6 @@ import com.crunchydata.util.Settings;
 import org.apache.commons.cli.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import static com.crunchydata.controller.TableController.getTableMap;
-import static com.crunchydata.util.Settings.Props;
-import static com.crunchydata.util.Settings.setProjectConfig;
 
 /**
  * @author Brian Pace
@@ -67,15 +67,13 @@ public class pgCompare {
         cmd = parseCommandLine(args);
         if (cmd == null) return;
 
+        System.out.println(Props.getProperty("log-level"));
+
         // Process Startup
         Logging.write("info", THREAD_NAME,  String.format("Starting - rid: %s", startStopWatch));
         Logging.write("info", THREAD_NAME, String.format("Version: %s",Settings.VERSION));
         Logging.write("info", THREAD_NAME, String.format("Batch Number: %s",batchParameter));
         Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s",check));
-
-        // Preflight
-        preflight.database("source");
-        preflight.database("target");
 
         // Connect to Repository
         Logging.write("info", THREAD_NAME, "Connecting to repository database");
@@ -87,6 +85,10 @@ public class pgCompare {
 
         // Load Properties from Project (dc_project)
         setProjectConfig(connRepo, pid, Props);
+
+        // Preflight
+        preflight.database("source");
+        preflight.database("target");
 
         // Output parameter settings
         Logging.write("info", THREAD_NAME, "Parameters: ");
@@ -324,25 +326,29 @@ public class pgCompare {
     //
     private static void printSummary(int tablesProcessed, JSONArray runResult, long startStopWatch) {
         Logging.write("info", "main", String.format("Processed %s tables",tablesProcessed));
-        long endStopWatch = System.currentTimeMillis();
-        long totalRows = 0;
-        long outOfSyncRows = 0;
-        DecimalFormat df = new DecimalFormat("###,###,###,###,###");
+        if ( tablesProcessed > 0 ) {
+            long endStopWatch = System.currentTimeMillis();
+            long totalRows = 0;
+            long outOfSyncRows = 0;
+            DecimalFormat df = new DecimalFormat("###,###,###,###,###");
 
-        for (int i = 0; i < runResult.length(); i++) {
-            JSONObject result = runResult.getJSONObject(i);
-            totalRows += result.getInt("equal") + result.getInt("notEqual") + result.getInt("missingSource") + result.getInt("missingTarget");
-            outOfSyncRows += result.getInt("notEqual") + result.getInt("missingSource") + result.getInt("missingTarget");
-            String msgFormat = "Table Summary: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
-            Logging.write("info", "main", String.format(msgFormat, result.getString("tableName"),
-                    result.getString("compareStatus"), df.format(result.getInt("equal")),
-                    df.format(result.getInt("notEqual")), df.format(result.getInt("missingSource")),
-                    df.format(result.getInt("missingTarget"))));
+            for (int i = 0; i < runResult.length(); i++) {
+                JSONObject result = runResult.getJSONObject(i);
+                totalRows += result.getInt("equal") + result.getInt("notEqual") + result.getInt("missingSource") + result.getInt("missingTarget");
+                outOfSyncRows += result.getInt("notEqual") + result.getInt("missingSource") + result.getInt("missingTarget");
+                String msgFormat = "Table Summary: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
+                Logging.write("info", "main", String.format(msgFormat, result.getString("tableName"),
+                        result.getString("compareStatus"), df.format(result.getInt("equal")),
+                        df.format(result.getInt("notEqual")), df.format(result.getInt("missingSource")),
+                        df.format(result.getInt("missingTarget"))));
+            }
+
+            String msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
+            Logging.write("info", "main", String.format(msgFormat, df.format((endStopWatch - startStopWatch) / 1000),
+                    df.format(totalRows), df.format(outOfSyncRows), df.format(totalRows / ((endStopWatch - startStopWatch) / 1000))));
+        } else {
+            Logging.write("warning", THREAD_NAME,"No tables were processed.  Need to do discovery? Used correct batch nbr?");
         }
-
-        String msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
-        Logging.write("info", "main", String.format(msgFormat, df.format((endStopWatch - startStopWatch) / 1000),
-                df.format(totalRows), df.format(outOfSyncRows), df.format(totalRows / ((endStopWatch - startStopWatch) / 1000))));
     }
 
 
