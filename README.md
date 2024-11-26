@@ -251,7 +251,6 @@ The system contains default values for every parameter.  These can be over-ridde
 - Environment variables
 - Settings stored in `dc_project` table
 
-
 # License
 
 **pgCompare** is licensed under the [Apache 2.0 license](LICENSE.md).

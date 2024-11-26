@@ -23,7 +23,7 @@ function _kill() {
 
 if [ "$PGCOMPARE_OPTIONS" == "" ];
 then
-   export PGCOMPARE_OPTIONS="--batch 0"
+   export PGCOMPARE_OPTIONS="--batch 0 --project 1"
 fi
 
 java -jar /opt/pgcompare/pgcompare.jar $PGCOMPARE_OPTIONS

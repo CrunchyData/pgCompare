@@ -84,7 +84,9 @@ public class pgCompare {
         }
 
         // Load Properties from Project (dc_project)
-        setProjectConfig(connRepo, pid, Props);
+        if ( !action.equals("init") ) {
+            setProjectConfig(connRepo, pid, Props);
+        }
 
         // Preflight
         preflight.database("source");
