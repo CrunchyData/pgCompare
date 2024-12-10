@@ -11,7 +11,13 @@ Create a `pgcompare.properties` file as outlined in the project README file.  Th
 ```shell
 docker run --name pgcompare \
            -v /Users/bpace/app/gitecto/db-projects/pgCompare-Test/pgcompare.properties:/etc/pgcompare/pgcompare.properties \
-           -e PGCOMPARE_OPTIONS="--batch 0 --project 6" \
+           -e PGCOMPARE_OPTIONS="--batch 0 --project 1" \
            cbrianpace/pgcompare:v0.3.1
+
+podman run --name pgcompare \
+           -v /Users/bpace/app/gitecto/db-projects/pgCompare-Test/pgcompare.properties:/etc/pgcompare/pgcompare.properties \
+           -e PGCOMPARE_OPTIONS="--batch 0 --project 1" \
+           cbrianpace/pgcompare:v0.3.1
+
 ```
 
