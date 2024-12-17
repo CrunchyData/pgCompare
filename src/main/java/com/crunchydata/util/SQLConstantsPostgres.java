@@ -37,7 +37,7 @@ public interface SQLConstantsPostgres {
                 """;
 
     String SQL_POSTGRES_SELECT_TABLES = """
-                SELECT table_schema owner, table_name
+                SELECT table_schema as owner, table_name
                 FROM  information_schema.tables
                 WHERE lower(table_schema)=lower(?)
                       AND table_type != 'VIEW'
