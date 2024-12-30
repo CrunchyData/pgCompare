@@ -27,6 +27,7 @@ import java.util.Arrays;
 
 import static com.crunchydata.services.dbDB2.columnValueMapDB2;
 import static com.crunchydata.services.dbMSSQL.columnValueMapMSSQL;
+import static com.crunchydata.services.dbMariaDB.columnValueMapMariaDB;
 import static com.crunchydata.services.dbMySQL.columnValueMapMySQL;
 import static com.crunchydata.services.dbOracle.columnValueMapOracle;
 import static com.crunchydata.services.dbPostgres.columnValueMapPostgres;
@@ -34,6 +35,7 @@ import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
+import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
@@ -52,18 +54,18 @@ public class ColumnUtility {
     /**
      * Array of data types classified as boolean.
      */
-    public static String[] booleanTypes = new String[]{"bool", "boolean"};
+    public static final String[] booleanTypes = new String[]{"bool", "boolean"};
 
     /**
      * Array of data types classified as character.
      */
-    public static String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "json", "jsonb", "nchar", "nclob",
+    public static final String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "json", "jsonb", "nchar", "nclob",
             "ntext", "nvarchar", "nvarchar2", "text", "varchar", "varchar2", "xml"};
 
     /**
      * Array of data types classified as numeric.
      */
-    public static String[] numericTypes = new String[]{"bigint", "bigserial", "binary_double", "binary_float", "dec",
+    public static final String[] numericTypes = new String[]{"bigint", "bigserial", "binary_double", "binary_float", "dec",
             "decimal", "double", "double precision", "fixed", "float", "float4", "float8", "int", "integer", "int2",
             "int4", "int8", "money", "number", "numeric", "real", "serial", "smallint", "smallmoney", "smallserial",
             "tinyint"};
@@ -71,7 +73,7 @@ public class ColumnUtility {
     /**
      * Array of data types classified as timestamp.
      */
-    public static String[] timestampTypes = new String[]{"date", "datetime", "datetimeoffset", "datetime2",
+    public static final String[] timestampTypes = new String[]{"date", "datetime", "datetimeoffset", "datetime2",
             "smalldatetime", "time", "timestamp", "timestamptz", "timestamp(0)", "timestamp(1) with time zone",
             "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone",
             "timestamp(9)", "timestamp(9) with time zone", "year"};
@@ -79,18 +81,18 @@ public class ColumnUtility {
     /**
      * Array of data types classified as binary.
      */
-    public static String[] binaryTypes = new String[]{"bytea", "binary", "blob", "raw", "varbinary"};
+    public static final String[] binaryTypes = new String[]{"bytea", "binary", "blob", "raw", "varbinary"};
 
     /**
      * Array of unsupported data types.
      */
-    public static String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "enum", "hierarchyid",
+    public static final String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "enum", "hierarchyid",
             "image", "rowid", "rowversion", "set", "sql_variant", "uniqueidentifier", "long", "long raw"};
 
     /**
      * Array of reserved words
      */
-    public static String[] reservedWords = new String[]{"add", "all", "alter", "and", "any", "as", "asc", "at", "authid", "between", "by",
+    public static final String[] reservedWords = new String[]{"add", "all", "alter", "and", "any", "as", "asc", "at", "authid", "between", "by",
                                                         "character", "check", "cluster", "column", "comment", "connect", "constraint", "continue",
                                                         "create", "cross", "current", "current_user", "cursor", "database", "date", "default",
                                                         "delete", "desc", "distinct", "double", "else", "end", "except", "exception", "exists",
@@ -116,6 +118,7 @@ public class ColumnUtility {
         JSONArray columnInfo = new JSONArray();
         String nativeCase = switch (Props.getProperty(destRole + "-type")) {
             case "oracle" -> dbOracle.nativeCase;
+            case "mariadb" -> dbMariaDB.nativeCase;
             case "mysql" -> dbMySQL.nativeCase;
             case "mssql" -> dbMSSQL.nativeCase;
             case "db2" -> dbDB2.nativeCase;
@@ -123,6 +126,7 @@ public class ColumnUtility {
         };
         String columnSQL = switch (Props.getProperty(destRole + "-type")) {
             case "oracle" -> SQL_ORACLE_SELECT_COLUMNS;
+            case "mariadb" -> SQL_MARIADB_SELECT_COLUMNS;
             case "mysql" -> SQL_MYSQL_SELECT_COLUMNS;
             case "mssql" -> SQL_MSSQL_SELECT_COLUMNS;
             case "db2" -> SQL_DB2_SELECT_COLUMNS;
@@ -156,6 +160,7 @@ public class ColumnUtility {
 
                         String valueExpression = switch (Props.getProperty(destRole + "-type")) {
                             case "oracle" -> columnValueMapOracle(column);
+                            case "mariadb" -> columnValueMapMariaDB(column);
                             case "mysql" -> columnValueMapMySQL(column);
                             case "mssql" -> columnValueMapMSSQL(column);
                             case "db2" -> columnValueMapDB2(column);

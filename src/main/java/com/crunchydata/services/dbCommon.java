@@ -43,7 +43,7 @@ public class dbCommon {
      *
      * @param conn The database Connection object to use for executing the query.
      * @param schema The schema owner of the tables.
-     * @param sql The SQL query to retreive database version.
+     * @param sql The SQL query to retrieve database version.
      * @return A JSONArray of table lists.
      */
     public static JSONArray getTables (Connection conn, String schema, String sql) {
@@ -74,7 +74,7 @@ public class dbCommon {
      * Utility method to execute a provided SQL query and return the database version.
      *
      * @param conn The database Connection object to use for executing the query.
-     * @param sql The SQL query to retreive database version.
+     * @param sql The SQL query to retrieve database version.
      * @return A String containing the results of the query column version.
      */
     public static String getVersion (Connection conn, String sql) {
@@ -149,7 +149,7 @@ public class dbCommon {
      * Utility method to execute a parameterized SQL query and return a single Integer.
      *
      * <p>This method prepares a PreparedStatement with the provided SQL query and binds parameters
-     * from the given ArrayList. It then executes the query, extracts the the first row and first
+     * from the given ArrayList. It then executes the query, extracts the first row and first
      * column and returns the value.</p>
      *
      * <p>If any exception occurs during the execution, a severe-level log message is written
@@ -197,7 +197,7 @@ public class dbCommon {
      * Utility method to execute a parameterized SQL query and return a single Integer.
      *
      * <p>This method prepares a PreparedStatement with the provided SQL query and binds parameters
-     * from the given ArrayList. It then executes the query, extracts the the first row and first
+     * from the given ArrayList. It then executes the query, extracts the first row and first
      * column and returns the value.</p>
      *
      * <p>If any exception occurs during the execution, a severe-level log message is written
@@ -257,7 +257,7 @@ public class dbCommon {
      * @return Integer containing the number of rows impacted by the query.
      */
     public static Integer simpleUpdate(Connection conn, String sql, ArrayList<Object> binds, Boolean commit) {
-        int cnt = -1;
+        int cnt;
 
         try {
             // Prepare the PreparedStatement with the provided SQL query

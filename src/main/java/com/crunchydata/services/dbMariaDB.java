@@ -32,11 +32,11 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.Settings.Props;
 
 /**
- * Utility class for interacting with MySQL databases.
+ * Utility class for interacting with MariaDB databases.
  * This class provides methods for database connection, SQL query generation,
  * column information retrieval, and data type mapping.
  * <p>
- *     MySQL Data Types
+ *     MariaDB Data Types
  *         Date/Time: date, datetime, timestamp, time, year
  *         Numeric: integer, smallint, decimal, numeric, float, real, double, int, dec, fixed
  *         String: char, varchar, text, json
@@ -44,13 +44,13 @@ import static com.crunchydata.util.Settings.Props;
  *
  * @author Brian Pace
  */
-public class dbMySQL {
+public class dbMariaDB {
     public static final String nativeCase = "lower";
 
-    private static final String THREAD_NAME = "dbMySQL";
+    private static final String THREAD_NAME = "dbMariaDB";
 
     /**
-     * Builds a SQL query for loading data from a MySQL table.
+     * Builds a SQL query for loading data from a MariaDB table.
      *
      * @param useDatabaseHash Whether to use MD5 hash for database columns.
      * @return SQL query string for loading data from the specified table.
@@ -72,12 +72,12 @@ public class dbMySQL {
     }
 
     /**
-     * Generates a column value expression for MySQL based on the column's data type.
+     * Generates a column value expression for MariaDB based on the column's data type.
      *
      * @param column JSONObject containing column information.
      * @return String representing the column value expression.
      */
-    public static String columnValueMapMySQL(JSONObject column) {
+    public static String columnValueMapMariaDB(JSONObject column) {
         String colExpression;
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
@@ -115,11 +115,11 @@ public class dbMySQL {
     }
 
     /**
-     * Establishes a connection to a MySQL database using the provided connection properties.
+     * Establishes a connection to a MariaDB database using the provided connection properties.
      *
      * @param connectionProperties Properties containing database connection information.
      * @param destType             Type of destination (e.g., source, target).
-     * @return Connection object to MySQL database.
+     * @return Connection object to MariaDB database.
      */
     public static Connection getConnection(Properties connectionProperties, String destType) {
         Connection conn = null;
@@ -133,7 +133,7 @@ public class dbMySQL {
             conn = DriverManager.getConnection(url,dbProps);
             dbCommon.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error connecting to MySQL:  %s", e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error connecting to MariaDB:  %s", e.getMessage()));
         }
 
         return conn;

@@ -47,15 +47,15 @@ import static com.crunchydata.util.Settings.Props;
  */
 public class threadReconcileObserver extends Thread  {
 
-    private Integer tid;
-    private String tableAlias;
-    private Integer cid;
-    private Integer threadNbr;
-    private Integer batchNbr;
-    private String stagingTableSource;
-    private String stagingTableTarget;
+    private final Integer tid;
+    private final String tableAlias;
+    private final Integer cid;
+    private final Integer threadNbr;
+    private final Integer batchNbr;
+    private final String stagingTableSource;
+    private final String stagingTableTarget;
     private ThreadSync ts;
-    private static Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
+    private static final Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
 
 
     /**

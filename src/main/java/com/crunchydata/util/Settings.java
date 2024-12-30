@@ -160,13 +160,11 @@ public class Settings {
     /**
      * Applies properties that are stored in the dc_project table.
      *
-     * @param conn  Connection to the repository database.
-     * @param pid   Project ID.
+     * @param conn Connection to the repository database.
+     * @param pid  Project ID.
      * @param prop the {@code Properties} object to which environment variables are applied
-     *
-     * @return the updated {@code Properties} object with environment variables applied
      */
-    public static Properties setProjectConfig (Connection conn, Integer pid, Properties prop) {
+    public static void setProjectConfig (Connection conn, Integer pid, Properties prop) {
 
         JSONObject projectConfig = new JSONObject(RepoController.getProjectConfig(conn, pid));
 
@@ -183,8 +181,6 @@ public class Settings {
 
             }
         }
-
-        return prop;
 
     }
 

@@ -15,6 +15,7 @@ import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsRepo.*;
@@ -35,7 +36,7 @@ public class TableController {
      */
     public static void discoverTables (Integer pid, Connection connRepo, Connection connSource, Connection connTarget, String sourceSchema, String targetSchema) {
 
-        ArrayList binds = new ArrayList<>();
+        ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,pid);
 
         // Clean previous Discovery
@@ -66,7 +67,7 @@ public class TableController {
     }
 
     public static DCTableMap getTableMap (Connection conn, Integer tid, String tableOrigin) {
-        ArrayList binds = new ArrayList();
+        ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,tid);
         binds.add(1,tableOrigin);
 
@@ -88,7 +89,7 @@ public class TableController {
                 result.setTablePreserveCase(crs.getBoolean("table_preserve_case"));
             }
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error retreiving table mapping for tid %d:  %s", tid, e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error retrieving table mapping for tid %d:  %s", tid, e.getMessage()));
             return result;
         }
 
@@ -98,6 +99,7 @@ public class TableController {
     public static JSONArray getDatabaseTables (String databasePlatform, Connection conn, String schema) {
         return switch (databasePlatform) {
             case "oracle" -> dbCommon.getTables(conn, schema, SQL_ORACLE_SELECT_TABLES);
+            case "mariadb" -> dbCommon.getTables(conn, schema, SQL_MARIADB_SELECT_TABLES);
             case "mysql" -> dbCommon.getTables(conn, schema, SQL_MYSQL_SELECT_TABLES);
             case "mssql" -> dbCommon.getTables(conn, schema, SQL_MSSQL_SELECT_TABLES);
             case "db2" -> dbCommon.getTables(conn, schema, SQL_DB2_SELECT_TABLES);
@@ -139,7 +141,7 @@ public class TableController {
                 if ( populateDCTable ) {
                     dct = RepoController.saveTable(connRepo, dct);
                 } else {
-                    Logging.write("warning", THREAD_NAME, String.format("Skpping table since no table alias found for %s", tableName));
+                    Logging.write("warning", THREAD_NAME, String.format("Skipping table since no table alias found for %s", tableName));
                 }
             } else {
                 dct.setTid(tid);

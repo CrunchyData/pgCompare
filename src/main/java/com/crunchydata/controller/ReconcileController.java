@@ -48,7 +48,7 @@ public class ReconcileController {
 
     private static final String THREAD_NAME = "ReconcileController";
 
-    private static RepoController rpc = new RepoController();
+    private static final RepoController rpc = new RepoController();
 
     private static ThreadSync ts = new ThreadSync();
 
@@ -58,7 +58,7 @@ public class ReconcileController {
 
     private static BlockingQueue<DataCompare[]> qs;
     private static BlockingQueue<DataCompare[]> qt;
-    private static Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
+    private static final Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
 
     /**
      * Reconciles data between source and target databases.
@@ -96,13 +96,12 @@ public class ReconcileController {
 
         try {
             // Get Column Info and Mapping
-            binds.clear();
             binds.add(0, dct.getTid());
             String columnMapping = dbCommon.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
 
 
             // Preflight checks
-            if ( ! reconcilePreflight(connRepo, connSource, connTarget, rid, check, dct, dctmSource, dctmTarget, columnMapping)) {
+            if ( ! reconcilePreflight(dct, dctmSource, dctmTarget, columnMapping)) {
                 result.put("status", "failed");
                 result.put("compareStatus", "failed");
                 return result;
@@ -126,6 +125,7 @@ public class ReconcileController {
             dctmSource.setCompareSQL(switch (Props.getProperty("source-type")) {
                 case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
+                case "mariadb" -> dbMariaDB.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
                 case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
@@ -135,6 +135,7 @@ public class ReconcileController {
             dctmTarget.setCompareSQL(switch (Props.getProperty("target-type")) {
                 case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "mariadb" -> dbMariaDB.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
@@ -273,7 +274,7 @@ public class ReconcileController {
         return result;
     }
 
-    private static Boolean reconcilePreflight(Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, String columnMapping) {
+    private static Boolean reconcilePreflight(DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, String columnMapping) {
         // Ensure target and source have mod_column if parallel_degree > 1
         if ( dct.getParallelDegree() > 1 && dctmSource.getModColumn().isEmpty() && dctmTarget.getModColumn().isEmpty() ) {
             Logging.write("severe",THREAD_NAME, String.format("Parallel degree is greater than 1 for table %s, but no value specified for mod_column on source and/or target.",dct.getTableAlias()));

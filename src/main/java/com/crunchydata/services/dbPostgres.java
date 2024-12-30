@@ -18,8 +18,6 @@ package com.crunchydata.services;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -27,13 +25,10 @@ import com.crunchydata.models.ColumnMetadata;
 import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import static com.crunchydata.util.ColumnUtility.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
 
 /**
