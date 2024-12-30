@@ -12,7 +12,6 @@ import java.util.ArrayList;
 
 import static com.crunchydata.util.ColumnUtility.getColumns;
 import static com.crunchydata.util.DataUtility.*;
-import static com.crunchydata.util.JsonUtility.findOne;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 import static com.crunchydata.util.Settings.Props;
 
@@ -119,64 +118,8 @@ public class ColumnController {
     }
 
 
-    /**
-     * Retrieves column details for a given table and maps the columns.
-     *
-     * @param destRole  The target type of columns
-     * @param platform    The database platform (e.g., "oracle", "mysql")
-     * @param conn        The database connection
-     * @param schema      The schema of the table
-     * @param table       The name of the table
-     * @param columnData  JSON object containing column data
-     * @return            A JSON object with updated column mappings
-     */
-    public static JSONObject createColumnMap(String destRole, String platform, Connection conn, String schema, String table, JSONObject columnData) {
-        Logging.write("info", THREAD_NAME, String.format("Getting columns for table %s.%s",schema,table));
-
-        JSONArray colExpression = getColumns(conn, schema, table, destRole);
-
-        JSONArray columns = columnData.optJSONArray("columns") != null ? columnData.getJSONArray("columns") : new JSONArray();
-
-        if ( columnData.has("columns") ) {
-            columns = columnData.getJSONArray("columns");
-        }
-
-
-        for (int i = 0; i < colExpression.length(); i++) {
-            JSONObject columnDetail = new JSONObject();
-            JSONObject findColumn = findOne(columns, "alias", colExpression.getJSONObject(i).getString("columnName").toLowerCase());
-
-            int columnPosition = findColumn.getInt("count") == 0 ? -1 : findColumn.getInt("location");
-
-            if (columnPosition == -1) {
-                columnDetail.put("alias", colExpression.getJSONObject(i).getString("columnName").toLowerCase());
-                columnDetail.put("status", "compare");
-            } else {
-                columnDetail = findColumn.getJSONObject("data");
-            }
-
-            if (!colExpression.getJSONObject(i).getBoolean("supported")) {
-                columnDetail.put("status", "ignore");
-            }
-
-            columnDetail.put(destRole, colExpression.getJSONObject(i));
-
-            if (columnPosition == -1) {
-                columns.put(columnDetail);
-            } else {
-                columns.put(columnPosition, columnDetail);
-            }
-        }
-
-        columnData.put("columns", columns);
-
-        return columnData;
-
-    }
-
-
     public static void discoverColumns(Integer pid, Connection connRepo, Connection connSource, Connection connTarget) {
-        ArrayList binds = new ArrayList();
+        ArrayList<Object> binds = new ArrayList<>();
 
         binds.add(0, pid);
         // Clear out Previous Mappings
@@ -251,7 +194,7 @@ public class ColumnController {
                 if ( populateDCTableColumn ) {
                     dtc = RepoController.saveTableColumn(connRepo, dtc);
                 } else {
-                    Logging.write("warning", THREAD_NAME, String.format("Skpping column since no column alias found for %s on table %s.", columnName, tableName));
+                    Logging.write("warning", THREAD_NAME, String.format("Skipping column since no column alias found for %s on table %s.", columnName, tableName));
                 }
             } else {
                 dtc.setColumnID(cid);

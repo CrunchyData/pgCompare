@@ -20,20 +20,15 @@ package com.crunchydata.services;
 import com.crunchydata.models.ColumnMetadata;
 import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.Properties;
 
 import static com.crunchydata.util.ColumnUtility.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -146,9 +141,8 @@ public class dbDB2 {
      * @return String object with column expression.
      */
     public static String scientificNotation(String columnName) {
-        String sqlFunction = "";
 
-        sqlFunction = String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
+        String sqlFunction = String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
 
         return sqlFunction;
     }

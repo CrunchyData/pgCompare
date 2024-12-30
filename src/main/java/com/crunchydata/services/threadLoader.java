@@ -41,11 +41,11 @@ import static com.crunchydata.util.Settings.Props;
  */
 public class threadLoader extends Thread  {
     private BlockingQueue<DataCompare[]> q;
-    private Integer instanceNumber;
-    private String stagingTable;
-    private String targetType;
-    private Integer threadNumber;
-    private ThreadSync ts;
+    private final Integer instanceNumber;
+    private final String stagingTable;
+    private final String targetType;
+    private final Integer threadNumber;
+    private final ThreadSync ts;
 
     /**
      * Constructor for initializing a dbLoader instance.

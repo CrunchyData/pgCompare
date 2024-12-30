@@ -39,20 +39,20 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class threadReconcile extends Thread {
-    private Integer tid;
-    private Integer batchNbr;
-    private Integer cid;
-    private String modColumn;
-    private Integer nbrColumns;
-    private Integer parallelDegree;
-    private String pkList;
+    private final Integer tid;
+    private final Integer batchNbr;
+    private final Integer cid;
+    private final String modColumn;
+    private final Integer nbrColumns;
+    private final Integer parallelDegree;
+    private final String pkList;
     private BlockingQueue<DataCompare[]> q;
     private String sql;
-    private String stagingTable;
-    private String targetType;
-    private Integer threadNumber;
-    private ThreadSync ts;
-    private Boolean useDatabaseHash;
+    private final String stagingTable;
+    private final String targetType;
+    private final Integer threadNumber;
+    private final ThreadSync ts;
+    private final Boolean useDatabaseHash;
 
     public threadReconcile(Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;

@@ -6,12 +6,12 @@ Before submitting an enhancement or fix, the tests outline in this guide must be
 
 ## Test Data
 
-As part of the Data Validation Tool project (https://github.com/GoogleCloudPlatform/professional-services-data-validator), the Google Database Blackbelt Team has created a great sample set of tables and data to test any data compare tool with.  These tables are recommended, but not required, for use in testing any pull requests.
+As part of the Data Validation Tool project (https://github.com/GoogleCloudPlatform/professional-services-data-validator), the Google Database Black belt Team has created a great sample set of tables and data to test any data compare tool with.  These tables are recommended, but not required, for use in testing any pull requests.
 
 Evidence, summary of compare output vs expectations, should be included in any pull request.  The sample data used must include all core types (character, number, timestamp, etc.).  In addition, the test must be performed on two different database platforms.
 
 ## Test Plan
-Deploy the sample data under the database directory to the approriate database or use the DVT sample data.
+Deploy the sample data under the database directory to the appropriate database or use the DVT sample data.
 
 ### Test 1:  Initialize Database
     pgcompare --init

@@ -190,7 +190,7 @@ public class pgCompare {
         String sourceSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
         String targetSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
 
-        Logging.write("info", THREAD_NAME, "Performaning table discovery");
+        Logging.write("info", THREAD_NAME, "Performing table discovery");
 
         // Discover Tables
         TableController.discoverTables(pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
@@ -347,12 +347,13 @@ public class pgCompare {
             }
 
             String msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
-            long elapsedTime = (endStopWatch - startStopWatch) == 0 ? 1 : (endStopWatch - startStopWatch)/1000;
+            long elapsedTime = ((endStopWatch - startStopWatch)/1000) == 0 ? 1 : (endStopWatch - startStopWatch)/1000;
 
             Logging.write("info", "main", String.format(msgFormat, df.format((endStopWatch - startStopWatch) / 1000),
                     df.format(totalRows), df.format(outOfSyncRows), df.format(totalRows / elapsedTime)));
         } else {
-            Logging.write("warning", THREAD_NAME,"No tables were processed.  Need to do discovery? Used correct batch nbr?");
+            String msg = (check) ? "No out of sync records found" : "No tables were processed.  Need to do discovery? Used correct batch nbr?";
+            Logging.write("warning", THREAD_NAME, msg);
         }
     }
 
@@ -367,7 +368,7 @@ public class pgCompare {
         System.out.println("   -c|--check Check out of sync rows");
         System.out.println("   -d|--discovery <schema> Discover tables in database");
         System.out.println("   -m|--maponly Only perform column mapping");
-        System.out.println("   -p|--project Projrect ID");
+        System.out.println("   -p|--project Project ID");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");
         System.out.println();

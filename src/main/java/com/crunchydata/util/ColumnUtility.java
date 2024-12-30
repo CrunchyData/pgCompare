@@ -54,18 +54,18 @@ public class ColumnUtility {
     /**
      * Array of data types classified as boolean.
      */
-    public static String[] booleanTypes = new String[]{"bool", "boolean"};
+    public static final String[] booleanTypes = new String[]{"bool", "boolean"};
 
     /**
      * Array of data types classified as character.
      */
-    public static String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "json", "jsonb", "nchar", "nclob",
+    public static final String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "json", "jsonb", "nchar", "nclob",
             "ntext", "nvarchar", "nvarchar2", "text", "varchar", "varchar2", "xml"};
 
     /**
      * Array of data types classified as numeric.
      */
-    public static String[] numericTypes = new String[]{"bigint", "bigserial", "binary_double", "binary_float", "dec",
+    public static final String[] numericTypes = new String[]{"bigint", "bigserial", "binary_double", "binary_float", "dec",
             "decimal", "double", "double precision", "fixed", "float", "float4", "float8", "int", "integer", "int2",
             "int4", "int8", "money", "number", "numeric", "real", "serial", "smallint", "smallmoney", "smallserial",
             "tinyint"};
@@ -73,7 +73,7 @@ public class ColumnUtility {
     /**
      * Array of data types classified as timestamp.
      */
-    public static String[] timestampTypes = new String[]{"date", "datetime", "datetimeoffset", "datetime2",
+    public static final String[] timestampTypes = new String[]{"date", "datetime", "datetimeoffset", "datetime2",
             "smalldatetime", "time", "timestamp", "timestamptz", "timestamp(0)", "timestamp(1) with time zone",
             "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone",
             "timestamp(9)", "timestamp(9) with time zone", "year"};
@@ -81,18 +81,18 @@ public class ColumnUtility {
     /**
      * Array of data types classified as binary.
      */
-    public static String[] binaryTypes = new String[]{"bytea", "binary", "blob", "raw", "varbinary"};
+    public static final String[] binaryTypes = new String[]{"bytea", "binary", "blob", "raw", "varbinary"};
 
     /**
      * Array of unsupported data types.
      */
-    public static String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "enum", "hierarchyid",
+    public static final String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "enum", "hierarchyid",
             "image", "rowid", "rowversion", "set", "sql_variant", "uniqueidentifier", "long", "long raw"};
 
     /**
      * Array of reserved words
      */
-    public static String[] reservedWords = new String[]{"add", "all", "alter", "and", "any", "as", "asc", "at", "authid", "between", "by",
+    public static final String[] reservedWords = new String[]{"add", "all", "alter", "and", "any", "as", "asc", "at", "authid", "between", "by",
                                                         "character", "check", "cluster", "column", "comment", "connect", "constraint", "continue",
                                                         "create", "cross", "current", "current_user", "cursor", "database", "date", "default",
                                                         "delete", "desc", "distinct", "double", "else", "end", "except", "exception", "exists",
