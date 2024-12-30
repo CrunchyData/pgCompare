@@ -11,7 +11,7 @@
 **pgCompare** is a Java-based tool for validating data consistency after replication or migration between databases. It's designed for scenarios like:
 
 
-- **Data migration from Oracle/DB2/MySQL/MSSQL to Postgres:**  Compare data during or post-migration.
+- **Data migration from Oracle/DB2/MariaDB/MySQL/MSSQL to Postgres:**  Compare data during or post-migration.
 
 - **Logical replication between same or different database platforms:** Validate data across platforms while minimizing database overhead.
 
@@ -23,7 +23,7 @@ This open-source project is maintained by **Crunchy Data** under the **Apache 2.
 
 # Features
 
-- Supports Oracle, PostgreSQL, DB2, MySQL, and MSSQL.
+- Supports Oracle, PostgreSQL, DB2, MariaDB, MySQL, and MSSQL.
 - Efficient parallel comparisons using hashing.
 - Handles batch processing for performance tuning.
 - Stores configurations for multiple comparison projects in a central repository.
