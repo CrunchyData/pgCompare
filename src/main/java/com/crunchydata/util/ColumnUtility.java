@@ -27,6 +27,7 @@ import java.util.Arrays;
 
 import static com.crunchydata.services.dbDB2.columnValueMapDB2;
 import static com.crunchydata.services.dbMSSQL.columnValueMapMSSQL;
+import static com.crunchydata.services.dbMariaDB.columnValueMapMariaDB;
 import static com.crunchydata.services.dbMySQL.columnValueMapMySQL;
 import static com.crunchydata.services.dbOracle.columnValueMapOracle;
 import static com.crunchydata.services.dbPostgres.columnValueMapPostgres;
@@ -34,6 +35,7 @@ import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
+import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.Settings.Props;
@@ -116,6 +118,7 @@ public class ColumnUtility {
         JSONArray columnInfo = new JSONArray();
         String nativeCase = switch (Props.getProperty(destRole + "-type")) {
             case "oracle" -> dbOracle.nativeCase;
+            case "mariadb" -> dbMariaDB.nativeCase;
             case "mysql" -> dbMySQL.nativeCase;
             case "mssql" -> dbMSSQL.nativeCase;
             case "db2" -> dbDB2.nativeCase;
@@ -123,6 +126,7 @@ public class ColumnUtility {
         };
         String columnSQL = switch (Props.getProperty(destRole + "-type")) {
             case "oracle" -> SQL_ORACLE_SELECT_COLUMNS;
+            case "mariadb" -> SQL_MARIADB_SELECT_COLUMNS;
             case "mysql" -> SQL_MYSQL_SELECT_COLUMNS;
             case "mssql" -> SQL_MSSQL_SELECT_COLUMNS;
             case "db2" -> SQL_DB2_SELECT_COLUMNS;
@@ -156,6 +160,7 @@ public class ColumnUtility {
 
                         String valueExpression = switch (Props.getProperty(destRole + "-type")) {
                             case "oracle" -> columnValueMapOracle(column);
+                            case "mariadb" -> columnValueMapMariaDB(column);
                             case "mysql" -> columnValueMapMySQL(column);
                             case "mssql" -> columnValueMapMSSQL(column);
                             case "db2" -> columnValueMapDB2(column);

@@ -175,6 +175,7 @@ public class pgCompare {
     private static Connection getDatabaseConnection(String dbType, String destType) {
         return switch (dbType) {
             case "oracle" -> dbOracle.getConnection(Props, destType);
+            case "mariadb" -> dbMariaDB.getConnection(Props, destType);
             case "mysql" -> dbMySQL.getConnection(Props, destType);
             case "mssql" -> dbMSSQL.getConnection(Props, destType);
             case "db2" -> dbDB2.getConnection(Props, destType);
@@ -346,8 +347,10 @@ public class pgCompare {
             }
 
             String msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
+            long elapsedTime = (endStopWatch - startStopWatch) == 0 ? 1 : (endStopWatch - startStopWatch)/1000;
+
             Logging.write("info", "main", String.format(msgFormat, df.format((endStopWatch - startStopWatch) / 1000),
-                    df.format(totalRows), df.format(outOfSyncRows), df.format(totalRows / ((endStopWatch - startStopWatch) / 1000))));
+                    df.format(totalRows), df.format(outOfSyncRows), df.format(totalRows / elapsedTime)));
         } else {
             Logging.write("warning", THREAD_NAME,"No tables were processed.  Need to do discovery? Used correct batch nbr?");
         }

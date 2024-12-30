@@ -108,6 +108,9 @@ public class threadReconcile extends Thread {
                 case "oracle":
                     conn = dbOracle.getConnection(Props,targetType);
                     break;
+                case "mariadb":
+                    conn = dbMariaDB.getConnection(Props,targetType);
+                    break;
                 case "mysql":
                     conn = dbMySQL.getConnection(Props,targetType);
                     break;

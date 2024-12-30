@@ -108,6 +108,12 @@ public class ColumnController {
             Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list:  %s",e.getMessage()));
         }
 
+        // Using the concat operator causes issues for mariadb.  Have to convert from using operator (||)
+        // to using concat function.
+        if ( platform.equals("mariadb")) {
+            pkJSON = new StringBuilder("concat(" + pkJSON.toString().replace("||",",") + ")");
+        }
+
         return new ColumnMetadata(columnList.toString(), nbrColumns, nbrPKColumns, column.toString(), pk.toString(), pkList.toString(), pkJSON.toString());
 
     }

@@ -34,6 +34,10 @@ public class preflight {
 
                 break;
 
+            case "mariadb":
+                // No restrictions
+                break;
+
             case "mysql":
                 // No restrictions
                 break;
