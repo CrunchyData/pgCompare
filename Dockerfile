@@ -14,12 +14,21 @@
 # Pull base image
 # ---------------
 ARG VERSION=v0.3.2
-ARG PLATFORM=arm64
-ARG BASE_REGISTRY=registry.redhat.io/ubi8
+ARG MAVEN_VERSION=3.9.9
+ARG BASE_REGISTRY=registry.access.redhat.com/ubi8
 ARG BASE_IMAGE=ubi-minimal
+ARG JAVA_OPT="-XX:UseSVE=0"
 
-## Local Platform Build
-FROM --platform=${PLATFORM} ${BASE_REGISTRY}/${BASE_IMAGE} as local
+FROM docker.io/library/maven:${MAVEN_VERSION} AS builder
+LABEL stage=pgcomparebuilder
+
+WORKDIR /app
+COPY . ./
+
+RUN mvn clean install
+
+
+FROM ${BASE_REGISTRY}/${BASE_IMAGE} as multi-stage
 
 RUN microdnf install java-21-openjdk -y
 
@@ -28,11 +37,11 @@ USER 0
 RUN mkdir /opt/pgcompare \
     && chown -R 1001:1001 /opt/pgcompare
 
-COPY docker/start.sh /opt/pgcompare/
+COPY --from=builder /app/docker/start.sh /opt/pgcompare
 
-COPY docker/pgcompare.properties /etc/pgcompare/
+COPY --from=builder /app/docker/pgcompare.properties /etc/pgcompare/
 
-COPY target/* /opt/pgcompare/
+COPY --from=builder /app/target/* /opt/pgcompare/
 
 RUN chmod 770 /opt/pgcompare/start.sh
 
@@ -41,7 +50,7 @@ USER 1001
 ENV PGCOMPARE_HOME=/opt/pgcompare \
     PGCOMPARE_CONFIG=/etc/pgcompare/pgcompare.properties \
     PATH=/opt/pgcompare:$PATH \
-    _JAVA_OPTIONS="-XX:UseSVE=0"
+    _JAVA_OPTIONS=$JAVA_OPT
 
 COPY target/ /opt/pgcompare/
 
@@ -49,9 +58,8 @@ CMD ["start.sh"]
 
 WORKDIR "/opt/pgcompare"
 
-
-## Target Platform Build
-FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} as multi-stage
+## Local Platform Build
+FROM ${BASE_REGISTRY}/${BASE_IMAGE} as local
 
 RUN microdnf install java-21-openjdk -y
 
