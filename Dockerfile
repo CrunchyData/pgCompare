@@ -29,6 +29,7 @@ RUN mvn clean install
 
 
 FROM ${BASE_REGISTRY}/${BASE_IMAGE} as multi-stage
+ARG JAVA_OPT
 
 RUN microdnf install java-21-openjdk -y
 
@@ -50,7 +51,7 @@ USER 1001
 ENV PGCOMPARE_HOME=/opt/pgcompare \
     PGCOMPARE_CONFIG=/etc/pgcompare/pgcompare.properties \
     PATH=/opt/pgcompare:$PATH \
-    _JAVA_OPTIONS=$JAVA_OPT
+    _JAVA_OPTIONS=${JAVA_OPT}
 
 COPY target/ /opt/pgcompare/
 
@@ -81,7 +82,7 @@ USER 1001
 ENV PGCOMPARE_HOME=/opt/pgcompare \
     PGCOMPARE_CONFIG=/etc/pgcompare/pgcompare.properties \
     PATH=/opt/pgcompare:$PATH \
-    _JAVA_OPTIONS="-XX:UseSVE=0"
+    _JAVA_OPTIONS=${JAVA_OPT}
 
 COPY target/ /opt/pgcompare/
 

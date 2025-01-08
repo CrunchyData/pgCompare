@@ -83,7 +83,7 @@ docker-common:  ##      Build the Docker image
             --label org.opencontainers.image.vendor="Crunchy Data" \
             -t $(CONTAINER):$(IMAGE_TAG) \
             -t $(CONTAINER):$(DATE_TAG) .
-	docker image prune --filter label=stage=featureservbuilder -f
+	docker image prune --filter label=stage=pgcomparebuilder -f
 
 run:  ##                Run the Docker container
 	@echo "Running Docker container..."
