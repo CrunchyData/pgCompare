@@ -53,8 +53,6 @@ ENV PGCOMPARE_HOME=/opt/pgcompare \
     PATH=/opt/pgcompare:$PATH \
     _JAVA_OPTIONS=${JAVA_OPT}
 
-COPY target/ /opt/pgcompare/
-
 CMD ["start.sh"]
 
 WORKDIR "/opt/pgcompare"
@@ -83,8 +81,6 @@ ENV PGCOMPARE_HOME=/opt/pgcompare \
     PGCOMPARE_CONFIG=/etc/pgcompare/pgcompare.properties \
     PATH=/opt/pgcompare:$PATH \
     _JAVA_OPTIONS=${JAVA_OPT}
-
-COPY target/ /opt/pgcompare/
 
 CMD ["start.sh"]
 
