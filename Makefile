@@ -17,9 +17,10 @@ PGCOMPARE_OPTIONS ?= "--batch 0 --project 2"
 
 CONTAINER ?= brianpace/$(PROGRAM)
 DATE ?= $(shell date +%Y%m%d)
-BASE_REGISTRY ?= registry.redhat.io/ubi8
+BASE_REGISTRY ?= registry.access.redhat.com/ubi8
 BASE_IMAGE ?= ubi-minimal
 SYSTEMARCH = $(shell uname -m)
+MAVEN_VER ?= 3.9.9
 
 ifeq ($(SYSTEMARCH), x86_64)
 TARGETARCH ?= amd64
@@ -27,6 +28,7 @@ PLATFORM=amd64
 else
 TARGETARCH ?= arm64
 PLATFORM=arm64
+JAVA_OPT="-XX:UseSVE=0"
 endif
 
 IMAGE_TAG ?= $(APPVERSION)-$(TARGETARCH)
@@ -73,13 +75,15 @@ docker-common:  ##      Build the Docker image
     		--build-arg PLATFORM=$(PLATFORM) \
     		--build-arg TARGETARCH=$(TARGETARCH) \
     		--build-arg VERSION=$(APPVERSION) \
+            --build-arg JAVA_OPT=$(JAVA_OPT) \
+            --build-arg MAVEN_VERSION=$(MAVEN_VER) \
             --label vendor="Crunchy Data" \
             --label url="https://crunchydata.com" \
             --label release="$(APPVERSION)" \
             --label org.opencontainers.image.vendor="Crunchy Data" \
             -t $(CONTAINER):$(IMAGE_TAG) \
             -t $(CONTAINER):$(DATE_TAG) .
-
+	docker image prune --filter label=stage=pgcomparebuilder -f
 
 run:  ##                Run the Docker container
 	@echo "Running Docker container..."
@@ -118,4 +122,4 @@ help:   ##               Prints this help message
 	@echo ""
 	@echo ""
 
-.PHONY: all build docker run clean status
+.PHONY: all build docker multi-stage-docker run clean status
