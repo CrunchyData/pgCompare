@@ -13,7 +13,6 @@
 #
 # Pull base image
 # ---------------
-ARG VERSION=v0.3.2
 ARG MAVEN_VERSION=3.9.9
 ARG BASE_REGISTRY=registry.access.redhat.com/ubi8
 ARG BASE_IMAGE=ubi-minimal
