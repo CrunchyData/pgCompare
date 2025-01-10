@@ -1,19 +1,23 @@
 ##AVAILABLE BUILD OPTIONS -
 ##      APPVERSION - Variable to set the version label
+##      BUILD_ID - Variable used to set the release label in the container
 ##      PROGRAM - Name of jar file, pgcompare
 ##      CONTAINER - prefix and name of the generated container
 ##      DATE - Date String used as alternate tag for generated containers
 ##      BASE_REGISTRY - This is the registry to pull the base image from
 ##      BASE_IMAGE - The base image to use for the final container
-##      TARGETARCH - The architecture the resulting image is based on and the binary is compiled for
+##      MAVEN_VER - The version of Maven container to use with multi-stage builds
 ##      IMAGE_TAG - The tag to be applied to the container
+##      DATE_TAG - The secondary tag to be applied to the container
 
 # Makefile for building Docker container with Maven
 
 # Define variables
 APPVERSION ?= latest
+BUILD_ID ?= latest
 PROGRAM ?= pgcompare
 PGCOMPARE_OPTIONS ?= "--batch 0 --project 2"
+
 
 CONTAINER ?= brianpace/$(PROGRAM)
 DATE ?= $(shell date +%Y%m%d)
@@ -23,11 +27,9 @@ SYSTEMARCH = $(shell uname -m)
 MAVEN_VER ?= 3.9.9
 
 ifeq ($(SYSTEMARCH), x86_64)
-TARGETARCH ?= amd64
-PLATFORM=amd64
+TARGETARCH = amd64
 else
-TARGETARCH ?= arm64
-PLATFORM=arm64
+TARGETARCH = arm64
 JAVA_OPT="-XX:UseSVE=0"
 endif
 
@@ -37,7 +39,6 @@ DATE_TAG ?= $(DATE)-$(TARGETARCH)
 RM = /bin/rm
 CP = /bin/cp
 MKDIR = /bin/mkdir
-SED = /usr/bin/sed
 DOCKERCMD ?= podman
 
 .DEFAULT_GOAL := help
@@ -72,14 +73,15 @@ docker-common:  ##      Build the Docker image
 	        --target $(BUILDTYPE) \
     		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
     		--build-arg BASE_REGISTRY=$(BASE_REGISTRY) \
-    		--build-arg PLATFORM=$(PLATFORM) \
-    		--build-arg TARGETARCH=$(TARGETARCH) \
     		--build-arg VERSION=$(APPVERSION) \
             --build-arg JAVA_OPT=$(JAVA_OPT) \
             --build-arg MAVEN_VERSION=$(MAVEN_VER) \
+            --label name=$(PROGRAM) \
+            --label build-date='$(DATE) \
+            --label maintainer="Crunchy Data" \
             --label vendor="Crunchy Data" \
             --label url="https://crunchydata.com" \
-            --label release="$(APPVERSION)" \
+            --label release="$(BUILD_ID)" \
             --label org.opencontainers.image.vendor="Crunchy Data" \
             -t $(CONTAINER):$(IMAGE_TAG) \
             -t $(CONTAINER):$(DATE_TAG) .
