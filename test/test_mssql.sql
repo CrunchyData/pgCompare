@@ -92,3 +92,14 @@ INSERT INTO pgctest.test_dt VALUES
 (2, '1970-01-02', '1991-01-02 01:00:02', cast('1991-01-02 02:00:02 -02:00' as datetimeoffset(3)), '1991-01-02 03:00:02.123456',  cast('1991-01-02 04:00:02.123456 -02:00' as datetimeoffset)),
 (3, '1970-01-03', '2030-01-03 01:00:03', cast('2030-01-03 02:00:03 -03:00' as datetimeoffset(3)), '2030-01-03 03:00:03.123456',  cast('2030-01-03 04:00:03.123456 -03:00' as datetimeoffset)),
 (4, '1970-01-04', '2030-01-04 01:00:03', cast('2030-01-04 02:00:03 -03:00' as datetimeoffset(3)), null                        ,  null                                                          );
+
+
+CREATE TABLE pgctest.multipk (
+	"COL_1" varchar(10) NULL,
+	"PK" int NOT NULL,
+	pk2 int NOT NULL,
+	CONSTRAINT multipk_pk PRIMARY KEY ("PK", pk2)
+);
+
+
+INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');

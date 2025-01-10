@@ -383,6 +383,17 @@ public interface SQLConstantsRepo {
                 t.tid = ?
             group by t.tid, t.table_alias
             """;
+
+    String SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS = """
+            SELECT c.tid, c.column_id, m.column_name, m.preserve_case
+            FROM dc_table_column c
+                 JOIN dc_table_column_map m ON (c.tid = m.tid AND c.column_id = m.column_id)
+            WHERE c.tid = ?
+                  AND c.column_alias = ?
+                  AND m.column_origin = ?;
+            """;
+
+
     String SQL_REPO_DCTABLECOLUMNMAP_INSERT = "INSERT INTO dc_table_column_map (tid, column_id, column_origin, column_name, data_type, data_class, data_length, number_precision, number_scale, column_nullable, column_primarykey, map_expression, supported, preserve_case) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     //

@@ -35,6 +35,8 @@ import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
+import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
 /**
@@ -78,27 +80,33 @@ public class threadReconcileCheck {
                 dcRow.setPkHash(rs.getString("pk_hash"));
                 dcRow.setPk(rs.getString("pk"));
                 dcRow.setCompareResult("compare_result");
-                int pkColumns = 0;
+                int pkColumnCount = 0;
                 binds.clear();
-                tableFilter = new StringBuilder(" AND ");
+                dctmSource.setTableFilter(" ");
+                dctmTarget.setTableFilter(" ");
+                //tableFilter = new StringBuilder(" AND ");
                 JSONObject pk = new JSONObject(dcRow.getPk());
                 Iterator<String> keys = pk.keys();
                 while (keys.hasNext()) {
                     String key = keys.next();
                     if (pk.get(key) instanceof String) {
                         String value = pk.getString(key);
-                        binds.add(pkColumns,value);
+                        binds.add(pkColumnCount,value);
                     } else {
                         Integer value = pk.getInt(key);
-                        binds.add(pkColumns,value);
+                        binds.add(pkColumnCount,value);
                     }
-                    tableFilter.append(key).append(" = ? AND ");
-                    pkColumns++;
+                    //tableFilter.append(ShouldQuoteString(true, key)).append(" = ? AND ");
+                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), key.toLowerCase(), "source"));
+                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), key.toLowerCase(), "target"));
+                    pkColumnCount++;
                 }
-                tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
-                Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s", pk));
+                //dctmSource.setTableFilter(dctmSource.getTableFilter().substring(0, dctmSource.getTableFilter().length() - 5));
+                //dctmSource.setTableFilter(dctmSource.getTableFilter().substring(0, dctmSource.getTableFilter().length() - 5));
+                //tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
+                Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter().substring(6)));
 
-                reCheck(repoConn, sourceConn, targetConn, dctmSource.getCompareSQL(), dctmTarget.getCompareSQL(), tableFilter.toString(), ciTarget.pkList, binds, dcRow, cid);
+                reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
 
             }
 
@@ -124,7 +132,7 @@ public class threadReconcileCheck {
      * @param dcRow              DataCompare object with row to be compared.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static void reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, String sourceSQL, String targetSQL, String tableFilter, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
+    public static void reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DCTableMap dctmSource, DCTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
         JSONArray arr = new JSONArray();
         int columnOutofSync = 0;
         JSONObject rowResult = new JSONObject();
@@ -135,8 +143,8 @@ public class threadReconcileCheck {
         rowResult.put("missingSource",0);
         rowResult.put("missingTarget",0);
 
-        CachedRowSet sourceRow = dbCommon.simpleSelect(sourceConn, sourceSQL + tableFilter, binds);
-        CachedRowSet targetRow = dbCommon.simpleSelect(targetConn, targetSQL + tableFilter, binds);
+        CachedRowSet sourceRow = dbCommon.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
+        CachedRowSet targetRow = dbCommon.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
 
         try {
             if (sourceRow.size() > 0 && targetRow.size() == 0) {

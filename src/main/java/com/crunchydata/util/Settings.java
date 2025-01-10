@@ -67,11 +67,13 @@ public class Settings {
     static {
          Properties configProperties = setDefaults();
 
-        try (InputStream stream = new FileInputStream(paramFile)) {
-            configProperties.load(stream);
-        } catch (Exception e) {
-            Logging.write("warning","Settings", "Configuration file not found, using defaults, project, and environment variables");
-        }
+         if ( FileUtility.FileExistsCheck(paramFile)) {
+            try (InputStream stream = new FileInputStream(paramFile)) {
+                configProperties.load(stream);
+            } catch (Exception e) {
+                Logging.write("warning","Settings", "Configuration file not found, using defaults, project, and environment variables");
+            }
+         }
 
         Props = setEnvironment(configProperties);
     }
