@@ -20,9 +20,11 @@ import com.crunchydata.services.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import static com.crunchydata.services.dbDB2.columnValueMapDB2;
@@ -31,6 +33,7 @@ import static com.crunchydata.services.dbMariaDB.columnValueMapMariaDB;
 import static com.crunchydata.services.dbMySQL.columnValueMapMySQL;
 import static com.crunchydata.services.dbOracle.columnValueMapOracle;
 import static com.crunchydata.services.dbPostgres.columnValueMapPostgres;
+import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.DataUtility.preserveCase;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
@@ -38,6 +41,8 @@ import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLE_DELETEBYTID;
 import static com.crunchydata.util.Settings.Props;
 
 /**
@@ -104,6 +109,30 @@ public class ColumnUtility {
                                                         "trigger", "union", "unique", "update", "values", "view", "varchar", "varchar2", "view", "when",
                                                         "where", "with", "xor", "user"};
 
+
+    public static String createColumnFilterClause(Connection repoConn, Integer tid, String columnAlias, String destRole) {
+        String columnFilter = "";
+        ArrayList<Object> binds = new ArrayList<>();
+
+        binds.add(0, tid);
+        binds.add(1, columnAlias);
+        binds.add(2, destRole);
+
+        CachedRowSet crs = dbCommon.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
+
+        try {
+            while (crs.next()) {
+                columnFilter = " AND " + ShouldQuoteString(crs.getBoolean("preserve_case"), crs.getString("column_name")) + " = ?";
+            }
+
+            crs.close();
+
+        } catch (Exception e) {
+            Logging.write("severe",THREAD_NAME,String.format("Error locating primary key column map: %s",e.getMessage()));
+        }
+
+        return columnFilter;
+    }
 
     /**
      * Retrieves column metadata for a specified table in Postgres database.

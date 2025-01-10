@@ -66,16 +66,16 @@ public class ColumnController {
                     }
 
                     if ( joColumn.getString("dataClass").equals("char") ) {
-                        pkJSON.append("'\"").append(pkColumn).append("\": \"' ")
+                        pkJSON.append("'\"").append(pkColumn.replace("\"","")).append("\": \"' ")
                                 .append(concatOperator).append(" ").append(pkColumn)
                                 .append(" ").append(concatOperator).append(" '\"' ");
                     } else {
                         if (platform.equals("mssql")) {
-                            pkJSON.append("'\"").append(pkColumn).append("\": ' ")
+                            pkJSON.append("'\"").append(pkColumn.replace("\"","")).append("\": ' ")
                                     .append(concatOperator).append(" ").append("trim(cast(")
                                     .append(pkColumn).append(" as varchar))");
                         } else {
-                            pkJSON.append("'\"").append(pkColumn).append("\": ' ")
+                            pkJSON.append("'\"").append(pkColumn.replace("\"","")).append("\": ' ")
                                     .append(concatOperator).append(" ").append(pkColumn);
                         }
                     }

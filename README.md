@@ -46,6 +46,7 @@ Before initiating the build and installation process, ensure the following prere
 - Unsupported data types: blob, long, longraw, bytea.
 - Cross-platform comparison limitations with boolean type.
 - Reserved words cannot be used for table/column names.
+- If a column is quoted in the RDBMS's native case, you will need to override the `preserve_case` in the `dc_table_column_map` table for that column.  For example, if a column was created in Oracle with quotes in upper case ("MYCOL").
 
 # Getting Started
 

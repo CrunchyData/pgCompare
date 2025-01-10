@@ -88,3 +88,13 @@ INSERT INTO pgctest.test_dt VALUES (1, DATE'1970-01-01', TIMESTAMP'1976-07-04 01
 INSERT INTO pgctest.test_dt VALUES (2, DATE'1970-01-02', TIMESTAMP'1991-01-02 01:00:02', to_timestamp_tz('1991-01-02 02:00:02 -02:00','YYYY-MM-DD HH24:MI:SS TZH:TZM'), TIMESTAMP'1991-01-02 03:00:02.123456',  to_timestamp_tz('1991-01-02 04:00:02.123456 -02:00','YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM'));
 INSERT INTO pgctest.test_dt VALUES (3, DATE'1970-01-03', TIMESTAMP'2030-01-03 01:00:03', to_timestamp_tz('2030-01-03 02:00:03 -03:00','YYYY-MM-DD HH24:MI:SS TZH:TZM'), TIMESTAMP'2030-01-03 03:00:03.123456',  to_timestamp_tz('2030-01-03 04:00:03.123456 -03:00','YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM'));
 INSERT INTO pgctest.test_dt VALUES (4, DATE'1970-01-04', TIMESTAMP'2030-01-04 01:00:03', to_timestamp_tz('2030-01-04 02:00:03 -03:00','YYYY-MM-DD HH24:MI:SS TZH:TZM'), null                                 ,  null                                                                                    );
+
+CREATE TABLE pgctest.multipk (
+	"COL_1" varchar2(10) NULL,
+	"PK" number(8) NOT NULL,
+	pk2 number(8) NOT NULL,
+	CONSTRAINT multipk_pk PRIMARY KEY ("PK", pk2)
+);
+
+
+INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');

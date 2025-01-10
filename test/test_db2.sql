@@ -153,7 +153,7 @@ VALUES (2, 2, 2, 2, 12345678901234567890,1234567890123456789012345,123.22,123456
 INSERT INTO pgctest.test_common (id, col_small, col_int, col_bigint, col_dec_20, col_dec_38, col_dec_10_2, col_float32, col_float64, col_charnull, col_char_2, col_string, col_date, col_datetime, col_tstz, col_ts6, col_ts6tz, col_dec_38_9, col_dec_38_30)
 VALUES (3, 3, 3, 3, 12345678901234567890,1234567890123456789012345,123.3, 123456.3,12345678.3,'xyx','C ','when in the course of human events it becomes necessary...', DATE'1970-01-03', TIMESTAMP'2030-01-03 00:00:03', TIMESTAMP'2030-01-03 00:00:03', TIMESTAMP'2030-01-03 00:00:03.123456',  TIMESTAMP'2030-01-03 00:00:03.123456',323456789012345678901.123456789,32345678.123456789012345678901);
 
-DROP TABLE pgctest.test_hidden;
+DROP IF EXISTS TABLE pgctest.test_hidden;
 CREATE TABLE pgctest.test_hidden  (
     id INTEGER NOT NULL,
     hidden_field varchar(20) NOT NULL IMPLICITLY HIDDEN
@@ -161,3 +161,14 @@ CREATE TABLE pgctest.test_hidden  (
 
 
 INSERT INTO pgctest.test_hidden (id, hidden_field) VALUES (1, 'brian');
+
+
+CREATE TABLE pgctest.multipk (
+	"COL_1" varchar(10) NULL,
+	"PK" INTEGER NOT NULL,
+	pk2 INTEGER NOT NULL,
+	CONSTRAINT multipk_pk PRIMARY KEY ("PK", pk2)
+);
+
+
+INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');
