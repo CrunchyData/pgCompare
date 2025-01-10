@@ -73,11 +73,10 @@ docker-common:  ##      Build the Docker image
 	        --target $(BUILDTYPE) \
     		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
     		--build-arg BASE_REGISTRY=$(BASE_REGISTRY) \
-    		--build-arg VERSION=$(APPVERSION) \
             --build-arg JAVA_OPT=$(JAVA_OPT) \
             --build-arg MAVEN_VERSION=$(MAVEN_VER) \
             --label name=$(PROGRAM) \
-            --label build-date='$(DATE) \
+            --label build-date='$(DATE)' \
             --label maintainer="Crunchy Data" \
             --label vendor="Crunchy Data" \
             --label url="https://crunchydata.com" \

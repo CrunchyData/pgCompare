@@ -20,6 +20,9 @@ ARG JAVA_OPT="-XX:UseSVE=0"
 
 FROM docker.io/library/maven:${MAVEN_VERSION} AS builder
 LABEL stage=pgcomparebuilder
+ARG JAVA_OPT
+
+ENV _JAVA_OPTIONS=${JAVA_OPT}
 
 WORKDIR /app
 COPY . ./
