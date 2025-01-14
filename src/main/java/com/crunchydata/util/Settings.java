@@ -60,8 +60,8 @@ import java.util.Properties;
  */
 public class Settings {
 
-    public static final Properties Props;
-    public static final String VERSION = "0.3.3";
+    public static Properties Props;
+    public static final String VERSION = "0.3.4";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
@@ -170,8 +170,7 @@ public class Settings {
 
         JSONObject projectConfig = new JSONObject(RepoController.getProjectConfig(conn, pid));
 
-
-        if (projectConfig != null) {
+        if ( ! projectConfig.isEmpty() ) {
 
             Iterator<String> keys = projectConfig.keys();
 

@@ -9,6 +9,7 @@ import org.json.JSONArray;
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import static com.crunchydata.util.DataUtility.getNativeCase;
 import static com.crunchydata.util.DataUtility.preserveCase;
@@ -19,7 +20,6 @@ import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLES
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
 
 public class TableController {
 
@@ -34,7 +34,7 @@ public class TableController {
      * @param sourceSchema    Source schema name
      * @param targetSchema    Target schema name
      */
-    public static void discoverTables (Integer pid, Connection connRepo, Connection connSource, Connection connTarget, String sourceSchema, String targetSchema) {
+    public static void discoverTables (Properties Props, Integer pid, Connection connRepo, Connection connSource, Connection connTarget, String sourceSchema, String targetSchema) {
 
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,pid);
@@ -43,10 +43,10 @@ public class TableController {
         dbCommon.simpleUpdate(connRepo,SQL_REPO_DCTABLE_DELETEBYPROJECT, binds, true);
 
         // Target Table Discovery
-        loadTables(pid,connRepo,connTarget,"target",true);
+        loadTables(Props, pid,connRepo,connTarget,"target",true);
 
         // Source Table Discovery
-        loadTables(pid,connRepo,connSource,"source",false);
+        loadTables(Props, pid,connRepo,connSource,"source",false);
 
         // Clear Incomplete Map
         CachedRowSet crs = dbCommon.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
@@ -108,7 +108,7 @@ public class TableController {
     }
 
 
-    public static void loadTables(Integer pid, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
+    public static void loadTables(Properties Props, Integer pid, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
         String destType=Props.getProperty(destRole+"-type");
         String schema=Props.getProperty(destRole+"-schema");
         ArrayList<Object> binds = new ArrayList<>();

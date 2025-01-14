@@ -29,7 +29,6 @@ import java.util.Properties;
 
 import static com.crunchydata.util.ColumnUtility.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for interacting with DB2 databases.
@@ -72,7 +71,7 @@ public class dbDB2 {
      * @param column JSONObject containing column information.
      * @return String representing the column value expression.
      */
-    public static String columnValueMapDB2(JSONObject column) {
+    public static String columnValueMapDB2(Properties Props, JSONObject column) {
         String colExpression;
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
@@ -142,9 +141,8 @@ public class dbDB2 {
      */
     public static String scientificNotation(String columnName) {
 
-        String sqlFunction = String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
+        return String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
 
-        return sqlFunction;
     }
 
 }

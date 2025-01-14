@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Properties;
 import javax.sql.RowSetMetaData;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
@@ -36,7 +37,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
 /**
@@ -59,7 +59,7 @@ public class threadReconcileCheck {
      * @param ciTarget           Column metadata from target database.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static void checkRows (Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
+    public static void checkRows (Properties Props, Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
         StringBuilder tableFilter;
@@ -125,9 +125,6 @@ public class threadReconcileCheck {
      * @param repoConn           Repository database connection.
      * @param sourceConn         Source database connection.
      * @param targetConn         Target database connection.
-     * @param sourceSQL          SQL to use on the source database.
-     * @param targetSQL          SQL to use on the target database.
-     * @param tableFilter        Filter (where predicate) to be applied to the source or target SQL.
      * @param pkList             Array of primary key columns.
      * @param dcRow              DataCompare object with row to be compared.
      * @param cid                Identifier for the reconciliation process.
