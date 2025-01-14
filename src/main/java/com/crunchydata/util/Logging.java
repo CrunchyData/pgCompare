@@ -1,27 +1,10 @@
-/*
- * Copyright 2012-2024 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.crunchydata.util;
 
+import java.util.Properties;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for logging operations.
@@ -33,46 +16,43 @@ import static com.crunchydata.util.Settings.Props;
  */
 public class Logging {
 
-    private static final Logger logger;
+    private static final Logger logger = Logger.getLogger(Logging.class.getName());
 
     static {
         System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
+    }
+
+    /**
+     * Initializes the Logging class with the provided properties.
+     *
+     * @param Props the properties to configure logging
+     */
+    public static void initialize(Properties Props) {
 
         // Set the log level based on the property value
-        switch (Props.getProperty("log-level")) {
-            case "SEVERE":
-                java.util.logging.Logger.getLogger(Logging.class.getName()).setLevel(Level.SEVERE);
-                break;
-            case "WARNING":
-                java.util.logging.Logger.getLogger(Logging.class.getName()).setLevel(Level.WARNING);
-                break;
-            default:
-                java.util.logging.Logger.getLogger(Logging.class.getName()).setLevel(Level.INFO);
-                break;
-        }
-
-        logger = Logger.getLogger(Logging.class.getName());
+        String logLevel = Props.getProperty("log-level", "INFO").toUpperCase();
+        Level level = Level.parse(logLevel);
+        logger.setLevel(level);
 
         // Configure file handler if log-destination is not stdout
-        if (!"stdout".equals(Props.getProperty("log-destination"))) {
+        String logDestination = Props.getProperty("log-destination", "stdout");
+        if (!"stdout".equalsIgnoreCase(logDestination)) {
             try {
-                FileHandler fileHandler = new FileHandler(Props.getProperty("log-destination"));
-                SimpleFormatter formatter = new SimpleFormatter();
-                fileHandler.setFormatter(formatter);
+                FileHandler fileHandler = new FileHandler(logDestination);
+                fileHandler.setFormatter(new SimpleFormatter());
                 logger.addHandler(fileHandler);
             } catch (Exception e) {
                 System.out.println("Cannot allocate log file, will use stdout");
             }
         }
-
     }
 
     /**
      * Writes a log message at the specified severity level.
      *
      * @param severity the severity level of the log message (info, warning, severe)
-     * @param module the module where the log message originated
-     * @param message the log message
+     * @param module   the module where the log message originated
+     * @param message  the log message
      */
     public static void write(String severity, String module, String message) {
         String msgFormat = "[%-24s] %2$s";
@@ -93,8 +73,6 @@ public class Logging {
                 logger.finer(formattedMessage);
                 break;
         }
-
     }
 
 }
-

@@ -18,9 +18,9 @@ package com.crunchydata.services;
 
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for creating repository schema, tables, indexes, and constraints.
@@ -35,7 +35,7 @@ public class dbRepository {
      *
      * @param conn The database connection to use for executing SQL statements.
      */
-    public static void createRepository(Connection conn) {
+    public static void createRepository(Properties Props, Connection conn) {
         ArrayList<Object> binds = new ArrayList<>();
 
         // Create Schema

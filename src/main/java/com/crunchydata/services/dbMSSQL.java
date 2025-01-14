@@ -28,7 +28,6 @@ import java.util.Properties;
 
 import static com.crunchydata.util.ColumnUtility.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for interacting with Microsoft SQL Server databases.
@@ -76,7 +75,7 @@ public class dbMSSQL {
      * @param column JSONObject containing column information.
      * @return String representing the column value expression.
      */
-    public static String columnValueMapMSSQL(JSONObject column) {
+    public static String columnValueMapMSSQL(Properties Props, JSONObject column) {
         String colExpression;
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 

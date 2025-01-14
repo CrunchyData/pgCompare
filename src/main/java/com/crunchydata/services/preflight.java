@@ -2,7 +2,7 @@ package com.crunchydata.services;
 
 import com.crunchydata.util.Logging;
 
-import static com.crunchydata.util.Settings.Props;
+import java.util.Properties;
 
 public class preflight {
 
@@ -12,7 +12,7 @@ public class preflight {
      * Preflight method to validate settings used for DB2.
      *
      */
-    public static void database (String targetType) {
+    public static void database (Properties Props, String targetType) {
         Logging.write("info",THREAD_NAME,String.format("Performing preflight checks for %s",targetType));
 
         String databaseType = Props.getProperty(targetType + "-type");

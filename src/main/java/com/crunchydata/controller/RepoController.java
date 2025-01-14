@@ -18,6 +18,7 @@ package com.crunchydata.controller;
 
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Properties;
 import javax.sql.rowset.CachedRowSet;
 
 import com.crunchydata.models.DCTable;
@@ -28,7 +29,6 @@ import com.crunchydata.services.dbCommon;
 import com.crunchydata.util.Logging;
 
 import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Controller class for managing repository operations.
@@ -71,7 +71,7 @@ public class RepoController {
      * @param threadNbr  Thread number
      * @return The name of the created staging table
      */
-    public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
+    public String createStagingTable(Properties Props, Connection conn, String location, Integer tid, Integer threadNbr) {
         // Dynamic SQL
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (

@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import javax.sql.rowset.CachedRowSet;
@@ -35,7 +36,6 @@ import com.crunchydata.services.*;
 
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
 import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
 
 import org.json.JSONObject;
 
@@ -50,15 +50,9 @@ public class ReconcileController {
 
     private static final RepoController rpc = new RepoController();
 
-    private static ThreadSync ts = new ThreadSync();
-
     private static List<threadReconcile> compareList = new ArrayList<>();
     private static List<threadLoader> loaderList = new ArrayList<>();
     private static List<threadReconcileObserver> observerList = new ArrayList<>();
-
-    private static BlockingQueue<DataCompare[]> qs;
-    private static BlockingQueue<DataCompare[]> qt;
-    private static final Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("message-queue-size")) > 0);
 
     /**
      * Reconciles data between source and target databases.
@@ -70,13 +64,16 @@ public class ReconcileController {
      * @param check          Whether to perform a check
      * @return JSON object with reconciliation results
      */
-    public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
+    public static JSONObject reconcileData(Properties Props, Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
 
         // Variables
         ArrayList<Object> binds = new ArrayList<>();
-        JSONObject columnMap = new JSONObject();
+        JSONObject columnMap;
+        Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("loader-threads")) > 0);
 
-        if ( useLoaderThreads ) {
+        BlockingQueue<DataCompare[]> qs;
+        BlockingQueue<DataCompare[]> qt;
+        if (useLoaderThreads) {
            qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
            qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
         } else {
@@ -146,7 +143,7 @@ public class ReconcileController {
             Logging.write("info", THREAD_NAME, String.format("Target Compare Hash SQL: %s", dctmTarget.getCompareSQL()));
 
             if (check) {
-                threadReconcileCheck.checkRows(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+                threadReconcileCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
             } else {
                 // Execute Compare SQL
                 if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() || ciSource.pkList.isBlank() || ciSource.pkList.isEmpty()) {
@@ -161,38 +158,38 @@ public class ReconcileController {
                     // Start Reconciliation Threads
                     for (Integer i = 0; i < dct.getParallelDegree(); i++) {
                         Logging.write("info", THREAD_NAME, "Creating data compare staging tables");
-                        String stagingTableSource = rpc.createStagingTable(connRepo, "source", dct.getTid(), i);
-                        String stagingTableTarget = rpc.createStagingTable(connRepo, "target", dct.getTid(), i);
+                        String stagingTableSource = rpc.createStagingTable(Props, connRepo, "source", dct.getTid(), i);
+                        String stagingTableTarget = rpc.createStagingTable(Props, connRepo, "target", dct.getTid(), i);
 
                         Logging.write("info", THREAD_NAME, String.format("Starting compare thread %s",i));
 
                         // Start Observer Thread
-                        ts = new ThreadSync();
-                        threadReconcileObserver rot = new threadReconcileObserver(dct, cid, ts, i, stagingTableSource, stagingTableTarget);
+                        ThreadSync ts = new ThreadSync();
+                        threadReconcileObserver rot = new threadReconcileObserver(Props, dct, cid, ts, i, stagingTableSource, stagingTableTarget);
                         rot.start();
                         observerList.add(rot);
 
                         // Start Source Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile cst = new threadReconcile(i, dct, dctmSource, ciSource, cid, ts, Boolean.parseBoolean(Props.getProperty("source-database-hash")), stagingTableSource, qs);
+                        threadReconcile cst = new threadReconcile(Props, i, dct, dctmSource, ciSource, cid, ts, Boolean.parseBoolean(Props.getProperty("source-database-hash")), stagingTableSource, qs);
                         cst.start();
                         compareList.add(cst);
 
                         // Start Target Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile ctt = new threadReconcile(i, dct, dctmTarget, ciTarget, cid, ts, Boolean.parseBoolean(Props.getProperty("target-database-hash")), stagingTableTarget, qt);
+                        threadReconcile ctt = new threadReconcile(Props, i, dct, dctmTarget, ciTarget, cid, ts, Boolean.parseBoolean(Props.getProperty("target-database-hash")), stagingTableTarget, qt);
                         ctt.start();
                         compareList.add(ctt);
 
                         // Start Loader Threads
                         // Loader thread load data from the message queue into the appropriate staging tables in the database.
                         // A loader thread is started for source and target up to the limit specified by system parameter loader-threads.
-                        if ( useLoaderThreads ) {
+                        if (useLoaderThreads) {
                             for (int li = 1; li <= Integer.parseInt(Props.getProperty("loader-threads")); li++) {
-                                threadLoader cls = new threadLoader(i, li, "source", qs, stagingTableSource, ts);
+                                threadLoader cls = new threadLoader(Props, i, li, "source", qs, stagingTableSource, ts);
                                 cls.start();
                                 loaderList.add(cls);
-                                threadLoader clt = new threadLoader(i, li, "target", qt, stagingTableTarget, ts);
+                                threadLoader clt = new threadLoader(Props, i, li, "target", qt, stagingTableTarget, ts);
                                 clt.start();
                                 loaderList.add(clt);
                             }

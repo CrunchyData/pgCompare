@@ -29,7 +29,6 @@ import java.util.Properties;
 
 import static com.crunchydata.util.ColumnUtility.*;
 import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for interacting with MySQL databases.
@@ -77,7 +76,7 @@ public class dbMySQL {
      * @param column JSONObject containing column information.
      * @return String representing the column value expression.
      */
-    public static String columnValueMapMySQL(JSONObject column) {
+    public static String columnValueMapMySQL(Properties Props, JSONObject column) {
         String colExpression;
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 

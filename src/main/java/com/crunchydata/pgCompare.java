@@ -21,8 +21,7 @@ import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
 
 import static com.crunchydata.controller.TableController.getTableMap;
-import static com.crunchydata.util.Settings.Props;
-import static com.crunchydata.util.Settings.setProjectConfig;
+import static com.crunchydata.util.Settings.*;
 
 import com.crunchydata.controller.ColumnController;
 import com.crunchydata.controller.TableController;
@@ -89,20 +88,21 @@ public class pgCompare {
         }
 
         // Preflight
-        preflight.database("source");
-        preflight.database("target");
+        preflight.database(Props,"source");
+        preflight.database(Props,"target");
 
-        // Output parameter settings
+        // Sort and Output parameter settings
         Logging.write("info", THREAD_NAME, "Parameters: ");
 
         Props.entrySet().stream()
                 .filter(e -> !e.getKey().toString().contains("password"))
+                .sorted((e1, e2) -> e1.getKey().toString().compareTo(e2.getKey().toString()))
                 .forEach(e -> Logging.write("info", THREAD_NAME, String.format("  %s",e)));
 
         // Initialize pgCompare repository if the action is init.
         // After initialization, exit.
         if ("init".equals(action)) {
-            dbRepository.createRepository(connRepo);
+            dbRepository.createRepository(Props, connRepo);
             try {
                 connRepo.close();
             } catch (Exception e) {
@@ -113,7 +113,7 @@ public class pgCompare {
 
 
         // Connect to Source
-        Logging.write("info", THREAD_NAME, "Connecting to source database");
+        Logging.write("info", THREAD_NAME, String.format("Connecting to source database (type = %s, host = %s)",Props.getProperty("source-type"), Props.getProperty("source-host")));
         connSource = getDatabaseConnection(Props.getProperty("source-type"), "source");
 
         if (connSource == null) {
@@ -122,7 +122,7 @@ public class pgCompare {
         }
 
         // Connect to Target
-        Logging.write("info", THREAD_NAME, "Connecting to target database");
+        Logging.write("info", THREAD_NAME, String.format("Connecting to target database (type = %s, host = %s)",Props.getProperty("target-type"), Props.getProperty("target-host")));
         connTarget = getDatabaseConnection(Props.getProperty("target-type"), "target");
 
         if (connTarget == null) {
@@ -133,7 +133,7 @@ public class pgCompare {
         // Refresh Column Map (maponly)
         if (cmd.hasOption("maponly")) {
             // Discover Columns
-            ColumnController.discoverColumns(pid, connRepo, connSource, connTarget);
+            ColumnController.discoverColumns(Props, pid, connRepo, connSource, connTarget);
             System.exit(0);
         }
 
@@ -193,10 +193,10 @@ public class pgCompare {
         Logging.write("info", THREAD_NAME, "Performing table discovery");
 
         // Discover Tables
-        TableController.discoverTables(pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
+        TableController.discoverTables(Props, pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
 
         // Discover Columns
-        ColumnController.discoverColumns(pid, connRepo, connSource, connTarget);
+        ColumnController.discoverColumns(Props, pid, connRepo, connSource, connTarget);
     }
 
     //
@@ -239,7 +239,7 @@ public class pgCompare {
                     rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
                 }
 
-                JSONObject actionResult = ReconcileController.reconcileData(connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
+                JSONObject actionResult = ReconcileController.reconcileData(Props, connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
 
                 rpc.completeTableHistory(connRepo, dct.getTid(), "reconcile", dct.getBatchNbr(), 0, actionResult.toString());
 
@@ -254,7 +254,7 @@ public class pgCompare {
         }
 
         if (!mapOnly) {
-            printSummary(tablesProcessed, runResult, startStopWatch);
+            createSummary(tablesProcessed, runResult, startStopWatch);
         }
 
     }
@@ -312,7 +312,7 @@ public class pgCompare {
             // Determine the desired action, reconcile, discovery or init.
             //   reconcile = Perform comparison between source and target databases.
             //   discovery = Perform table discovery on source and target.
-            //   init      = Initilize the pgCompare repository.
+            //   init      = Initialize the pgCompare repository.
             action = (cmd.hasOption("discovery")) ? "discovery" : action;
             action = (cmd.hasOption("init")) ? "init" : action;
 
@@ -325,36 +325,61 @@ public class pgCompare {
     }
 
     //
-    // Print Summary
+    // Create Summary
     //
-    private static void printSummary(int tablesProcessed, JSONArray runResult, long startStopWatch) {
-        Logging.write("info", "main", String.format("Processed %s tables",tablesProcessed));
+    private static void createSummary(int tablesProcessed, JSONArray runResult, long startStopWatch) {
+        printSummary("Summary: ",0);
+
         if ( tablesProcessed > 0 ) {
             long endStopWatch = System.currentTimeMillis();
             long totalRows = 0;
             long outOfSyncRows = 0;
+            long elapsedTime = (endStopWatch - startStopWatch) / 1000;
+            // Ensure elapsed time is at least 1 second.
+            elapsedTime = elapsedTime == 0 ? 1 : elapsedTime;
+
             DecimalFormat df = new DecimalFormat("###,###,###,###,###");
 
+            // Iterate through the runResult array and compute totals
             for (int i = 0; i < runResult.length(); i++) {
                 JSONObject result = runResult.getJSONObject(i);
-                totalRows += result.getInt("equal") + result.getInt("notEqual") + result.getInt("missingSource") + result.getInt("missingTarget");
-                outOfSyncRows += result.getInt("notEqual") + result.getInt("missingSource") + result.getInt("missingTarget");
-                String msgFormat = "Table Summary: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
-                Logging.write("info", "main", String.format(msgFormat, result.getString("tableName"),
-                        result.getString("compareStatus"), df.format(result.getInt("equal")),
-                        df.format(result.getInt("notEqual")), df.format(result.getInt("missingSource")),
-                        df.format(result.getInt("missingTarget"))));
+                int nbrEqual = result.getInt("equal");
+                int notEqual = result.getInt("notEqual");
+                int missingSource = result.getInt("missingSource");
+                int missingTarget = result.getInt("missingTarget");
+
+                totalRows += nbrEqual + notEqual + missingSource + missingTarget;
+                outOfSyncRows += notEqual + missingSource + missingTarget;
+
+                // Print per table summary
+                printSummary(String.format("TABLE: %s", result.getString("tableName")), 4);
+                printSummary(String.format("Table Summary: Status         = %s", result.getString("compareStatus")), 8);
+                printSummary(String.format("Table Summary: Equal          = %19d", nbrEqual), 8);
+                printSummary(String.format("Table Summary: Not Equal      = %19d", notEqual), 8);
+                printSummary(String.format("Table Summary: Missing Source = %19d", missingSource), 8);
+                printSummary(String.format("Table Summary: Missing Target = %19d", missingTarget), 8);
             }
 
-            String msgFormat = "Run Summary:  Elapsed Time (seconds) = %s; Total Rows Processed = %s; Total Out-of-Sync = %s; Through-put (rows/per second) = %s";
-            long elapsedTime = ((endStopWatch - startStopWatch)/1000) == 0 ? 1 : (endStopWatch - startStopWatch)/1000;
+            // Print job summary
+            printSummary("Job Summary: ", 0);
+            printSummary(String.format("Tables Processed               = %s", tablesProcessed), 2);
+            printSummary(String.format("Elapsed Time (seconds)         = %s", df.format(elapsedTime)), 2);
+            printSummary(String.format("Total Rows Processed           = %s", df.format(totalRows)), 2);
+            printSummary(String.format("Total Out-of-Sync              = %s", df.format(outOfSyncRows)), 2);
+            printSummary(String.format("Through-put (rows/per second)  = %s", df.format(totalRows / elapsedTime)), 2);
 
-            Logging.write("info", "main", String.format(msgFormat, df.format((endStopWatch - startStopWatch) / 1000),
-                    df.format(totalRows), df.format(outOfSyncRows), df.format(totalRows / elapsedTime)));
         } else {
-            String msg = (check) ? "No out of sync records found" : "No tables were processed.  Need to do discovery? Used correct batch nbr?";
+            // Print message if no tables processed or out of sync records found
+            String msg = (check) ? "No out of sync records found" : "No tables were processed. Need to do discovery? Used correct batch nbr?";
             Logging.write("warning", THREAD_NAME, msg);
         }
+    }
+
+    //
+    // Print Summary
+    //
+    private static void printSummary(String message, int indent) {
+        Logging.write("info", "summary", " ".repeat(indent) + message);
     }
 
 

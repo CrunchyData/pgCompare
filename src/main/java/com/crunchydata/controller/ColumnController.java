@@ -9,12 +9,13 @@ import org.json.JSONObject;
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import static com.crunchydata.util.ColumnUtility.getColumns;
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
 
+@SuppressWarnings("ALL")
 public class ColumnController {
     private static final String THREAD_NAME = "ColumnController";
 
@@ -118,7 +119,7 @@ public class ColumnController {
     }
 
 
-    public static void discoverColumns(Integer pid, Connection connRepo, Connection connSource, Connection connTarget) {
+    public static void discoverColumns(Properties Props, Integer pid, Connection connRepo, Connection connSource, Connection connTarget) {
         ArrayList<Object> binds = new ArrayList<>();
 
         binds.add(0, pid);
@@ -136,7 +137,7 @@ public class ColumnController {
 
             while (crs.next()) {
                 // Repopulate Columns
-                loadColumns(pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connTarget, "target", true);
+                loadColumns(Props, pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connTarget, "target", true);
             }
 
             crs.close();
@@ -153,7 +154,7 @@ public class ColumnController {
             crs = dbCommon.simpleSelect(connRepo, SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGIN, binds);
 
             while (crs.next()) {
-                loadColumns(pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connSource, "source", true);
+                loadColumns(Props, pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connSource, "source", true);
             }
 
             crs.close();
@@ -164,7 +165,7 @@ public class ColumnController {
 
     }
 
-    public static void loadColumns(Integer pid, Integer tid, String schema, String tableName, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTableColumn) {
+    public static void loadColumns(Properties Props, Integer pid, Integer tid, String schema, String tableName, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTableColumn) {
         String destType=Props.getProperty(destRole+"-type");
         ArrayList<Object> binds = new ArrayList<>();
         Integer columnCount = 0;
@@ -172,7 +173,7 @@ public class ColumnController {
         Logging.write("info", THREAD_NAME, String.format("Performing column discovery on %s for table %s", destType, tableName));
 
         // Get Tables based on Platform
-        JSONArray columns = getColumns(connDest,schema,tableName, destRole);
+        JSONArray columns = getColumns(Props, connDest,schema,tableName, destRole);
 
         // Get Default Case for Platform
         String nativeCase = getNativeCase(destType);

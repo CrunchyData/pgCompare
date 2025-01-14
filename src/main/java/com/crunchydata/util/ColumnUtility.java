@@ -26,6 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Properties;
 
 import static com.crunchydata.services.dbDB2.columnValueMapDB2;
 import static com.crunchydata.services.dbMSSQL.columnValueMapMSSQL;
@@ -42,8 +43,6 @@ import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMN
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
-import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLE_DELETEBYTID;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for column data type validation and classification.
@@ -143,7 +142,7 @@ public class ColumnUtility {
      * @param destRole  Role of the database (source/target)
      * @return JSONArray containing metadata for each column in the table.
      */
-    public static JSONArray getColumns (Connection conn, String schema, String table, String destRole) {
+    public static JSONArray getColumns (Properties Props, Connection conn, String schema, String table, String destRole) {
         JSONArray columnInfo = new JSONArray();
         String nativeCase = switch (Props.getProperty(destRole + "-type")) {
             case "oracle" -> dbOracle.nativeCase;
@@ -188,12 +187,12 @@ public class ColumnUtility {
                         column.put("preserveCase", preserveCase(nativeCase, rs.getString("column_name")));
 
                         String valueExpression = switch (Props.getProperty(destRole + "-type")) {
-                            case "oracle" -> columnValueMapOracle(column);
-                            case "mariadb" -> columnValueMapMariaDB(column);
-                            case "mysql" -> columnValueMapMySQL(column);
-                            case "mssql" -> columnValueMapMSSQL(column);
-                            case "db2" -> columnValueMapDB2(column);
-                            default -> columnValueMapPostgres(column);
+                            case "oracle" -> columnValueMapOracle(Props, column);
+                            case "mariadb" -> columnValueMapMariaDB(Props, column);
+                            case "mysql" -> columnValueMapMySQL(Props, column);
+                            case "mssql" -> columnValueMapMSSQL(Props, column);
+                            case "db2" -> columnValueMapDB2(Props, column);
+                            default -> columnValueMapPostgres(Props, column);
                         };
 
                         column.put("valueExpression", valueExpression);
