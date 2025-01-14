@@ -96,14 +96,10 @@ public class threadReconcileCheck {
                         Integer value = pk.getInt(key);
                         binds.add(pkColumnCount,value);
                     }
-                    //tableFilter.append(ShouldQuoteString(true, key)).append(" = ? AND ");
                     dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), key.toLowerCase(), "source"));
                     dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), key.toLowerCase(), "target"));
                     pkColumnCount++;
                 }
-                //dctmSource.setTableFilter(dctmSource.getTableFilter().substring(0, dctmSource.getTableFilter().length() - 5));
-                //dctmSource.setTableFilter(dctmSource.getTableFilter().substring(0, dctmSource.getTableFilter().length() - 5));
-                //tableFilter = new StringBuilder(tableFilter.substring(0, tableFilter.length() - 5));
                 Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter().substring(6)));
 
                 reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
