@@ -98,3 +98,10 @@ CREATE TABLE pgctest.multipk (
 
 
 INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');
+
+CREATE TABLE pgctest.plat (
+   id number(8) NOT NULL,
+   plat varchar2(10),
+   CONSTRAINT plat_pk PRIMARY KEY (id));
+
+INSERT INTO pgctest.plat (id, plat) VALUES (1, 'oracle');
