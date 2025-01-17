@@ -19,10 +19,10 @@ CREATE TABLE pgctest."Test_Case"
     STATUS CHAR(3),
     SALARY DECIMAL(12,2),
     LAST_LOGIN TIMESTAMP,
-    BIO VARCHAR(2000)
+    BIO VARCHAR(2000),
+    CONSTRAINT test_case_pk PRIMARY KEY (eid)
 );
 
--- Inserting data into Emp table (DB2 uses ISO standard formats for DATE and TIMESTAMP)
 INSERT INTO pgctest."Test_Case" (EID, FIRST_NAME, LAST_NAME, EMAIL, HIRE_DT, AGE, "Zip", STATUS, SALARY, LAST_LOGIN, BIO)
 VALUES (1, 'John', 'Doe', 'john.doe@example.com', '2022-01-15', 30, 90210, 'ACT', 60000.00, '2024-08-20 09:30:00', 'Software Engineer with 5 years of experience.');
 INSERT INTO pgctest."Test_Case" (EID, FIRST_NAME, LAST_NAME, EMAIL, HIRE_DT, AGE, "Zip", STATUS, SALARY, LAST_LOGIN, BIO)
@@ -120,49 +120,7 @@ INSERT INTO pgctest.test_dt VALUES
 (3, DATE'1970-01-03', TIMESTAMP'2030-01-03 01:00:03', TIMESTAMP '2030-01-03 05:00:03', TIMESTAMP'2030-01-03 03:00:03.123456',  TIMESTAMP '2030-01-03 07:00:03.123456'),
 (4, DATE'1970-01-04', TIMESTAMP'2030-01-04 01:00:03', TIMESTAMP '2030-01-04 05:00:03', null                                        ,  null                                                       );
 
--- Creating the test_common table in DB2
-DROP TABLE IF EXISTS pgctest.test_common;
-CREATE TABLE pgctest.test_common
-(
-    id INTEGER NOT NULL PRIMARY KEY,
-    col_small INTEGER,
-    col_int INTEGER,
-    col_bigint BIGINT,
-    col_dec_20 DECIMAL(20),
-    col_dec_38 DECIMAL(31),
-    col_dec_10_2 DECIMAL(10,2),
-    col_float32 FLOAT,
-    col_float64 DOUBLE,
-    col_charnull VARCHAR(30),
-    col_char_2 CHARACTER(2),
-    col_string VARCHAR(4000),
-    col_date DATE,
-    col_datetime TIMESTAMP,
-    col_tstz TIMESTAMP,
-    col_ts6 TIMESTAMP,
-    col_ts6tz TIMESTAMP,
-    col_dec_38_9 DECIMAL(31,9),
-    col_dec_38_30 DECIMAL(31,21)
-);
-
--- Inserting data into test_common
-INSERT INTO pgctest.test_common (id, col_small, col_int, col_bigint, col_dec_20, col_dec_38, col_dec_10_2, col_float32, col_float64, col_charnull, col_char_2, col_string, col_date, col_datetime, col_tstz, col_ts6, col_ts6tz, col_dec_38_9, col_dec_38_30)
-VALUES (1, 1, 1, 1, 12345678901234567890, 1234567890123456789012345, 123.11, 123456.1, 12345678.1, 'abc', 'A ', 'when in the course of human events it becomes necessary...', DATE'1970-01-01', TIMESTAMP'1976-07-04 00:00:01', TIMESTAMP'1976-07-04 00:00:01', TIMESTAMP'1976-07-04 00:00:01.123456', TIMESTAMP'1976-07-04 00:00:01.123456', 123456789012345678901.123456789, 12345678.123456789012345678901);
-INSERT INTO pgctest.test_common (id, col_small, col_int, col_bigint, col_dec_20, col_dec_38, col_dec_10_2, col_float32, col_float64, col_charnull, col_char_2, col_string, col_date, col_datetime, col_tstz, col_ts6, col_ts6tz, col_dec_38_9, col_dec_38_30)
-VALUES (2, 2, 2, 2, 12345678901234567890,1234567890123456789012345,123.22,123456.2,12345678.2,'',   'B' ,'when in the course of human events it becomes necessary...', DATE'1970-01-02', TIMESTAMP'1991-01-02 00:00:02', TIMESTAMP'1991-01-02 00:00:02', TIMESTAMP'1991-01-02 00:00:02.123456',  TIMESTAMP'1991-01-02 00:00:02.123456',223456789012345678901.123456789,22345678.123456789012345678901);
-INSERT INTO pgctest.test_common (id, col_small, col_int, col_bigint, col_dec_20, col_dec_38, col_dec_10_2, col_float32, col_float64, col_charnull, col_char_2, col_string, col_date, col_datetime, col_tstz, col_ts6, col_ts6tz, col_dec_38_9, col_dec_38_30)
-VALUES (3, 3, 3, 3, 12345678901234567890,1234567890123456789012345,123.3, 123456.3,12345678.3,'xyx','C ','when in the course of human events it becomes necessary...', DATE'1970-01-03', TIMESTAMP'2030-01-03 00:00:03', TIMESTAMP'2030-01-03 00:00:03', TIMESTAMP'2030-01-03 00:00:03.123456',  TIMESTAMP'2030-01-03 00:00:03.123456',323456789012345678901.123456789,32345678.123456789012345678901);
-
-DROP IF EXISTS TABLE pgctest.test_hidden;
-CREATE TABLE pgctest.test_hidden  (
-    id INTEGER NOT NULL,
-    hidden_field varchar(20) NOT NULL IMPLICITLY HIDDEN
-);
-
-
-INSERT INTO pgctest.test_hidden (id, hidden_field) VALUES (1, 'brian');
-
-
+DROP TABLE IF EXISTS pgctest.multipk;
 CREATE TABLE pgctest.multipk (
 	"COL_1" varchar(10) NULL,
 	"PK" INTEGER NOT NULL,
@@ -172,3 +130,22 @@ CREATE TABLE pgctest.multipk (
 
 
 INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');
+
+DROP TABLE IF EXISTS pgctest.plat;
+CREATE TABLE pgctest.plat (
+   id integer NOT NULL,
+   plat varchar(10),
+   CONSTRAINT plat_pk PRIMARY KEY (id));
+
+INSERT INTO pgctest.plat (id, plat) VALUES (1, 'db2');
+
+-- Test for DB2
+DROP TABLE IF EXISTS pgctest.db2_test_hidden;
+CREATE TABLE pgctest.db2_test_hidden  (
+    id INTEGER NOT NULL,
+    hidden_field varchar(20) NOT NULL IMPLICITLY HIDDEN,
+    CONSTRAINT db2_test_hidden_pk PRIMARY KEY (id)
+);
+
+
+INSERT INTO pgctest.db2_test_hidden (id, hidden_field) VALUES (1, 'brian');

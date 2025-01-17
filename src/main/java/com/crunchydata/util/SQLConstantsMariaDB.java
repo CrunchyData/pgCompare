@@ -43,6 +43,7 @@ public interface SQLConstantsMariaDB {
                 SELECT table_schema owner, table_name table_name
                 FROM  information_schema.tables
                 WHERE lower(table_schema)=lower(?)
+                      AND table_type = 'BASE TABLE'
                 ORDER BY table_schema, table_name
                 """;
 

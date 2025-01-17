@@ -109,7 +109,7 @@ public interface SQLConstantsRepo {
             	column_id int8 NOT NULL,
             	column_origin varchar(10) DEFAULT 'source'::character varying NOT NULL,
             	column_name varchar(50) NOT NULL,
-            	data_type varchar(30) NOT NULL,
+            	data_type text NOT NULL,
             	data_class varchar(20) DEFAULT 'string'::character varying NULL,
             	data_length int4 NULL,
             	number_precision int4 NULL,

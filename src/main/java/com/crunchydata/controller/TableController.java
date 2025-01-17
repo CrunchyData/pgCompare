@@ -159,7 +159,7 @@ public class TableController {
 
                 RepoController.saveTableMap(connRepo, dctm);
 
-                Logging.write("info", THREAD_NAME, String.format("Discovered Table: %s",tableName));
+                Logging.write("info", THREAD_NAME, String.format("Discovered Table (%s): %s",destRole, tableName));
 
             }
         }

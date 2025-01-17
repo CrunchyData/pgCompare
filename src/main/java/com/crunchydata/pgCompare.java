@@ -56,17 +56,17 @@ public class pgCompare {
 
     public static void main(String[] args) {
 
+        // Command Line Options
+        cmd = parseCommandLine(args);
+        if (cmd == null) return;
+
+        Logging.initialize(Props);
+
         // Catch Shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> Logging.write("info", THREAD_NAME, "Shutting down")));
 
         // Capture the start time for the compare run.
         startStopWatch = System.currentTimeMillis();
-
-        // Command Line Options
-        cmd = parseCommandLine(args);
-        if (cmd == null) return;
-
-        System.out.println(Props.getProperty("log-level"));
 
         // Process Startup
         Logging.write("info", THREAD_NAME,  String.format("Starting - rid: %s", startStopWatch));
@@ -222,7 +222,7 @@ public class pgCompare {
                 dct.setParallelDegree(crsTable.getInt("parallel_degree"));
                 dct.setTableAlias(crsTable.getString("table_alias"));
 
-                Logging.write("info", THREAD_NAME, "Start reconciliation");
+                Logging.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE:  %s ---",dct.getTableAlias().toUpperCase()));
 
                 // Construct DCTableMap Class for Source
                 DCTableMap sourceTableMap = createTableMap("source",dct);

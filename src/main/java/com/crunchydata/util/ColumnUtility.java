@@ -63,7 +63,7 @@ public class ColumnUtility {
     /**
      * Array of data types classified as character.
      */
-    public static final String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "json", "jsonb", "nchar", "nclob",
+    public static final String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "enum", "json", "jsonb", "nchar", "nclob",
             "ntext", "nvarchar", "nvarchar2", "text", "varchar", "varchar2", "xml"};
 
     /**
@@ -90,7 +90,7 @@ public class ColumnUtility {
     /**
      * Array of unsupported data types.
      */
-    public static final String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "enum", "hierarchyid",
+    public static final String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "hierarchyid",
             "image", "rowid", "rowversion", "set", "sql_variant", "uniqueidentifier", "long", "long raw"};
 
     /**

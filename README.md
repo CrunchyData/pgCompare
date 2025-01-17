@@ -65,7 +65,7 @@ mvn clean install
 Copy `pgcompare.properties.sample` to `pgcompare.properties` and update the connection parameters for your repository, source, and target databases.
 By default, the application looks for the properties file in the execution directory. Use `PGCOMPARE_CONFIG` environment variable to specify a custom properties file location.
 
-At a minimal the `repo-xxxxx` parameters are required in the properties file (or specified by environment parameters).  Besides the properties file and environment variables, another alternative is to store the property settings in the `dc_project` table.  Settings can be stored in the `project_config` column in JSON format ({"parameter": "value"}).
+At a minimal the `repo-xxxxx` parameters are required in the properties file (or specified by environment parameters).  Besides the properties file and environment variables, another alternative is to store the property settings in the `dc_project` table.  Settings can be stored in the `project_config` column in JSON format ({"parameter": "value"}).  Certain system parameters like log-destination can only be specified via the properties file or environment variables.
 
 ## 4. Initialize Repository
 
@@ -194,7 +194,7 @@ java -jar pgcompare.jar --batch 0 --maponly
 
 ## Properties
 
-Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of the property in upper case prefixed with PGCOMPARE-.  For example, batch-fetch-size can be set by using the environment variable PGCOMPARE-BATCH-FETCH-SIZE.
+Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of the property in upper case with dashes '-' converted to underscore '_' and prefixed with PGCOMPARE_.  For example, batch-fetch-size can be set by using the environment variable PGCOMPARE_BATCH_FETCH_SIZE.
 
 ### System
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.

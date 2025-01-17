@@ -104,11 +104,41 @@ INSERT INTO pgctest.test_dt VALUES
 (4, DATE'1970-01-04', TIMESTAMP'2030-01-04 01:00:03', TIMESTAMP WITH TIME ZONE'2030-01-04 02:00:03 -03:00', null                                        ,  null                                                       );
 
 CREATE TABLE pgctest.multipk (
-	"COL_1" varchar(10) NULL,
-	"PK" int4 NOT NULL,
 	pk2 int4 NOT NULL,
-	CONSTRAINT multipk_pk PRIMARY KEY ("PK", pk2)
+	`PK` int4 NOT NULL,
+	`COL_1` varchar(10),
+	CONSTRAINT multipk_pk PRIMARY KEY (`PK`, pk2)
 );
 
 
-INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');
+INSERT INTO pgctest.multipk (`PK`, pk2, `COL_1`) VALUES (1, 1, 'test');
+
+
+CREATE TABLE pgctest.plat (
+   id int NOT NULL,
+   plat varchar(10),
+   CONSTRAINT plat_pk PRIMARY KEY (id));
+
+INSERT INTO pgctest.plat (id, plat) VALUES (1, 'postgres');
+
+-- Test for Mysql, MariaDB, and Postgres
+CREATE TYPE pgctest.status_enum AS ENUM ('abc', 'def', 'ghi');
+
+CREATE TABLE pgctest.test_enum (
+  id int NOT NULL,
+  status pgctest.status_enum,
+  CONSTRAINT test_enum_pk PRIMARY KEY (id)
+);
+
+INSERT INTO pgctest.test_enum (id, status) VALUES (1, 'abc');
+
+-- Test for DB2
+DROP TABLE IF EXISTS pgctest.db2_test_hidden;
+CREATE TABLE pgctest.db2_test_hidden  (
+    id INTEGER NOT NULL,
+    hidden_field varchar(20),
+    CONSTRAINT db2_test_hidden_pk PRIMARY KEY (id)
+);
+
+
+INSERT INTO pgctest.db2_test_hidden (id, hidden_field) VALUES (1, 'brian');
