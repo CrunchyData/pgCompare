@@ -95,6 +95,7 @@ INSERT INTO pgctest.test_dt VALUES
 (3, '1970-01-03', '2030-01-03 01:00:03', convert_tz('2030-01-03 02:00:03','-03:00','UTC'), '2030-01-03 03:00:03.123456',  convert_tz('2030-01-03 04:00:03.123456','-03:00','UTC')),
 (4, '1970-01-04', '2030-01-04 01:00:03', convert_tz('2030-01-04 02:00:03','-03:00','UTC'), null                                        ,  null                    );
 
+DROP TABLE IF EXISTS pgctest.multipk;
 CREATE TABLE pgctest.multipk (
 	COL_1 varchar(10),
 	PK int NOT NULL,
@@ -102,12 +103,21 @@ CREATE TABLE pgctest.multipk (
 	CONSTRAINT multipk_pk PRIMARY KEY (PK, pk2)
 );
 
-
 INSERT INTO pgctest.multipk (PK, pk2, COL_1) VALUES (1, 1, 'test');
 
+DROP TABLE IF EXISTS pgctest.plat;
 CREATE TABLE pgctest.plat (
    id int NOT NULL,
    plat varchar(10),
    CONSTRAINT plat_pk PRIMARY KEY (id));
 
 INSERT INTO pgctest.plat (id, plat) VALUES (1, 'mariadb');
+
+DROP TABLE IF EXISTS pgctest.test_enum;
+CREATE TABLE pgctest.test_enum (
+  id int(11) NOT NULL,
+  status enum('abc','def','ghi'),
+  CONSTRAINT test_enum_pk PRIMARY KEY (id)
+);
+
+INSERT INTO pgctest.test_enum (id, status) values (1, 'abc');

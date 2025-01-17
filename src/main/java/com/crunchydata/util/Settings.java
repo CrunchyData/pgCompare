@@ -75,6 +75,13 @@ public class Settings {
             }
          }
 
+        // Trim all values in the Properties object
+        configProperties.forEach((key, value) -> {
+            if (value instanceof String) {
+                configProperties.setProperty((String) key, ((String) value).trim());
+            }
+        });
+
         Props = setEnvironment(configProperties);
     }
 
@@ -150,8 +157,8 @@ public class Settings {
     public static Properties setEnvironment (Properties prop) {
 
         System.getenv().forEach((k, v) -> {
-            if (k.contains("PGCOMPARE-")) {
-                prop.setProperty(k.replace("PGCOMPARE-","").toLowerCase(),v);
+            if (k.contains("PGCOMPARE_")) {
+                prop.setProperty(k.replace("PGCOMPARE_","").replace("_","-").toLowerCase(),v);
             }
         });
 

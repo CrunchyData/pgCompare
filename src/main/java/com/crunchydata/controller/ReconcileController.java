@@ -200,7 +200,7 @@ public class ReconcileController {
 
                     }
 
-                    Logging.write("info", THREAD_NAME, "Waiting for hash threads to complete");
+                    Logging.write("info", THREAD_NAME, "Waiting for compare threads to complete");
                     // Check Threads
                     for (threadReconcile thread : compareList) {
                         thread.join();
@@ -257,7 +257,7 @@ public class ReconcileController {
 
             DecimalFormat formatter = new DecimalFormat("#,###");
 
-            String msgFormat = "Reconciliation Complete: Table = %-30s; Status = %-12s; Equal = %19.19s; Not Equal = %19.19s; Missing Source = %19.19s; Missing Target = %19.19s";
+            String msgFormat = "Reconciliation Complete: Table = %s; Status = %s; Equal = %s; Not Equal = %s; Missing Source = %s; Missing Target = %s";
             Logging.write("info", THREAD_NAME, String.format(msgFormat,dct.getTableAlias(), result.getString("compareStatus"), formatter.format(result.getInt("equal")), formatter.format(result.getInt("notEqual")), formatter.format(result.getInt("missingSource")), formatter.format(result.getInt("missingTarget"))));
 
             result.put("status", "success");
