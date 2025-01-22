@@ -76,7 +76,7 @@ public class threadReconcile extends Thread {
     public void run() {
 
         String threadName = String.format("Reconcile-%s-c%s-t%s", targetType, cid, threadNumber);
-        Logging.write("info", threadName, "Start database reconcile thread");
+        Logging.write("info", threadName, String.format("(%s) Start database reconcile thread",targetType));
 
         int cntRecord = 0;
         Connection conn = null;
@@ -94,17 +94,17 @@ public class threadReconcile extends Thread {
 
         try {
             // Connect to Repository
-            Logging.write("info", threadName, "Connecting to repository database");
+            Logging.write("info", threadName, String.format("(%s) Connecting to repository database", targetType));
             repoConn = dbPostgres.getConnection(Props,"repo", "reconcile");
 
             if ( repoConn == null) {
-                Logging.write("severe", threadName, "Cannot connect to repository database");
+                Logging.write("severe", threadName, String.format("(%s) Cannot connect to repository database", targetType));
                 System.exit(1);
             }
             repoConn.setAutoCommit(false);
 
             // Connect to Source/Target
-            Logging.write("info", threadName, String.format("Connecting to %s database", targetType));
+            Logging.write("info", threadName, String.format("(%s) Connecting to database", targetType));
 
             switch (Props.getProperty(targetType + "-type")) {
                 case "oracle":
@@ -129,7 +129,7 @@ public class threadReconcile extends Thread {
             }
 
             if ( conn == null) {
-                Logging.write("severe", threadName, String.format("Cannot connect to %s database", targetType));
+                Logging.write("severe", threadName, String.format("(%s) Cannot connect to database", targetType));
                 System.exit(1);
             }
 
@@ -185,7 +185,7 @@ public class threadReconcile extends Thread {
                 if (totalRows % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 ) {
                     if (useLoaderThreads) {
                         if ( q.size() == 100) {
-                            Logging.write("info", threadName, "Waiting for Queue space");
+                            Logging.write("info", threadName, String.format("(%s) Waiting for Queue space", targetType));
                             while (q.size() > 50) {
                                 Thread.sleep(1000);
                             }
@@ -202,14 +202,14 @@ public class threadReconcile extends Thread {
                 }
 
                 if (totalRows % loadRowCount == 0) {
-                    Logging.write("info", threadName, String.format("Loaded %s rows", formatter.format(totalRows)));
+                    Logging.write("info", threadName, String.format("(%s) Loaded %s rows", targetType, formatter.format(totalRows)));
                 }
 
                 if (totalRows % observerRowCount == 0) {
                     if (firstPass || Boolean.parseBoolean(Props.getProperty("observer-throttle"))) {
                         firstPass = false;
 
-                        Logging.write("info", threadName, "Wait for Observer");
+                        Logging.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
 
                         rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
 
@@ -231,9 +231,9 @@ public class threadReconcile extends Thread {
                             ts.targetWaiting = false;
                         }
 
-                        Logging.write("info", threadName, "Cleared by Observer");
+                        Logging.write("info", threadName, String.format("(%s) Cleared by Observer",targetType));
                     } else {
-                        Logging.write("info", threadName, "Pause for Observer");
+                        Logging.write("info", threadName, String.format("(%s) Pause for Observer",targetType));
                         Thread.sleep(1000);
                     }
                 }
@@ -254,12 +254,12 @@ public class threadReconcile extends Thread {
                 rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
             }
 
-            Logging.write("info", threadName, "Complete. Total rows loaded: " + formatter.format(totalRows));
+            Logging.write("info", threadName, String.format("(%s) Complete. Total rows loaded: %s", targetType, formatter.format(totalRows)));
 
             // Wait for Queues to Empty
             if (useLoaderThreads) {
                 while (!q.isEmpty()) {
-                    Logging.write("info", threadName, "Waiting for message queue to empty");
+                    Logging.write("info", threadName, String.format("(%s) Waiting for message queue to empty",targetType));
                     Thread.sleep(1000);
                 }
                 Thread.sleep(1000);
@@ -272,9 +272,9 @@ public class threadReconcile extends Thread {
             }
 
         } catch( SQLException e) {
-            Logging.write("severe", threadName, String.format("Database error:  %s", e.getMessage()));
+            Logging.write("severe", threadName, String.format("(%s) Database error:  %s", targetType, e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", threadName, String.format("Error in reconciliation thread:  %s",e.getMessage()));
+            Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread:  %s", targetType, e.getMessage()));
         } finally {
             try {
                 if (rs != null) {
@@ -299,7 +299,7 @@ public class threadReconcile extends Thread {
                 }
 
             } catch (Exception e) {
-                Logging.write("severe", threadName, String.format("Error closing connections thread:  %s",e.getMessage()));
+                Logging.write("severe", threadName, String.format("(%s) Error closing connections thread:  %s", targetType, e.getMessage()));
             }
         }
 

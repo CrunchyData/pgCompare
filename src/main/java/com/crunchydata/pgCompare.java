@@ -113,22 +113,10 @@ public class pgCompare {
 
 
         // Connect to Source
-        Logging.write("info", THREAD_NAME, String.format("Connecting to source database (type = %s, host = %s)",Props.getProperty("source-type"), Props.getProperty("source-host")));
         connSource = getDatabaseConnection(Props.getProperty("source-type"), "source");
 
-        if (connSource == null) {
-            Logging.write("severe", THREAD_NAME, "Cannot connect to source database");
-            System.exit(1);
-        }
-
         // Connect to Target
-        Logging.write("info", THREAD_NAME, String.format("Connecting to target database (type = %s, host = %s)",Props.getProperty("target-type"), Props.getProperty("target-host")));
         connTarget = getDatabaseConnection(Props.getProperty("target-type"), "target");
-
-        if (connTarget == null) {
-            Logging.write("severe", THREAD_NAME, "Cannot connect to target database");
-            System.exit(1);
-        }
 
         // Refresh Column Map (maponly)
         if (cmd.hasOption("maponly")) {
@@ -172,15 +160,24 @@ public class pgCompare {
     //
     // Database Connection
     //
-    private static Connection getDatabaseConnection(String dbType, String destType) {
-        return switch (dbType) {
-            case "oracle" -> dbOracle.getConnection(Props, destType);
-            case "mariadb" -> dbMariaDB.getConnection(Props, destType);
-            case "mysql" -> dbMySQL.getConnection(Props, destType);
-            case "mssql" -> dbMSSQL.getConnection(Props, destType);
-            case "db2" -> dbDB2.getConnection(Props, destType);
-            default -> dbPostgres.getConnection(Props, destType, THREAD_NAME);
+    private static Connection getDatabaseConnection(String dbType, String destRole) {
+        Logging.write("info", THREAD_NAME, String.format("(%s) Connecting to database (type = %s, host = %s)", destRole, Props.getProperty(destRole+"-type"), Props.getProperty(destRole+"-host")));
+
+        Connection conn = switch (dbType) {
+            case "oracle" -> dbOracle.getConnection(Props, destRole);
+            case "mariadb" -> dbMariaDB.getConnection(Props, destRole);
+            case "mysql" -> dbMySQL.getConnection(Props, destRole);
+            case "mssql" -> dbMSSQL.getConnection(Props, destRole);
+            case "db2" -> dbDB2.getConnection(Props, destRole);
+            default -> dbPostgres.getConnection(Props, destRole, THREAD_NAME);
         };
+
+        if (conn == null) {
+            Logging.write("severe", THREAD_NAME, String.format("Cannot connect to %s database", destRole));
+            System.exit(1);
+        }
+
+        return conn;
     }
 
     //

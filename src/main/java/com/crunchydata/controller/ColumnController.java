@@ -31,7 +31,7 @@ public class ColumnController {
      * @return                 A ColumnMetadata object containing column information
      */
     public static ColumnMetadata getColumnInfo(JSONObject columnMap, String targetType, String platform, String schema, String table, Boolean useDatabaseHash) {
-        Logging.write("info", THREAD_NAME, String.format("Building column expressions for %s.%s",schema,table));
+        Logging.write("info", THREAD_NAME, String.format("(%s) Building column expressions for %s.%s",targetType, schema,table));
 
         // Variables
         StringBuilder column = new StringBuilder();
@@ -170,7 +170,7 @@ public class ColumnController {
         ArrayList<Object> binds = new ArrayList<>();
         Integer columnCount = 0;
 
-        Logging.write("info", THREAD_NAME, String.format("Performing column discovery on %s for table %s", destType, tableName));
+        Logging.write("info", THREAD_NAME, String.format("(%s) Performing column discovery on %s for table %s", destRole, destType, tableName));
 
         // Get Tables based on Platform
         JSONArray columns = getColumns(Props, connDest,schema,tableName, destRole);
@@ -222,12 +222,12 @@ public class ColumnController {
 
                 RepoController.saveTableColumnMap(connRepo, dctcm);
 
-                Logging.write("info", THREAD_NAME, String.format("Discovered Column: %s",columnName));
+                Logging.write("info", THREAD_NAME, String.format("(%s) Discovered Column: %s",destRole,columnName));
 
             }
         }
 
-        Logging.write("info", THREAD_NAME, String.format("Discovered %d columns for table %s",columnCount, tableName));
+        Logging.write("info", THREAD_NAME, String.format("(%s) Discovered %d columns for table %s",destRole, columnCount, tableName));
 
     }
 

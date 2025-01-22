@@ -109,10 +109,10 @@ public class ReconcileController {
             ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), dctmSource.getSchemaName(), dctmSource.getTableName(), !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
             ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), dctmTarget.getSchemaName(), dctmTarget.getTableName(), !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
 
-            Logging.write("info", THREAD_NAME, String.format("Source Columns: %s", ciSource.columnList));
-            Logging.write("info", THREAD_NAME, String.format("Target Columns: %s", ciTarget.columnList));
-            Logging.write("info", THREAD_NAME, String.format("Source PK Columns: %s", ciSource.pkList));
-            Logging.write("info", THREAD_NAME, String.format("Target PK Columns: %s", ciTarget.pkList));
+            Logging.write("info", THREAD_NAME, String.format("(source) Columns: %s", ciSource.columnList));
+            Logging.write("info", THREAD_NAME, String.format("(target) Columns: %s", ciTarget.columnList));
+            Logging.write("info", THREAD_NAME, String.format("(source) PK Columns: %s", ciSource.pkList));
+            Logging.write("info", THREAD_NAME, String.format("(target) PK Columns: %s", ciTarget.pkList));
 
             Integer cid = rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
 
@@ -139,8 +139,8 @@ public class ReconcileController {
                 default -> "";
             });
 
-            Logging.write("info", THREAD_NAME, String.format("Source Compare Hash SQL: %s", dctmSource.getCompareSQL()));
-            Logging.write("info", THREAD_NAME, String.format("Target Compare Hash SQL: %s", dctmTarget.getCompareSQL()));
+            Logging.write("info", THREAD_NAME, String.format("(source) Compare SQL: %s", dctmSource.getCompareSQL()));
+            Logging.write("info", THREAD_NAME, String.format("(target) Compare SQL: %s", dctmTarget.getCompareSQL()));
 
             if (check) {
                 threadReconcileCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);

@@ -55,6 +55,9 @@ public class dbRepository {
         // Create Indexes
         dbCommon.simpleUpdate(conn,REPO_DDL_DC_RESULT_IDX1, binds, true);
         dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_HISTORY_IDX1, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_IDX1, binds, true);
+        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_IDX1, binds, true);
+
 
         // Add Constraints
         dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_FK, binds, true);

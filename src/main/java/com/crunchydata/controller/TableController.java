@@ -114,7 +114,7 @@ public class TableController {
         ArrayList<Object> binds = new ArrayList<>();
         Integer tableCount = 0;
 
-        Logging.write("info", THREAD_NAME, String.format("Performing table discovery on %s for schema %s",destType,schema));
+        Logging.write("info", THREAD_NAME, String.format("(%s) Performing table discovery on %s for schema %s",destRole, destType,schema));
 
         // Get Tables based on Platform
         JSONArray tables = getDatabaseTables(destType,connDest,schema);
@@ -141,7 +141,7 @@ public class TableController {
                 if ( populateDCTable ) {
                     dct = RepoController.saveTable(connRepo, dct);
                 } else {
-                    Logging.write("warning", THREAD_NAME, String.format("Skipping table since no table alias found for %s", tableName));
+                    Logging.write("warning", THREAD_NAME, String.format("(%s) Skipping, table %s not found on other destination", destRole, tableName));
                 }
             } else {
                 dct.setTid(tid);
@@ -159,12 +159,12 @@ public class TableController {
 
                 RepoController.saveTableMap(connRepo, dctm);
 
-                Logging.write("info", THREAD_NAME, String.format("Discovered Table (%s): %s",destRole, tableName));
+                Logging.write("info", THREAD_NAME, String.format("(%s) Discovered Table: %s",destRole, tableName));
 
             }
         }
 
-        Logging.write("info", THREAD_NAME, String.format("Discovered %d tables on %s for for schema %s",tableCount, destType, schema));
+        Logging.write("info", THREAD_NAME, String.format("(%s) Discovered %d tables on %s for for schema %s", destRole, tableCount, destType, schema));
 
     }
 }

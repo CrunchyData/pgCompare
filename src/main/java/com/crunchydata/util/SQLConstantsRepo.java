@@ -87,6 +87,11 @@ public interface SQLConstantsRepo {
             )
             """;
 
+    String REPO_DDL_DC_TABLE_IDX1 = """
+            CREATE INDEX dc_table_idx1 ON dc_table USING btree (table_alias)
+            """;
+
+
     // DC_TABLE_COLUMN
     String REPO_DDL_DC_TABLE_COLUMN = """
             CREATE TABLE dc_table_column (
@@ -96,6 +101,10 @@ public interface SQLConstantsRepo {
             	status varchar(15) DEFAULT 'compare'::character varying NULL,
             	CONSTRAINT dc_table_column_pk PRIMARY KEY (column_id)
             )
+            """;
+
+    String REPO_DDL_DC_TABLE_COLUMN_IDX1 = """
+            CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias);
             """;
 
     String REPO_DDL_DC_TABLE_COLUMN_FK = """
