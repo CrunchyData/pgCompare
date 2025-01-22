@@ -135,6 +135,8 @@ CREATE TABLE dc_target (
 
 CREATE INDEX dc_result_idx1 ON dc_result USING btree (table_name, compare_start);
 CREATE INDEX dc_table_history_idx1 ON dc_table_history USING btree (tid, start_dt);
+CREATE INDEX dc_table_idx1 ON dc_table USING btree (table_alias);
+CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias);
 
 --
 -- Foreign Keys
@@ -148,4 +150,3 @@ ALTER TABLE dc_table_map ADD CONSTRAINT dc_table_map_fk FOREIGN KEY (tid) REFERE
 --
 INSERT INTO pgcompare.dc_project (project_name,project_config) VALUES
 	 ('default',NULL);
-

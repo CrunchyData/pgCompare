@@ -30,7 +30,7 @@ public interface SQLConstantsPostgres {
                      JOIN pg_attribute c ON (t.oid=c.attrelid)
                      JOIN pg_namespace n ON (t.relnamespace=n.oid)
                      JOIN information_schema.columns col ON (col.table_schema=n.nspname AND col.table_name=t.relname AND col.column_name=c.attname)
-                     LEFT OUTER JOIN pg_index i ON (i.indrelid=c.attrelid AND c.attnum = any(i.indkey) AND i.indisunique)
+                     LEFT OUTER JOIN pg_index i ON (i.indrelid=c.attrelid AND c.attnum = any(i.indkey) AND i.indisprimary)
                 WHERE lower(n.nspname)=lower(?)
                       AND lower(t.relname)=lower(?)
                 ORDER BY n.nspname, t.relname, c.attname
