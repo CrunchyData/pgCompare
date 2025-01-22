@@ -417,7 +417,10 @@ public class dbCommon {
 
             // Close the PreparedStatement
             stmt.close();
-            conn.commit();
+
+            if ( ! conn.getAutoCommit() ) {
+                conn.commit();
+            }
         } catch (Exception e) {
             Logging.write("severe", THREAD_NAME, "Error executing simple execute (" + sql + "):  " + e.getMessage());
             try { conn.rollback(); } catch (Exception ee) {

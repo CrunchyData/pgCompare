@@ -184,13 +184,10 @@ public class pgCompare {
     // Discovery
     //
     private static void performDiscovery() {
-        String sourceSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
-        String targetSchema = (cmd.hasOption("discovery")) ? cmd.getOptionValue("discovery") : (System.getenv("PGCOMPARE-DISCOVERY") == null) ? "" : System.getenv("PGCOMPARE-DISCOVERY");
-
         Logging.write("info", THREAD_NAME, "Performing table discovery");
 
         // Discover Tables
-        TableController.discoverTables(Props, pid,connRepo,connSource,connTarget,sourceSchema,targetSchema);
+        TableController.discoverTables(Props, pid,connRepo,connSource,connTarget);
 
         // Discover Columns
         ColumnController.discoverColumns(Props, pid, connRepo, connSource, connTarget);
