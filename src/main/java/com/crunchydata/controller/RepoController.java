@@ -362,4 +362,28 @@ public class RepoController {
 
         dbCommon.simpleUpdate(conn,sql,binds, true);
     }
+
+    /**
+     * Vacuum Repo Tables
+     *
+     * @param conn      Database connection
+     */
+    public static void vacuumRepo(Connection conn) {
+
+        try {
+            boolean autoCommit = conn.getAutoCommit();
+
+            conn.setAutoCommit(true);
+
+            dbCommon.simpleExecute(conn, "VACUUM dc_table");
+            dbCommon.simpleExecute(conn, "VACUUM dc_table_map");
+            dbCommon.simpleExecute(conn, "VACUUM dc_table_column");
+            dbCommon.simpleExecute(conn, "VACUUM dc_table_column_map");
+
+            conn.setAutoCommit(autoCommit);
+
+        } catch (Exception e) {
+            // do nothing
+        }
+    }
 }

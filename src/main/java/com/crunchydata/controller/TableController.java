@@ -31,16 +31,16 @@ public class TableController {
      * @param connRepo        Repository database connection
      * @param connSource      Source database connection
      * @param connTarget      Target database connection
-     * @param sourceSchema    Source schema name
-     * @param targetSchema    Target schema name
      */
-    public static void discoverTables (Properties Props, Integer pid, Connection connRepo, Connection connSource, Connection connTarget, String sourceSchema, String targetSchema) {
+    public static void discoverTables (Properties Props, Integer pid, Connection connRepo, Connection connSource, Connection connTarget) {
 
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,pid);
 
         // Clean previous Discovery
+        Logging.write("info", THREAD_NAME, "Clearing previous discovery");
         dbCommon.simpleUpdate(connRepo,SQL_REPO_DCTABLE_DELETEBYPROJECT, binds, true);
+        RepoController.vacuumRepo(connRepo);
 
         // Target Table Discovery
         loadTables(Props, pid,connRepo,connTarget,"target",true);

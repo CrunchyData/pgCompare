@@ -104,7 +104,7 @@ public interface SQLConstantsRepo {
             """;
 
     String REPO_DDL_DC_TABLE_COLUMN_IDX1 = """
-            CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias);
+            CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias, tid, column_id)
             """;
 
     String REPO_DDL_DC_TABLE_COLUMN_FK = """

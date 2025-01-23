@@ -136,7 +136,7 @@ CREATE TABLE dc_target (
 CREATE INDEX dc_result_idx1 ON dc_result USING btree (table_name, compare_start);
 CREATE INDEX dc_table_history_idx1 ON dc_table_history USING btree (tid, start_dt);
 CREATE INDEX dc_table_idx1 ON dc_table USING btree (table_alias);
-CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias);
+CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias, tid, column_id);
 
 --
 -- Foreign Keys
