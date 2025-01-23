@@ -371,7 +371,7 @@ public class RepoController {
     public static void vacuumRepo(Connection conn) {
 
         try {
-            Boolean autoCommit = conn.getAutoCommit();
+            boolean autoCommit = conn.getAutoCommit();
 
             conn.setAutoCommit(true);
 
