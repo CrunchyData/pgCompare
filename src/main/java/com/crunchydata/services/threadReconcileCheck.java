@@ -161,7 +161,7 @@ public class threadReconcileCheck {
 
                     if (!sourceValue.equals(targetValue)) {
                         JSONObject col = new JSONObject();
-                        String jsonString = "{ source: " + sourceValue + ", target: " + ((targetValue.equals(" ")) ? "\" \"" : targetValue) + "}";
+                        String jsonString = "{ source: " + ((sourceValue.equals(" ")) ? "\" \"" : sourceValue) + ", target: " + ((targetValue.equals(" ")) ? "\" \"" : targetValue) + "}";
                         col.put(column, new JSONObject(jsonString));
                         arr.put(columnOutofSync, col);
                         columnOutofSync++;

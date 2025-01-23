@@ -97,7 +97,7 @@ public class dbMariaDB {
             colExpression = "case when coalesce(convert(" + columnName + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
-                colExpression = "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')";
+                colExpression = "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'+00:00'),'%m%d%Y%H%i%S'),' ')";
             } else {
                 colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
             }
