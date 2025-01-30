@@ -156,17 +156,24 @@ public class threadReconcileCheck {
                 for (int i = 2; i <= rowMetadata.getColumnCount(); i++) {
                     String column = rowMetadata.getColumnName(i);
 
-                    String sourceValue = (sourceRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) sourceRow.getObject(i)) : sourceRow.getString(i);
-                    String targetValue = (targetRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) targetRow.getObject(i)) : targetRow.getString(i);
+                    try {
+                        String sourceValue = (sourceRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) sourceRow.getObject(i)) : sourceRow.getString(i);
+                        String targetValue = (targetRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) targetRow.getObject(i)) : targetRow.getString(i);
 
-                    if (!sourceValue.equals(targetValue)) {
-                        JSONObject col = new JSONObject();
-                        String jsonString = "{ source: " + ((sourceValue.equals(" ")) ? "\" \"" : sourceValue) + ", target: " + ((targetValue.equals(" ")) ? "\" \"" : targetValue) + "}";
-                        col.put(column, new JSONObject(jsonString));
-                        arr.put(columnOutofSync, col);
-                        columnOutofSync++;
+                        if (!sourceValue.equals(targetValue)) {
+                            JSONObject col = new JSONObject();
+                            String jsonString = "{ source: " + ((sourceValue.equals(" ")) ? "\" \"" : sourceValue) + ", target: " + ((targetValue.equals(" ")) ? "\" \"" : targetValue) + "}";
+                            col.put(column, new JSONObject(jsonString));
+                            arr.put(columnOutofSync, col);
+                            columnOutofSync++;
+                        }
+                    } catch (Exception e) {
+                        StackTraceElement[] stackTrace = e.getStackTrace();
+                        Logging.write("severe", THREAD_NAME, String.format("Error comparing column values at line %s: %s",stackTrace[0].getLineNumber(), e.getMessage()));
+                        Logging.write("severe", THREAD_NAME, String.format("Error on column %s",column));
+                        Logging.write("severe", THREAD_NAME, String.format("Source values:  %s", sourceRow.getString(i)));
+                        Logging.write("severe", THREAD_NAME, String.format("Target values:  %s", targetRow.getString(i)));
                     }
-
                 }
 
                 if (columnOutofSync > 0) {
