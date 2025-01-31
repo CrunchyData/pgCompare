@@ -116,7 +116,8 @@ public class RepoController {
             dbCommon.simpleUpdate(conn, "vacuum dc_target", binds, false);
             conn.setAutoCommit(currentAutoCommit);
         } catch (Exception e) {
-            System.out.printf("Error clearing staging tables: %s%n",e.getMessage());
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            System.out.printf(String.format("Error clearing staging tables at line %s: %s", stackTrace[0].getLineNumber(), e.getMessage()));
             System.exit(1);
         }
 
@@ -332,7 +333,8 @@ public class RepoController {
             crs.close();
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, "Error retrieving cid");
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", THREAD_NAME, String.format("Error retrieving cid at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         return cid;

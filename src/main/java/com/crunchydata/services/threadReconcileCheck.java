@@ -109,7 +109,8 @@ public class threadReconcileCheck {
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s:  %s", dct.getTableAlias(), e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s at line %s:  %s", dct.getTableAlias(), stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
     }
@@ -205,7 +206,8 @@ public class threadReconcileCheck {
 
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values:  %s", e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
     }

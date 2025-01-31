@@ -106,7 +106,7 @@ public class dbMySQL {
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(md5(" + columnName +"), ' ')";
         } else {
-            colExpression = columnName;
+            colExpression = "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
         }
 
         return colExpression;

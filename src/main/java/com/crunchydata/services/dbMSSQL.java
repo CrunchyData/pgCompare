@@ -104,7 +104,7 @@ public class dbMSSQL {
                         column.getInt("dataLength") > 1 ? "case when len(" + columnName + ")=0 then ' ' else coalesce(rtrim(ltrim(" + columnName + ")),' ') end" :  "case when len(" + columnName + ")=0 then ' ' else " + columnName + " end";
             };
         } else {
-            colExpression = columnName;
+            colExpression = "coalesce(" + columnName + ",' ')";
         }
 
         return colExpression;
