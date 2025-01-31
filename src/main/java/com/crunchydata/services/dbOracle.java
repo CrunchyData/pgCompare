@@ -107,7 +107,7 @@ public class dbOracle {
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when dbms_lob.getlength(" + columnName +") = 0 or " + columnName + " is null then ' ' else lower(dbms_crypto.hash(" + columnName + ",2)) end";
         } else {
-            colExpression = columnName;
+            colExpression = "nvl(" + columnName + ",' ')";
         }
 
         return colExpression;

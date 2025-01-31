@@ -98,7 +98,7 @@ public class dbDB2 {
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when dbms_lob.getlength(" + columnName +") = 0 or " + columnName + " is null then ' ' else lower(dbms_crypto.hash(" + columnName + ",2)) end";
         } else {
-            colExpression = columnName;
+            colExpression = "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
         }
 
         return colExpression;

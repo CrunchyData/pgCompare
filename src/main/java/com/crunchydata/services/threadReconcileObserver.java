@@ -186,16 +186,19 @@ public class threadReconcileObserver extends Thread  {
 
 
         } catch (Exception e) {
-            Logging.write("severe", threadName, "Error in observer process: " + e.getMessage());
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", threadName, String.format("Error in observer process at line %s: %s", stackTrace[0].getLineNumber(), e.getMessage()));
             try { repoConn.rollback();
             } catch (Exception ee) {
-                Logging.write("warn", threadName, "Error rolling back transaction " + e.getMessage());
+                stackTrace = e.getStackTrace();
+                Logging.write("warn", threadName, String.format("Error rolling back transaction at line %s: %s ",stackTrace[0].getLineNumber(), e.getMessage()));
             }
         } finally {
             try {
                 repoConn.close();
             } catch (Exception e) {
-                Logging.write("warn", threadName, "Error closing thread " + e.getMessage());
+                StackTraceElement[] stackTrace = e.getStackTrace();
+                Logging.write("warn", threadName, String.format("Error closing thread at line %s:  %s",stackTrace[0].getLineNumber(), e.getMessage()));
             }
         }
     }

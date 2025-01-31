@@ -263,9 +263,11 @@ public class ReconcileController {
             result.put("status", "success");
 
         }  catch( SQLException e) {
-            Logging.write("severe", THREAD_NAME, String.format("Database error:  %s",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", THREAD_NAME, String.format("Database error at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error in reconcile controller:  %s",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", THREAD_NAME, String.format("Error in reconcile controller at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         return result;

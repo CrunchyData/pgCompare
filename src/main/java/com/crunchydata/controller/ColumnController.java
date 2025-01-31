@@ -105,7 +105,8 @@ public class ColumnController {
             }
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list:  %s",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         // Using the concat operator causes issues for mariadb.  Have to convert from using operator (||)
@@ -142,7 +143,8 @@ public class ColumnController {
 
             crs.close();
         } catch (Exception e) {
-            Logging.write("severe",THREAD_NAME, String.format("Error retrieving columns for project %d on %s: %s",pid,"target",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe",THREAD_NAME, String.format("Error retrieving columns for project %d on %s at line %s: %s",pid,"target",stackTrace[0].getLineNumber(), e.getMessage()));
             System.exit(1);
         }
 
@@ -159,7 +161,8 @@ public class ColumnController {
 
             crs.close();
         } catch (Exception e) {
-            Logging.write("severe",THREAD_NAME, String.format("Error retrieving columns for project %d on %s: %s",pid,"source",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe",THREAD_NAME, String.format("Error retrieving columns for project %d on %s at line %s: %s",pid,"source", stackTrace[0].getLineNumber(), e.getMessage()));
             System.exit(1);
         }
 

@@ -151,9 +151,11 @@ public class threadLoader extends Thread  {
             ts.loaderThreadComplete++;
 
         } catch( SQLException e) {
-            Logging.write("severe", threadName, String.format("Database error:  %s",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", threadName, String.format("Database error at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", threadName, String.format("Error in loader thread:  %s",e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", threadName, String.format("Error in loader thread at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         } finally {
             // Close PreparedStatement and Connection in finally block
             try {
@@ -165,7 +167,8 @@ public class threadLoader extends Thread  {
                     repoConn.close();
                 }
             } catch (Exception e) {
-                Logging.write("severe", threadName, String.format("Error closing connections:  %s",e.getMessage()));
+                StackTraceElement[] stackTrace = e.getStackTrace();
+                Logging.write("severe", threadName, String.format("Error closing connections at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
             }
         }
     }

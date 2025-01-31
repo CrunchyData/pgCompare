@@ -272,9 +272,11 @@ public class threadReconcile extends Thread {
             }
 
         } catch( SQLException e) {
-            Logging.write("severe", threadName, String.format("(%s) Database error:  %s", targetType, e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", threadName, String.format("(%s) Database error at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread:  %s", targetType, e.getMessage()));
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
         } finally {
             try {
                 if (rs != null) {
@@ -299,7 +301,8 @@ public class threadReconcile extends Thread {
                 }
 
             } catch (Exception e) {
-                Logging.write("severe", threadName, String.format("(%s) Error closing connections thread:  %s", targetType, e.getMessage()));
+                StackTraceElement[] stackTrace = e.getStackTrace();
+                Logging.write("severe", threadName, String.format("(%s) Error closing connections thread at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
             }
         }
 
