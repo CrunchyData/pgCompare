@@ -46,12 +46,16 @@ public class dbCommon {
      * @param sql The SQL query to retrieve database version.
      * @return A JSONArray of table lists.
      */
-    public static JSONArray getTables (Connection conn, String schema, String sql) {
+    public static JSONArray getTables (Connection conn, String schema, String tableFilter, String sql) {
         JSONArray tableInfo = new JSONArray();
 
         try {
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setObject(1, schema);
+            if (! tableFilter.isEmpty()) {
+                stmt.setObject(2, tableFilter);
+            }
+
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {

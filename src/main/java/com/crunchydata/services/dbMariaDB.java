@@ -88,21 +88,23 @@ public class dbMariaDB {
                     break;
                 default:
                     if (Props.getProperty("number-cast").equals("notation")) {
-                        colExpression = "coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ') end";
                     } else {
-                        colExpression = "coalesce(if(instr(convert(" + columnName + ",char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(convert(abs(" + columnName + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + columnName + ",char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(convert(" + columnName + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
+                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(instr(convert(" + columnName + ",char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(convert(abs(" + columnName + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + columnName + ",char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(convert(" + columnName + ",char),22,'0'),'.',rpad('',22,'0'))),' ') end";
                     }
             }
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when coalesce(convert(" + columnName + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
-                colExpression = "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'+00:00'),'%m%d%Y%H%i%S'),' ')";
+                // Casting with factoring in session.time_zone seems to cause issues
+                //colExpression = "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'+00:00'),'%m%d%Y%H%i%S'),' ')";
+                colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
             } else {
                 colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
+            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else trim(" + columnName + ") end";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(md5(" + columnName +"), ' ')";
         } else {

@@ -120,21 +120,33 @@ public class ColumnController {
     }
 
 
-    public static void discoverColumns(Properties Props, Integer pid, Connection connRepo, Connection connSource, Connection connTarget) {
+    public static void discoverColumns(Properties Props, Integer pid, String table, Connection connRepo, Connection connSource, Connection connTarget) {
         ArrayList<Object> binds = new ArrayList<>();
 
         binds.add(0, pid);
+        if (! table.isEmpty()) {
+            binds.add(1,table);
+        }
+
+        String sql = (table.isEmpty()) ? SQL_REPO_DCTABLECOLUMN_DELETEBYPID : SQL_REPO_DCTABLECOLUMN_DELETEBYPIDTABLE;
+
         // Clear out Previous Mappings
-        dbCommon.simpleUpdate(connRepo, SQL_REPO_DCTABLECOLUMN_DELETEBYPID, binds, true);
+        dbCommon.simpleUpdate(connRepo, sql, binds, true);
 
         CachedRowSet crs;
 
         // Target Table Columns
+        sql = (table.isEmpty()) ? SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGIN : SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGINTABLE;
+
         try {
             binds.clear();
             binds.add(0,pid);
             binds.add(1,"target");
-            crs = dbCommon.simpleSelect(connRepo, SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGIN, binds);
+            if (! table.isEmpty()) {
+                binds.add(2,table);
+            }
+
+            crs = dbCommon.simpleSelect(connRepo, sql, binds);
 
             while (crs.next()) {
                 // Repopulate Columns
@@ -153,7 +165,11 @@ public class ColumnController {
             binds.clear();
             binds.add(0,pid);
             binds.add(1,"source");
-            crs = dbCommon.simpleSelect(connRepo, SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGIN, binds);
+            if (! table.isEmpty()) {
+                binds.add(2,table);
+            }
+
+            crs = dbCommon.simpleSelect(connRepo, sql, binds);
 
             while (crs.next()) {
                 loadColumns(Props, pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connSource, "source", true);
