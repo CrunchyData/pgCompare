@@ -13,11 +13,17 @@ import java.util.Properties;
 
 import static com.crunchydata.util.DataUtility.getNativeCase;
 import static com.crunchydata.util.DataUtility.preserveCase;
+import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
@@ -32,23 +38,30 @@ public class TableController {
      * @param connSource      Source database connection
      * @param connTarget      Target database connection
      */
-    public static void discoverTables (Properties Props, Integer pid, Connection connRepo, Connection connSource, Connection connTarget) {
+    public static void discoverTables (Properties Props, Integer pid, String table, Connection connRepo, Connection connSource, Connection connTarget) {
 
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,pid);
+        if (! table.isEmpty()) {
+            binds.add(1,table);
+        }
+
+        String sql = (table.isEmpty()) ? SQL_REPO_DCTABLE_DELETEBYPROJECT : SQL_REPO_DCTABLE_DELETEBYPROJECTTABLE;
 
         // Clean previous Discovery
         Logging.write("info", THREAD_NAME, "Clearing previous discovery");
-        dbCommon.simpleUpdate(connRepo,SQL_REPO_DCTABLE_DELETEBYPROJECT, binds, true);
+        dbCommon.simpleUpdate(connRepo, sql, binds, true);
         RepoController.vacuumRepo(connRepo);
 
         // Target Table Discovery
-        loadTables(Props, pid,connRepo,connTarget,"target",true);
+        loadTables(Props, pid, table, connRepo, connTarget, "target",true);
 
         // Source Table Discovery
-        loadTables(Props, pid,connRepo,connSource,"source",false);
+        loadTables(Props, pid, table, connRepo, connSource, "source",false);
 
         // Clear Incomplete Map
+        binds.clear();
+        binds.add(0,pid);
         CachedRowSet crs = dbCommon.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
 
         try {
@@ -96,19 +109,19 @@ public class TableController {
         return result;
     }
 
-    public static JSONArray getDatabaseTables (String databasePlatform, Connection conn, String schema) {
+    public static JSONArray getDatabaseTables (String databasePlatform, Connection conn, String schema, String table) {
         return switch (databasePlatform) {
-            case "oracle" -> dbCommon.getTables(conn, schema, SQL_ORACLE_SELECT_TABLES);
-            case "mariadb" -> dbCommon.getTables(conn, schema, SQL_MARIADB_SELECT_TABLES);
-            case "mysql" -> dbCommon.getTables(conn, schema, SQL_MYSQL_SELECT_TABLES);
-            case "mssql" -> dbCommon.getTables(conn, schema, SQL_MSSQL_SELECT_TABLES);
-            case "db2" -> dbCommon.getTables(conn, schema, SQL_DB2_SELECT_TABLES);
-            default -> dbCommon.getTables(conn, schema, SQL_POSTGRES_SELECT_TABLES);
+            case "oracle" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_ORACLE_SELECT_TABLES : SQL_ORACLE_SELECT_TABLE );
+            case "mariadb" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_MARIADB_SELECT_TABLES : SQL_MARIADB_SELECT_TABLE);
+            case "mysql" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_MYSQL_SELECT_TABLES : SQL_MYSQL_SELECT_TABLE);
+            case "mssql" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_MSSQL_SELECT_TABLES : SQL_MSSQL_SELECT_TABLE);
+            case "db2" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_DB2_SELECT_TABLES : SQL_DB2_SELECT_TABLE);
+            default -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_POSTGRES_SELECT_TABLES : SQL_POSTGRES_SELECT_TABLE);
         };
     }
 
 
-    public static void loadTables(Properties Props, Integer pid, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
+    public static void loadTables(Properties Props, Integer pid, String table, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
         String destType=Props.getProperty(destRole+"-type");
         String schema=Props.getProperty(destRole+"-schema");
         ArrayList<Object> binds = new ArrayList<>();
@@ -117,7 +130,7 @@ public class TableController {
         Logging.write("info", THREAD_NAME, String.format("(%s) Performing table discovery on %s for schema %s",destRole, destType,schema));
 
         // Get Tables based on Platform
-        JSONArray tables = getDatabaseTables(destType,connDest,schema);
+        JSONArray tables = getDatabaseTables(destType,connDest,schema, table);
 
         // Get Default Case for Platform
         String nativeCase = getNativeCase(destType);

@@ -92,7 +92,7 @@ public class dbPostgres {
                 colExpression = "coalesce(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(case when length(coalesce(" + columnName + "::text,''))=0 then ' ' else " + columnName + "::text end,' ')";
+            colExpression = "coalesce(case when length(coalesce(trim(" + columnName + "::text),''))=0 then ' ' else trim(" + columnName + "::text) end,' ')";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "coalesce(md5(" + columnName +"), ' ')";
         } else {

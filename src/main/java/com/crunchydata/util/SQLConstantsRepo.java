@@ -292,6 +292,8 @@ public interface SQLConstantsRepo {
     //
     String SQL_REPO_DCTABLE_DELETEBYPROJECT = "DELETE FROM dc_table WHERE pid=?";
 
+    String SQL_REPO_DCTABLE_DELETEBYPROJECTTABLE = "DELETE FROM dc_table WHERE pid=? AND table_alias=?";
+
     String SQL_REPO_DCTABLE_DELETEBYTID = "DELETE FROM dc_table WHERE tid=?";
 
     String SQL_REPO_DCTABLE_INCOMPLETEMAP = """
@@ -324,6 +326,9 @@ public interface SQLConstantsRepo {
     String SQL_REPO_DCTABLECOLUMN_DELETEBYCOLUMNID = "DELETE FROM dc_table_column WHERE column_id=?";
 
     String SQL_REPO_DCTABLECOLUMN_DELETEBYPID = "DELETE FROM dc_table_column WHERE tid IN (SELECT tid FROM dc_table WHERE pid=?)";
+
+    String SQL_REPO_DCTABLECOLUMN_DELETEBYPIDTABLE = "DELETE FROM dc_table_column WHERE tid IN (SELECT tid FROM dc_table WHERE pid=? AND table_alias=?)";
+
     String SQL_REPO_DCTABLECOLUMN_DELETEBYTID = "DELETE FROM dc_table_column WHERE tid=?";
 
     String SQL_REPO_DCTABLECOLUMN_INCOMPLETEMAP = """
@@ -424,5 +429,14 @@ public interface SQLConstantsRepo {
                  JOIN dc_table_map m ON (t.tid=m.tid)
             WHERE t.pid = ?
                   AND m.dest_type = ?
+    """;
+
+    String SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGINTABLE = """
+            SELECT t.tid, t.table_alias, m.schema_name, m.table_name
+            FROM dc_table t
+                 JOIN dc_table_map m ON (t.tid=m.tid)
+            WHERE t.pid = ?
+                  AND m.dest_type = ?
+                  AND t.table_alias = ?
     """;
 }

@@ -44,6 +44,15 @@ public interface SQLConstantsPostgres {
                 ORDER BY table_schema, table_name
                 """;
 
+    String SQL_POSTGRES_SELECT_TABLE = """
+                SELECT table_schema as owner, table_name
+                FROM  information_schema.tables
+                WHERE lower(table_schema)=lower(?)
+                      AND table_type != 'VIEW'
+                      AND lower(table_name) = lower(?)
+                ORDER BY table_schema, table_name
+                """;
+
     String SQL_POSTGRES_SELECT_VERSION = "SELECT v.ver[2]::numeric version FROM (SELECT string_to_array(version(),' ') AS ver) v";
 
 }

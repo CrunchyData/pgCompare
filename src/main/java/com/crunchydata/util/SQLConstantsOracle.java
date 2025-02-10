@@ -40,6 +40,14 @@ public interface SQLConstantsOracle {
                 ORDER BY owner, table_name
                 """;
 
+    String SQL_ORACLE_SELECT_TABLE = """
+                SELECT owner, table_name
+                FROM all_tables
+                WHERE lower(owner)=lower(?)
+                      AND lower(table_name)=lower(?)
+                ORDER BY owner, table_name
+                """;
+
     String SQL_ORACLE_SELECT_VERSION = "select version from v$version";
 
 }

@@ -47,6 +47,14 @@ public interface SQLConstantsDB2 {
                 ORDER BY TABSCHEMA, TABNAME
                 """;
 
+    String SQL_DB2_SELECT_TABLE = """
+                SELECT trim(TABSCHEMA) AS owner, TABNAME AS table_name
+                FROM SYSCAT.TABLES
+                WHERE LOWER(TABSCHEMA) = LOWER(?)
+                      AND LOWER(TABNAME) = LOWER(?)
+                ORDER BY TABSCHEMA, TABNAME
+                """;
+
     String SQL_DB2_SELECT_VERSION = "SELECT service_level AS version FROM SYSIBMADM.ENV_INST_INFO";
 
 }

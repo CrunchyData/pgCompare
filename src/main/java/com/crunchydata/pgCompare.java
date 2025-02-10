@@ -47,7 +47,6 @@ public class pgCompare {
     private static Integer batchParameter;
     private static boolean check;
     private static CommandLine cmd;
-    private static boolean mapOnly;
     private static Integer pid = 1;
     private static Connection connRepo;
     private static Connection connSource;
@@ -118,13 +117,6 @@ public class pgCompare {
         // Connect to Target
         connTarget = getDatabaseConnection(Props.getProperty("target-type"), "target");
 
-        // Refresh Column Map (maponly)
-        if (cmd.hasOption("maponly")) {
-            // Discover Columns
-            ColumnController.discoverColumns(Props, pid, connRepo, connSource, connTarget);
-            System.exit(0);
-        }
-
         // Call module/function to perform desired action
         switch (action) {
             case "discovery":
@@ -185,19 +177,20 @@ public class pgCompare {
     //
     private static void performDiscovery() {
         Logging.write("info", THREAD_NAME, "Performing table discovery");
+        String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
 
         // Discover Tables
-        TableController.discoverTables(Props, pid,connRepo,connSource,connTarget);
+        TableController.discoverTables(Props, pid, table, connRepo,connSource,connTarget);
 
         // Discover Columns
-        ColumnController.discoverColumns(Props, pid, connRepo, connSource, connTarget);
+        ColumnController.discoverColumns(Props, pid, table, connRepo, connSource, connTarget);
     }
 
     //
     // Reconciliation
     //
     private static void performReconciliation () {
-        String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table") : "";
+        String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
         RepoController rpc = new RepoController();
         int tablesProcessed = 0;
         CachedRowSet crsTable = rpc.getTables(pid, connRepo, batchParameter, table, check);
@@ -247,9 +240,7 @@ public class pgCompare {
             Logging.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s",e.getMessage()));
         }
 
-        if (!mapOnly) {
-            createSummary(tablesProcessed, runResult, startStopWatch);
-        }
+        createSummary(tablesProcessed, runResult, startStopWatch);
 
     }
 
@@ -276,7 +267,6 @@ public class pgCompare {
         options.addOption(Option.builder("d").longOpt("discovery").argName("discovery").hasArg(false).desc("Discover tables in database").build());
         options.addOption(Option.builder("h").longOpt("help").argName("help").hasArg(false).desc("Usage and help").build());
         options.addOption(Option.builder("i").longOpt("init").argName("init").hasArg(false).desc("Initialize repository").build());
-        options.addOption(Option.builder("m").longOpt("maponly").argName("maponly").hasArg(false).desc("Perform column mapping only").build());
         options.addOption(Option.builder("p").longOpt("project").argName("project").hasArg(true).desc("Project ID").build());
         options.addOption(Option.builder("t").longOpt("table").argName("table").hasArg(true).desc("Limit to specified table").build());
         options.addOption(Option.builder("v").longOpt("version").argName("version").hasArg(false).desc("Version").build());
@@ -301,7 +291,6 @@ public class pgCompare {
             // Capture Argument Values
             batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("PGCOMPARE-BATCH") == null) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
             check = cmd.hasOption("check");
-            mapOnly = cmd.hasOption("maponly");
 
             // Determine the desired action, reconcile, discovery or init.
             //   reconcile = Perform comparison between source and target databases.
@@ -386,7 +375,6 @@ public class pgCompare {
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -c|--check Check out of sync rows");
         System.out.println("   -d|--discovery <schema> Discover tables in database");
-        System.out.println("   -m|--maponly Only perform column mapping");
         System.out.println("   -p|--project Project ID");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");

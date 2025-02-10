@@ -47,6 +47,14 @@ public interface SQLConstantsMariaDB {
                 ORDER BY table_schema, table_name
                 """;
 
+    String SQL_MARIADB_SELECT_TABLE = """
+                SELECT table_schema owner, table_name table_name
+                FROM  information_schema.tables
+                WHERE lower(table_schema)=lower(?)
+                      AND table_type = 'BASE TABLE'
+                      AND lower(table_name)=lower(?)
+                ORDER BY table_schema, table_name
+                """;
     String SQL_MARIADB_SELECT_VERSION = "select version()";
 
 }

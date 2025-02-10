@@ -94,7 +94,7 @@ public class dbDB2 {
                 colExpression = "nvl(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
             }
         } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
+            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else trim(" + columnName + ") end";
         } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when dbms_lob.getlength(" + columnName +") = 0 or " + columnName + " is null then ' ' else lower(dbms_crypto.hash(" + columnName + ",2)) end";
         } else {
