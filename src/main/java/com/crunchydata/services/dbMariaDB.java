@@ -124,7 +124,7 @@ public class dbMariaDB {
      */
     public static Connection getConnection(Properties connectionProperties, String destType) {
         Connection conn = null;
-        String url = "jdbc:mysql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
+        String url = "jdbc:mariadb://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
         Properties dbProps = new Properties();
 
         dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
