@@ -48,10 +48,19 @@ public class TableController {
 
         String sql = (table.isEmpty()) ? SQL_REPO_DCTABLE_DELETEBYPROJECT : SQL_REPO_DCTABLE_DELETEBYPROJECTTABLE;
 
+        //
         // Clean previous Discovery
+        //
         Logging.write("info", THREAD_NAME, "Clearing previous discovery");
         dbCommon.simpleUpdate(connRepo, sql, binds, true);
+
+        // Clean up orphaned tables
+        binds.clear();
+        dbCommon.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_CLEAN, binds, true);
+        dbCommon.simpleUpdate(connRepo, SQL_REPO_DCTARGET_CLEAN, binds, true);
+        dbCommon.simpleUpdate(connRepo, SQL_REPO_DCRESULT_CLEAN, binds, true);
         RepoController.vacuumRepo(connRepo);
+
 
         // Target Table Discovery
         loadTables(Props, pid, table, connRepo, connTarget, "target",true);
