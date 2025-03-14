@@ -171,7 +171,6 @@ public class ColumnUtility {
                         JSONObject column = new JSONObject();
                         if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase())) {
                             Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
-                            //System.exit(1);
                             column.put("supported", false);
                         } else {
                             column.put("supported", true);

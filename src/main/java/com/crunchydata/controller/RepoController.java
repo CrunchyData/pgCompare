@@ -200,7 +200,7 @@ public class RepoController {
      * @param batchNbr     Batch number
      * @param threadNbr    Thread number
      */
-    public void loadFindings (Connection conn, String location, Integer tid, String stagingTable, Integer batchNbr, Integer threadNbr) {
+    public void loadFindings (Connection conn, String location, Integer tid, String tableAlias, String stagingTable, Integer batchNbr, Integer threadNbr) {
 
         String sqlFinal = SQL_REPO_DCSOURCE_INSERT.replaceAll("dc_source", String.format("dc_%s",location)).replaceAll("stagingtable", stagingTable);
 
@@ -208,6 +208,7 @@ public class RepoController {
         binds.add(0, tid);
         binds.add(1, threadNbr);
         binds.add(2, batchNbr);
+        binds.add(3, tableAlias);
         dbCommon.simpleUpdate(conn, sqlFinal, binds, true);
     }
 
