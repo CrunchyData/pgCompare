@@ -140,6 +140,7 @@ Examples:
 - **Batch size:** Adjust `batch-fetch-size` and `batch-commit-size` for memory efficiency.
 - **Threads:** Use loader-threads (default: 4) for parallel processing.
 - **Observer throttle:** Enable to prevent overloading temporary tables (observer-throttle=true).
+- **Java Heap Size:** For larger datasets, there may be a need to increase the Java Heap size.  Use the options `-Xms` and `-Xmx` when executing pgCompare (`java -Xms512m -Xmx2g -jar pgcompare.jar`). 
 
 ## Repository Recommendations
 
