@@ -80,7 +80,7 @@ java -jar pgcompare.jar --init
 Discover and map tables in specified schemas:
 
 ```shell
-java -jar pgcompare.jar --discover
+java -jar pgcompare.jar --discovery
 ```
 
 # Usage
@@ -92,7 +92,7 @@ java -jar pgcompare.jar --discover
     Discover and map tables in specified schemas:
 
     ```shell
-    java -jar pgcompare.jar --discover
+    java -jar pgcompare.jar --discovery
     ```
 
 2. Manual Registration 
