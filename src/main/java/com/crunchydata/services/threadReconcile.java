@@ -39,18 +39,10 @@ import static com.crunchydata.util.HashUtility.getMd5;
  * @author Brian Pace
  */
 public class threadReconcile extends Thread {
-    private final Integer tid;
-    private final Integer batchNbr;
-    private final Integer cid;
-    private final String modColumn;
-    private final Integer nbrColumns;
-    private final Integer parallelDegree;
-    private final String pkList;
-    private BlockingQueue<DataCompare[]> q;
+    private final Integer tid, batchNbr, cid, nbrColumns, parallelDegree, threadNumber;
+    private final String modColumn, pkList, stagingTable, targetType;
     private String sql;
-    private final String stagingTable;
-    private final String targetType;
-    private final Integer threadNumber;
+    private BlockingQueue<DataCompare[]> q;
     private final ThreadSync ts;
     private final Boolean useDatabaseHash;
     private Properties Props;
@@ -78,19 +70,23 @@ public class threadReconcile extends Thread {
         String threadName = String.format("Reconcile-%s-c%s-t%s", targetType, cid, threadNumber);
         Logging.write("info", threadName, String.format("(%s) Start database reconcile thread",targetType));
 
+
+        int totalRows = 0;
+        int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
+        int fetchSize = Integer.parseInt(Props.getProperty("batch-fetch-size"));
+        boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
+        boolean observerThrottle = Boolean.parseBoolean(Props.getProperty("observer-throttle"));
         int cntRecord = 0;
         Connection conn = null;
         boolean firstPass = true;
         DecimalFormat formatter = new DecimalFormat("#,###");
-        int loadRowCount = 10000;
-        int observerRowCount = 10000;
+        int loadRowCount = Integer.parseInt(Props.getProperty("batch-progress-report-size"));
+        int observerRowCount = Integer.parseInt(Props.getProperty("observer-throttle-size"));
         Connection repoConn = null;
         RepoController rpc = new RepoController();
         ResultSet rs = null;
         PreparedStatement stmt = null;
         PreparedStatement stmtLoad = null;
-        int totalRows = 0;
-        boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
 
         try {
             // Connect to Repository
@@ -144,7 +140,7 @@ public class threadReconcile extends Thread {
 
             //conn.setAutoCommit(false);
             stmt = conn.prepareStatement(sql);
-            stmt.setFetchSize(Integer.parseInt(Props.getProperty("batch-fetch-size")));
+            stmt.setFetchSize(fetchSize);
             rs = stmt.executeQuery();
 
             StringBuilder columnValue = new StringBuilder();
@@ -155,7 +151,7 @@ public class threadReconcile extends Thread {
                 stmtLoad = repoConn.prepareStatement(sqlLoad);
             }
 
-            DataCompare[] dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
+            DataCompare[] dc = new DataCompare[batchCommitSize];
 
             while (rs.next()) {
                 columnValue.setLength(0);
@@ -168,21 +164,23 @@ public class threadReconcile extends Thread {
                     columnValue.append(rs.getString(3));
                 }
 
+                String pkHash = useDatabaseHash ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH"));
+                String columnHash = useDatabaseHash ? columnValue.toString() : getMd5(columnValue.toString());
+
                 if (useLoaderThreads) {
-                    dc[cntRecord] = new DataCompare(tid,null,(useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")),(useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()), rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
+                    dc[cntRecord] = new DataCompare(tid,null, pkHash, columnHash, rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
                 } else {
                     stmtLoad.setInt(1, tid);
-                    stmtLoad.setString(2, (useDatabaseHash) ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH")));
-                    stmtLoad.setString(3, (useDatabaseHash) ? columnValue.toString() : getMd5(columnValue.toString()));
+                    stmtLoad.setString(2, pkHash);
+                    stmtLoad.setString(3, columnHash);
                     stmtLoad.setString(4, rs.getString("PK").replace(",}","}"));
                     stmtLoad.addBatch();
-                    stmtLoad.clearParameters();
                 }
 
                 cntRecord++;
                 totalRows++;
 
-                if (totalRows % Integer.parseInt(Props.getProperty("batch-commit-size")) == 0 ) {
+                if (totalRows % batchCommitSize == 0 ) {
                     if (useLoaderThreads) {
                         if ( q.size() == 100) {
                             Logging.write("info", threadName, String.format("(%s) Waiting for Queue space", targetType));
@@ -192,7 +190,7 @@ public class threadReconcile extends Thread {
                         }
                         q.put(dc);
                         dc = null;
-                        dc = new DataCompare[Integer.parseInt(Props.getProperty("batch-commit-size"))];
+                        dc = new DataCompare[batchCommitSize];
                     } else {
                         stmtLoad.executeLargeBatch();
                         stmtLoad.clearBatch();
@@ -201,12 +199,12 @@ public class threadReconcile extends Thread {
                     cntRecord=0;
                 }
 
-                if (totalRows % loadRowCount == 0) {
+                if (totalRows % ((firstPass) ? 10000 : loadRowCount) == 0) {
                     Logging.write("info", threadName, String.format("(%s) Loaded %s rows", targetType, formatter.format(totalRows)));
                 }
 
-                if (totalRows % observerRowCount == 0) {
-                    if (firstPass || Boolean.parseBoolean(Props.getProperty("observer-throttle"))) {
+                if (totalRows % ((firstPass) ? 10000 : observerRowCount) == 0) {
+                    if (firstPass || observerThrottle) {
                         firstPass = false;
 
                         Logging.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
@@ -236,11 +234,6 @@ public class threadReconcile extends Thread {
                         Logging.write("info", threadName, String.format("(%s) Pause for Observer",targetType));
                         Thread.sleep(1000);
                     }
-                }
-
-                if (!firstPass) {
-                    loadRowCount = Integer.parseInt(Props.getProperty("batch-progress-report-size"));
-                    observerRowCount = Integer.parseInt(Props.getProperty("observer-throttle-size"));
                 }
 
             }
@@ -306,6 +299,7 @@ public class threadReconcile extends Thread {
             }
         }
 
-
     }
+
+
 }

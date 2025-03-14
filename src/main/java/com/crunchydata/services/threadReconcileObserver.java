@@ -95,6 +95,7 @@ public class threadReconcileObserver extends Thread  {
         ArrayList<Object> binds = new ArrayList<>();
         int cntEqual = 0;
         int deltaCount = 0;
+        int loaderThreads = Integer.parseInt(Props.getProperty("loader-threads"));
         DecimalFormat formatter = new DecimalFormat("#,###");
         int lastRun = 0;
         RepoController rpc = new RepoController();
@@ -161,7 +162,7 @@ public class threadReconcileObserver extends Thread  {
                 }
 
                 // Update and Check Status
-                if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && (ts.loaderThreadComplete == Integer.parseInt(Props.getProperty("loader-threads"))*2 || ! useLoaderThreads) ) {
+                if ( ts.sourceComplete && ts.targetComplete && tmpRowCount == 0 && (ts.loaderThreadComplete == loaderThreads*2 || ! useLoaderThreads) ) {
                     lastRun++;
                 }
 
@@ -177,8 +178,8 @@ public class threadReconcileObserver extends Thread  {
             Logging.write("info", threadName, "Staging table cleanup");
 
             // Move Out-of-Sync rows from temporary staging tables to dc_source and dc_target
-            rpc.loadFindings(repoConn, "source", tid, stagingTableSource, batchNbr, threadNbr);
-            rpc.loadFindings(repoConn, "target", tid, stagingTableTarget, batchNbr, threadNbr);
+            rpc.loadFindings(repoConn, "source", tid, tableAlias, stagingTableSource, batchNbr, threadNbr);
+            rpc.loadFindings(repoConn, "target", tid, tableAlias, stagingTableTarget, batchNbr, threadNbr);
 
             // Drop staging tables
             rpc.dropStagingTable(repoConn, stagingTableSource);

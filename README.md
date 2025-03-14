@@ -159,10 +159,10 @@ Projects allow for the repository to maintain different mappings for different c
 
 ```sql
 WITH mr AS (SELECT max(rid) rid FROM dc_result)
-SELECT compare_start, table_name, status, source_cnt AS total_cnt, equal_cnt, not_equal_cnt,
-        missing_source_cnt + missing_target_cnt AS missing_cnt
+SELECT compare_start, table_name, status, equal_cnt+not_equal_cnt+missing_source_cnt+missing_target_cnt  AS total_cnt,
+       equal_cnt, not_equal_cnt, missing_source_cnt + missing_target_cnt AS missing_cnt
 FROM dc_result r
-      JOIN mr ON (mr.rid = r.rid)
+         JOIN mr ON (mr.rid = r.rid)
 ORDER BY table_name;
 ```
 
@@ -170,14 +170,14 @@ ORDER BY table_name;
 
 ```sql
 SELECT COALESCE(s.table_name, t.table_name) AS table_name,
-        CASE
-          WHEN s.compare_result = 'n' THEN 'out-of-sync'
-          WHEN s.compare_result = 'm' THEN 'missing target'
-          WHEN t.compare_result = 'm' THEN 'missing source'
-        END AS compare_result,
-        COALESCE(s.pk, t.pk) AS primary_key
+       CASE
+           WHEN s.compare_result = 'n' THEN 'out-of-sync'
+           WHEN s.compare_result = 'm' THEN 'missing target'
+           WHEN t.compare_result = 'm' THEN 'missing source'
+           END AS compare_result,
+       COALESCE(s.pk, t.pk) AS primary_key
 FROM dc_source s
-      FULL OUTER JOIN dc_target t ON s.pk = t.pk;
+         FULL OUTER JOIN dc_target t ON s.pk = t.pk and s.tid=t.tid;
 ```
 
 # Reference
