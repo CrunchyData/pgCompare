@@ -269,6 +269,10 @@ public interface SQLConstantsRepo {
                                  RETURNING equal_cnt, missing_source_cnt, missing_target_cnt, not_equal_cnt, status
                                  """;
 
+    String SQL_REPO_DCRESULT_CLEAN = """
+            DELETE FROM dc_result WHERE tid NOT IN (SELECT tid FROM dc_table)
+            """;
+
     //
     // Repository SQL - DC_SOURCE
     //
@@ -279,12 +283,19 @@ public interface SQLConstantsRepo {
                 INSERT INTO dc_source (tid, thread_nbr, pk_hash, column_hash, pk, compare_result, batch_nbr, table_name) (SELECT ? tid, ? thread_nbr, pk_hash, column_hash, pk, compare_result, ? batch_nbr, ? table_alias FROM stagingtable)
                 """;
 
+    String SQL_REPO_DCSOURCE_CLEAN = """
+            DELETE FROM dc_source WHERE tid NOT IN (SELECT tid FROM dc_table)
+            """;
     //
     // Repository SQL - DC_TARGET
     //
     String SQL_REPO_DCTARGET_DELETEBYTIDBATCHNBR = "DELETE FROM dc_target WHERE tid=? AND batch_nbr=?";
 
     String SQL_REPO_DCTARGET_DELETE = "DELETE FROM dc_target WHERE tid=? AND pk_hash=? AND batch_nbr=?";
+
+    String SQL_REPO_DCTARGET_CLEAN = """
+            DELETE FROM dc_target WHERE tid NOT IN (SELECT tid FROM dc_table)
+            """;
 
 
     //
