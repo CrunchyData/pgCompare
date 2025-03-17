@@ -273,6 +273,17 @@ public interface SQLConstantsRepo {
             DELETE FROM dc_result WHERE tid NOT IN (SELECT tid FROM dc_table)
             """;
 
+    String SQL_REPO_DCRESULT_REPORT = """
+            SELECT table_name as "Table", status as "Status", compare_start as "Compare Start", compare_end as "Compare End",
+                   EXTRACT(EPOCH FROM (compare_end-compare_start)) as "Run Time (s)",
+                   source_cnt as "Source Count", target_cnt as "Target Count", 
+                   equal_cnt as "Equal", not_equal_cnt as "Not Equal", 
+                   missing_source_cnt as "Missing Source", missing_target_cnt as "Missing Target"
+            FROM dc_result
+            WHERE rid=?
+            ORDER BY compare_start
+            """;
+
     //
     // Repository SQL - DC_SOURCE
     //

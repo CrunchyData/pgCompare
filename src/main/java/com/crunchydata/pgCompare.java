@@ -19,8 +19,11 @@ package com.crunchydata;
 import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
+import java.util.List;
 
 import static com.crunchydata.controller.TableController.getTableMap;
+import static com.crunchydata.services.Reporter.createSection;
+import static com.crunchydata.services.Reporter.generateHtmlReport;
 import static com.crunchydata.util.Settings.*;
 
 import com.crunchydata.controller.ColumnController;
@@ -44,8 +47,9 @@ public class pgCompare {
     private static final String THREAD_NAME = "main";
 
     private static String action = "reconcile";
+    private static String reportFileName;
     private static Integer batchParameter;
-    private static boolean check;
+    private static boolean check, genReport;
     private static CommandLine cmd;
     private static Integer pid = 1;
     private static Connection connRepo;
@@ -268,6 +272,7 @@ public class pgCompare {
         options.addOption(Option.builder("h").longOpt("help").argName("help").hasArg(false).desc("Usage and help").build());
         options.addOption(Option.builder("i").longOpt("init").argName("init").hasArg(false).desc("Initialize repository").build());
         options.addOption(Option.builder("p").longOpt("project").argName("project").hasArg(true).desc("Project ID").build());
+        options.addOption(Option.builder("r").longOpt("report").argName("report").hasArg(true).desc("Generate report").build());
         options.addOption(Option.builder("t").longOpt("table").argName("table").hasArg(true).desc("Limit to specified table").build());
         options.addOption(Option.builder("v").longOpt("version").argName("version").hasArg(false).desc("Version").build());
 
@@ -291,6 +296,8 @@ public class pgCompare {
             // Capture Argument Values
             batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("PGCOMPARE-BATCH") == null) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
             check = cmd.hasOption("check");
+            genReport = cmd.hasOption("report");
+            reportFileName = (cmd.hasOption("report")) ? cmd.getOptionValue("report") : "";
 
             // Determine the desired action, reconcile, discovery or init.
             //   reconcile = Perform comparison between source and target databases.
@@ -305,6 +312,17 @@ public class pgCompare {
             showHelp();
             return null;
         }
+    }
+
+    //
+    // Create Column Metadata JSON Object
+    //
+    private static JSONObject createReportColumn(String header, String key, String align, boolean commaFormat) {
+        return new JSONObject()
+                .put("columnHeader", header)
+                .put("columnClass", align)
+                .put("columnKey", key)
+                .put("commaFormat", commaFormat);
     }
 
     //
@@ -351,6 +369,58 @@ public class pgCompare {
             printSummary(String.format("Total Out-of-Sync              = %s", df.format(outOfSyncRows)), 2);
             printSummary(String.format("Through-put (rows/per second)  = %s", df.format(totalRows / elapsedTime)), 2);
 
+            // Generate Report
+            if (genReport) {
+                // Create JSON report
+                JSONObject jobSummary = new JSONObject()
+                        .put("tablesProcessed", df.format(tablesProcessed))
+                        .put("elapsedTime", df.format(elapsedTime))
+                        .put("totalRows", df.format(totalRows))
+                        .put("outOfSyncRows", df.format(outOfSyncRows))
+                        .put("rowsPerSecond", df.format(totalRows / elapsedTime));
+
+
+                JSONArray jobSummaryLayout = new JSONArray(List.of(
+                        createReportColumn("Tables Processed", "tablesProcessed", "right-align", false),
+                        createReportColumn("Elapsed Time", "elapsedTime", "right-align", false),
+                        createReportColumn("Rows per Second", "rowsPerSecond", "right-align", false),
+                        createReportColumn("Total Rows", "totalRows", "right-align", false),
+                        createReportColumn("Out of Sync Rows", "outOfSyncRows", "right-align", false)
+                ));
+
+
+                JSONArray runResultLayout = new JSONArray(List.of(
+                        createReportColumn("Table", "tableName", "left-align", false),
+                        createReportColumn("Compare Status", "compareStatus", "left-align", false),
+                        createReportColumn("Elapsed Time", "elapsedTime", "right-align", true),
+                        createReportColumn("Rows per Second", "rowsPerSecond", "right-align", true),
+                        createReportColumn("Rows Total", "totalRows", "right-align", true),
+                        createReportColumn("Rows Equal", "equal", "right-align", true),
+                        createReportColumn("Rows Not Equal", "notEqual", "right-align", true),
+                        createReportColumn("Rows Missing on Source", "missingSource", "right-align", true),
+                        createReportColumn("Rows Missing on Target", "missingTarget", "right-align", true)
+                ));
+
+                JSONArray reportArray = new JSONArray()
+                        .put(createSection("Job Summary", new JSONArray().put(jobSummary), jobSummaryLayout)) // Pass JSONObject directly
+                        .put(createSection("Table Summary", runResult, runResultLayout)); // Pass runResult
+
+                if (check) {
+                    JSONArray runCheckResultLayout = new JSONArray(List.of(
+                            createReportColumn("Primary Key", "pk", "left-align", false),
+                            createReportColumn("Status", "compareStatus", "left-align", false),
+                            createReportColumn("Result", "compareResult", "left-align", false)
+                    ));
+
+                    for (int i =0; i<runResult.length(); i++ ) {
+                        reportArray.put(createSection(String.format("Table: %s", runResult.getJSONObject(i).getString("tableName")), runResult.getJSONObject(i).getJSONObject("checkResult").getJSONArray("data"), runCheckResultLayout));
+                    }
+                }
+
+                generateHtmlReport(reportArray, reportFileName,"pgCompare Summary");
+
+            }
+
         } else {
             // Print message if no tables processed or out of sync records found
             String msg = (check) ? "No out of sync records found" : "No tables were processed. Need to do discovery? Used correct batch nbr?";
@@ -375,7 +445,9 @@ public class pgCompare {
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -c|--check Check out of sync rows");
         System.out.println("   -d|--discovery <schema> Discover tables in database");
+        System.out.println("   -i|--init <schema> Init tables in database");
         System.out.println("   -p|--project Project ID");
+        System.out.println("   -r|--report <file> Create html report of compare");
         System.out.println("   -t|--table <target table>");
         System.out.println("   --help");
         System.out.println();

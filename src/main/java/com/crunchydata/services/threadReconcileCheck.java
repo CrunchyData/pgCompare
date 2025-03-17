@@ -59,13 +59,14 @@ public class threadReconcileCheck {
      * @param ciTarget           Column metadata from target database.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static void checkRows (Properties Props, Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
+    public static JSONObject checkRows (Properties Props, Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
+        JSONArray rows = new JSONArray();
+
         StringBuilder tableFilter;
 
-        result.put("status","failed");
-        result.put("compareStatus","failed");
+        result.put("status","success");
 
         try {
             PreparedStatement stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
@@ -102,17 +103,24 @@ public class threadReconcileCheck {
                 }
                 Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter().substring(6)));
 
-                reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
+                JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
 
+                if ( rows.length() < 1000 ) {
+                    rows.put(recheckResult);
+                }
             }
 
             rs.close();
             stmt.close();
+            result.put("data", rows);
+
         } catch (Exception e) {
+            result.put("status","failed");
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s at line %s:  %s", dct.getTableAlias(), stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
+        return result;
     }
 
     /**
@@ -126,12 +134,13 @@ public class threadReconcileCheck {
      * @param dcRow              DataCompare object with row to be compared.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static void reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DCTableMap dctmSource, DCTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
+    public static JSONObject reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DCTableMap dctmSource, DCTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
         JSONArray arr = new JSONArray();
         int columnOutofSync = 0;
         JSONObject rowResult = new JSONObject();
 
         rowResult.put("compareStatus","in-sync");
+        rowResult.put("compareResult"," ");
         rowResult.put("equal",0);
         rowResult.put("notEqual",0);
         rowResult.put("missingSource",0);
@@ -141,12 +150,16 @@ public class threadReconcileCheck {
         CachedRowSet targetRow = dbCommon.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
 
         try {
+            rowResult.put("pk", dcRow.getPk());
+
             if (sourceRow.size() > 0 && targetRow.size() == 0) {
                 rowResult.put("compareStatus", "out-of-sync");
+                rowResult.put("compareResult", "Missing Target");
                 rowResult.put("missingTarget", 1);
                 rowResult.put("result", new JSONArray().put(0, "Missing Target"));
             } else if (targetRow.size() > 0 && sourceRow.size() == 0 ) {
                 rowResult.put("compareStatus", "out-of-sync");
+                rowResult.put("compareResult", "Missing Source");
                 rowResult.put("missingSource", 1);
                 rowResult.put("result", new JSONArray().put(0, "Missing Source"));
             } else {
@@ -179,6 +192,8 @@ public class threadReconcileCheck {
 
                 if (columnOutofSync > 0) {
                     rowResult.put("compareStatus", "out-of-sync");
+                    rowResult.put("compareResult", arr.toString());
+                    rowResult.put("pk", dcRow.getPk());
                     rowResult.put("notEqual", 1);
                     rowResult.put("result", arr);
                 }
@@ -209,6 +224,8 @@ public class threadReconcileCheck {
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
+
+        return rowResult;
 
     }
 

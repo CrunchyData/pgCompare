@@ -69,7 +69,7 @@ public class ReconcileController {
         // Variables
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject columnMap;
-        Boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("loader-threads")) > 0);
+        boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("loader-threads")) > 0);
 
         BlockingQueue<DataCompare[]> qs;
         BlockingQueue<DataCompare[]> qt;
@@ -81,7 +81,11 @@ public class ReconcileController {
            qt = null;
         }
 
+        // Capture the start time for the compare run.
+        long startStopWatch = System.currentTimeMillis();
+
         // Prepare JSON formatted results
+        JSONObject checkResult = new JSONObject();
         JSONObject result = new JSONObject();
         result.put("tableName", dct.getTableAlias());
         result.put("status", "processing");
@@ -143,7 +147,8 @@ public class ReconcileController {
             Logging.write("info", THREAD_NAME, String.format("(target) Compare SQL: %s", dctmTarget.getCompareSQL()));
 
             if (check) {
-                threadReconcileCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+                checkResult = threadReconcileCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+                result.put("checkResult", checkResult);
             } else {
                 // Execute Compare SQL
                 if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() || ciSource.pkList.isBlank() || ciSource.pkList.isEmpty()) {
@@ -253,7 +258,15 @@ public class ReconcileController {
                 result.put("equal", crsResult.getInt(1));
             }
 
+            result.put("totalRows",notEqual+missingSource+missingTarget+result.getInt("equal"));
+
             crsResult.close();
+
+            long endStopWatch = System.currentTimeMillis();
+            long elapsedTime = (endStopWatch - startStopWatch) / 1000;
+
+            result.put("elapsedTime", elapsedTime);
+            result.put("rowsPerSecond", (result.getInt("elapsedTime") > 0 ) ? result.getInt("totalRows")/elapsedTime : result.getInt("totalRows"));
 
             DecimalFormat formatter = new DecimalFormat("#,###");
 
@@ -264,9 +277,11 @@ public class ReconcileController {
 
         }  catch( SQLException e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
+            result.put("status", "failed");
             Logging.write("severe", THREAD_NAME, String.format("Database error at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
+            result.put("status", "failed");
             Logging.write("severe", THREAD_NAME, String.format("Error in reconcile controller at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 

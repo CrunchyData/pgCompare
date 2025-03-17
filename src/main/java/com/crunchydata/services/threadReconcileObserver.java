@@ -151,13 +151,13 @@ public class threadReconcileObserver extends Thread  {
                         stmtSUS.executeUpdate();
                         repoConn.commit();
                         deltaCount=0;
+                        ts.observerNotify();
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
                             dbCommon.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
                             repoConn.setAutoCommit(false);
                         }
-                        ts.observerNotify();
                     }
                 }
 
@@ -169,6 +169,11 @@ public class threadReconcileObserver extends Thread  {
                 if ( tmpRowCount == 0 ) {
                     if (Props.getProperty("database-sort").equals("false") && cntEqual == 0) { ts.observerNotify(); }
                     Thread.sleep(sleepTime);
+                } else {
+                    // Standard Sleep
+                    if ( cntEqual > 500000 ) {
+                        Thread.sleep(500);
+                    }
                 }
             }
 

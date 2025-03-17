@@ -34,8 +34,7 @@ import static com.crunchydata.services.dbMariaDB.columnValueMapMariaDB;
 import static com.crunchydata.services.dbMySQL.columnValueMapMySQL;
 import static com.crunchydata.services.dbOracle.columnValueMapOracle;
 import static com.crunchydata.services.dbPostgres.columnValueMapPostgres;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.DataUtility.preserveCase;
+import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
@@ -144,14 +143,8 @@ public class ColumnUtility {
      */
     public static JSONArray getColumns (Properties Props, Connection conn, String schema, String table, String destRole) {
         JSONArray columnInfo = new JSONArray();
-        String nativeCase = switch (Props.getProperty(destRole + "-type")) {
-            case "oracle" -> dbOracle.nativeCase;
-            case "mariadb" -> dbMariaDB.nativeCase;
-            case "mysql" -> dbMySQL.nativeCase;
-            case "mssql" -> dbMSSQL.nativeCase;
-            case "db2" -> dbDB2.nativeCase;
-            default -> dbPostgres.nativeCase;
-        };
+        String nativeCase = getNativeCase(Props.getProperty(destRole + "-type"));
+
         String columnSQL = switch (Props.getProperty(destRole + "-type")) {
             case "oracle" -> SQL_ORACLE_SELECT_COLUMNS;
             case "mariadb" -> SQL_MARIADB_SELECT_COLUMNS;
