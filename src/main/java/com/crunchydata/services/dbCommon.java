@@ -35,9 +35,6 @@ import java.util.ArrayList;
 public class dbCommon {
     private static final String THREAD_NAME = "dbCommon";
 
-
-
-
     /**
      * Utility method to execute a provided SQL query and retrieve a list of tables.
      *
