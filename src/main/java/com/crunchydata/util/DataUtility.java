@@ -107,7 +107,7 @@ public class DataUtility {
     }
 
     public static boolean preserveCase(String expectedCase, String str) {
-        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || Arrays.asList(reservedWords).contains(str));
+        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || Arrays.asList(reservedWords).contains(str) || str.contains(" "));
     }
 
     public static String ShouldQuoteString(Boolean preserveCase, String str) {
