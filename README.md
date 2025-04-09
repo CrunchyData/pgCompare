@@ -256,3 +256,11 @@ The system contains default values for every parameter.  These can be over-ridde
 # License
 
 **pgCompare** is licensed under the [Apache 2.0 license](LICENSE.md).
+
+
+## springboot版本
+
+## springboot版本的数据对比后端，支持Oracle,mysql,sqlserver,pg等等
+## mvn clean install -U
+## 运行pgApplication
+## https://github.com/WJX20/dataCompare
