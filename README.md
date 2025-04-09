@@ -253,6 +253,9 @@ The system contains default values for every parameter.  These can be over-ridde
 - Environment variables
 - Settings stored in `dc_project` table
 
+
+pgcompare supports springboot + mybatis plus
+
 # License
 
 **pgCompare** is licensed under the [Apache 2.0 license](LICENSE.md).
