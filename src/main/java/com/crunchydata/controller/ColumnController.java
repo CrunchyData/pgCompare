@@ -111,7 +111,7 @@ public class ColumnController {
 
         // Using the concat operator causes issues for mariadb.  Have to convert from using operator (||)
         // to using concat function.
-        if ( platform.equals("mariadb")) {
+        if ( platform.equals("mariadb") || platform.equals("mysql")) {
             pkJSON = new StringBuilder("concat(" + pkJSON.toString().replace("||",",") + ")");
         }
 
