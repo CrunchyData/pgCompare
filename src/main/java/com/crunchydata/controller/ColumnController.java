@@ -85,7 +85,7 @@ public class ColumnController {
                     columnList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append(",");
                     column.append(useDatabaseHash
                             ? joColumn.getString("valueExpression") + concatOperator
-                            : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName") + ",");
+                            : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase() + ",");
                 }
 
             }

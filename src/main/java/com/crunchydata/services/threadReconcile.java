@@ -258,12 +258,6 @@ public class threadReconcile extends Thread {
                 Thread.sleep(1000);
             }
 
-            if ( targetType.equals("source")) {
-                ts.sourceComplete = true;
-            } else {
-                ts.targetComplete = true;
-            }
-
         } catch( SQLException e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", threadName, String.format("(%s) Database error at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
@@ -271,6 +265,12 @@ public class threadReconcile extends Thread {
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
         } finally {
+            if ( targetType.equals("source")) {
+                ts.sourceComplete = true;
+            } else {
+                ts.targetComplete = true;
+            }
+
             try {
                 if (rs != null) {
                     rs.close();

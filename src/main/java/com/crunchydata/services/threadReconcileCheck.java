@@ -167,7 +167,7 @@ public class threadReconcileCheck {
                 RowSetMetaData rowMetadata = (RowSetMetaData) sourceRow.getMetaData();
                 sourceRow.next();
                 targetRow.next();
-                for (int i = 2; i <= rowMetadata.getColumnCount(); i++) {
+                for (int i = 3; i <= rowMetadata.getColumnCount(); i++) {
                     String column = rowMetadata.getColumnName(i);
 
                     try {
