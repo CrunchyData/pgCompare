@@ -61,7 +61,7 @@ import java.util.Properties;
 public class Settings {
 
     public static Properties Props;
-    public static final String VERSION = "0.3.6.2";
+    public static final String VERSION = "0.3.6.4";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
