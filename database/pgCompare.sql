@@ -60,7 +60,7 @@ CREATE TABLE dc_table (
 CREATE TABLE dc_table_column (
 	tid int8 NOT NULL,
 	column_id int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
-	column_alias varchar(50) NOT NULL,
+	column_alias text NOT NULL,
 	status varchar(15) DEFAULT 'compare'::character varying NULL,
 	CONSTRAINT dc_table_column_pk PRIMARY KEY (column_id)
 );
@@ -72,7 +72,7 @@ CREATE TABLE dc_table_column_map (
 	tid int8 NOT NULL,
 	column_id int8 NOT NULL,
 	column_origin varchar(10) DEFAULT 'source'::character varying NOT NULL,
-	column_name varchar(50) NOT NULL,
+	column_name text NOT NULL,
 	data_type text NOT NULL,
 	data_class varchar(20) DEFAULT 'string'::character varying NULL,
 	data_length int4 NULL,
@@ -80,7 +80,7 @@ CREATE TABLE dc_table_column_map (
 	number_scale int4 NULL,
 	column_nullable bool DEFAULT true NULL,
 	column_primarykey bool DEFAULT false NULL,
-	map_expression varchar(500) NULL,
+	map_expression text NULL,
 	supported bool DEFAULT true NULL,
 	preserve_case bool DEFAULT false NULL,
 	map_type varchar(15) DEFAULT 'column'::character varying NOT NULL,

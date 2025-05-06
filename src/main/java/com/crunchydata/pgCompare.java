@@ -135,27 +135,25 @@ public class pgCompare {
                 System.exit(1);
         }
 
-        try {
-            connRepo.close();
-        } catch (Exception e) {
-            // do nothing
-        }
-        try {
-            connTarget.close();
-        } catch (Exception e) {
-            // do nothing
-        }
-        try {
-            connSource.close();
-        } catch (Exception e) {
-            // do nothing
-        }
+        closeDatabaseConnection(connRepo);
+        closeDatabaseConnection(connTarget);
+        closeDatabaseConnection(connSource);
 
     }
 
     //
     // Database Connection
     //
+    private static void closeDatabaseConnection(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (Exception e) {
+                Logging.write("warning", THREAD_NAME, "Error closing connection: " + e.getMessage());
+            }
+        }
+    }
+
     private static Connection getDatabaseConnection(String dbType, String destRole) {
         Logging.write("info", THREAD_NAME, String.format("(%s) Connecting to database (type = %s, host = %s)", destRole, Props.getProperty(destRole+"-type"), Props.getProperty(destRole+"-host")));
 
