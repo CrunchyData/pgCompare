@@ -73,11 +73,11 @@ public class ReconcileControllerOK {
         BlockingQueue<DataCompare[]> qs;
         BlockingQueue<DataCompare[]> qt;
         if (useLoaderThreads) {
-            qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
-            qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+           qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+           qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
         } else {
-            qs = null;
-            qt = null;
+           qs = null;
+           qt = null;
         }
 
         // Capture the start time for the compare run.

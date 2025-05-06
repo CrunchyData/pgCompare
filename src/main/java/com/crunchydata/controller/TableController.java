@@ -25,6 +25,8 @@ import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLE;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
+import static com.crunchydata.util.SQLConstantsTDSQL.SQL_TDSQL_SELECT_TABLE;
+import static com.crunchydata.util.SQLConstantsTDSQL.SQL_TDSQL_SELECT_TABLES;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
 public class TableController {
@@ -125,6 +127,7 @@ public class TableController {
             case "mysql" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_MYSQL_SELECT_TABLES : SQL_MYSQL_SELECT_TABLE);
             case "mssql" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_MSSQL_SELECT_TABLES : SQL_MSSQL_SELECT_TABLE);
             case "db2" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_DB2_SELECT_TABLES : SQL_DB2_SELECT_TABLE);
+            case "tdsql" -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_TDSQL_SELECT_TABLES : SQL_TDSQL_SELECT_TABLE);
             default -> dbCommon.getTables(conn, schema, table, (table.isEmpty()) ? SQL_POSTGRES_SELECT_TABLES : SQL_POSTGRES_SELECT_TABLE);
         };
     }
