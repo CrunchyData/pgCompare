@@ -52,7 +52,7 @@ public class ColumnController {
                 JSONObject joColumn = columnObject.getJSONObject(targetType);
 
                 if (joColumn.getBoolean("primaryKey")) {
-                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName")) : joColumn.getString("columnName").toLowerCase();
+                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform)) : joColumn.getString("columnName").toLowerCase();
                     nbrPKColumns++;
                     pk.append(joColumn.getString("valueExpression"))
                             .append(concatOperator)
@@ -82,7 +82,7 @@ public class ColumnController {
                     }
                 } else {
                     nbrColumns++;
-                    columnList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append(",");
+                    columnList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform))).append(",");
                     column.append(useDatabaseHash
                             ? joColumn.getString("valueExpression") + concatOperator
                             : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase() + ",");

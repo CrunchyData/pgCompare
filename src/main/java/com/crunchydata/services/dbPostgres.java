@@ -39,6 +39,7 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
  */
 public class dbPostgres {
     public static final String nativeCase = "lower";
+    public static final String quoteChar = "\"";
 
     private static final String THREAD_NAME = "dbPostgres";
 
@@ -52,9 +53,9 @@ public class dbPostgres {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "md5(concat_ws('|'," + columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, md5(concat_ws(''," + columnMetadata.getColumn() + ")) FROM " +  ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql += "md5(concat_ws('|'," + columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, md5(concat_ws(''," + columnMetadata.getColumn() + ")) FROM " +  ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         } else {
-            sql +=  columnMetadata.getPk() + " as pk_hash, " + columnMetadata.getPkJSON() + " as pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " as pk_hash, " + columnMetadata.getPkJSON() + " as pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         }
 
         if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
@@ -72,12 +73,12 @@ public class dbPostgres {
      */
     public static String columnValueMapPostgres(Properties Props, JSONObject column) {
         String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "float4", "float8" ->
-                        "coalesce(trim(to_char(" + columnName + ",'0.999999EEEE')),' ')";
+                case "float4", "real", "float8" ->
+                    "coalesce(trim(to_char(" + columnName + ",'0.999999EEEE')),' ')";
                 default ->
                         Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
             };

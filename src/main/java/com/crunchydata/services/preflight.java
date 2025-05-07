@@ -26,6 +26,7 @@ public class preflight {
                     Props.setProperty("standard-number-format","0000000000000000000000000000000.0000000000000000000000000000000");
                 }
 
+
                 // Database side hash is not supported for DB2
                 if (Props.getProperty(targetType + "-database-hash").equals("true")) {
                     Logging.write("warning",THREAD_NAME,"Switching database-hash to false as required for DB2");

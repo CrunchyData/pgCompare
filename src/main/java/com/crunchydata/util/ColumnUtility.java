@@ -108,7 +108,7 @@ public class ColumnUtility {
                                                         "where", "with", "xor", "user"};
 
 
-    public static String createColumnFilterClause(Connection repoConn, Integer tid, String columnAlias, String destRole) {
+    public static String createColumnFilterClause(Connection repoConn, Integer tid, String columnAlias, String destRole, String quoteChar) {
         String columnFilter = "";
         ArrayList<Object> binds = new ArrayList<>();
 
@@ -120,7 +120,7 @@ public class ColumnUtility {
 
         try {
             while (crs.next()) {
-                columnFilter = " AND " + ShouldQuoteString(crs.getBoolean("preserve_case"), crs.getString("column_name")) + " = ?";
+                columnFilter = " AND " + ShouldQuoteString(crs.getBoolean("preserve_case"), crs.getString("column_name"), quoteChar) + " = ?";
             }
 
             crs.close();
@@ -130,6 +130,18 @@ public class ColumnUtility {
         }
 
         return columnFilter;
+    }
+
+    public static String findColumnAlias(JSONArray columns, String columnNameToFind, String side) {
+        for (int i = 0; i < columns.length(); i++) {
+            JSONObject columnObj = columns.getJSONObject(i);
+            JSONObject sideObj = columnObj.optJSONObject(side);
+
+            if (sideObj != null && columnNameToFind.equalsIgnoreCase(sideObj.optString("columnName"))) {
+                return columnObj.optString("columnAlias");
+            }
+        }
+        return null; // Not found
     }
 
     /**

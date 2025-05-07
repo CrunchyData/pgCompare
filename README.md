@@ -45,8 +45,7 @@ Before initiating the build and installation process, ensure the following prere
 - Date/Timestamps compared only to the second (format: DDMMYYYYHH24MISS).
 - Unsupported data types: blob, long, longraw, bytea.
 - Cross-platform comparison limitations with boolean type.
-- Reserved words cannot be used for table/column names.
-- If a column is quoted in the RDBMS's native case, you will need to override the `preserve_case` in the `dc_table_column_map` table for that column.  For example, if a column was created in Oracle with quotes in upper case ("MYCOL").
+- Low precission types (float, real) cannot be compared to high precission types (double).
 
 # Getting Started
 
@@ -202,6 +201,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
 - database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
+- float-cast: Defines how float and double data types are cast for hash function (notation|standard).  Default is notation (for scientific notation).
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
 - log-level:   Level to determine the amount of log messages written to the log destination.
 - log-destination:  Location where log messages will be written.  Default is stdout.
