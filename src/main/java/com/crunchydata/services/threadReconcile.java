@@ -109,6 +109,7 @@ public class threadReconcile extends Thread {
                 case "mariadb":
                     conn = dbMariaDB.getConnection(Props,targetType);
                     break;
+                case "tdsql":
                 case "mysql":
                     conn = dbMySQL.getConnection(Props,targetType);
                     break;

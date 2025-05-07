@@ -43,7 +43,7 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
  *
  * @author Brian Pace
  */
-public class ReconcileControllerOK {
+public class ReconcileController {
 
     private static final String THREAD_NAME = "ReconcileController";
 
@@ -139,7 +139,7 @@ public class ReconcileControllerOK {
                 case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "tdsql" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
+                case "tdsql" -> dbTDSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 default -> "";
             });
 
