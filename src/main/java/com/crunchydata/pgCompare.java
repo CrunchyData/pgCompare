@@ -58,11 +58,6 @@ public class pgCompare {
     private static Connection connTarget;
 
     public static void main(String[] args) {
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
 
         // Command Line Options
         cmd = parseCommandLine(args);
@@ -85,8 +80,6 @@ public class pgCompare {
         // Connect to Repository
         Logging.write("info", THREAD_NAME, "Connecting to repository database");
         connRepo = dbPostgres.getConnection(Props, "repo", THREAD_NAME);
-        String repoType = Props.getProperty("repo-type", "postgres");
-        connRepo = getDatabaseConnection(repoType, "repo");
         if (connRepo == null) {
             Logging.write("severe", THREAD_NAME, "Cannot connect to repository database");
             System.exit(1);
@@ -172,7 +165,6 @@ public class pgCompare {
             case "mysql" -> dbMySQL.getConnection(Props, destRole);
             case "mssql" -> dbMSSQL.getConnection(Props, destRole);
             case "db2" -> dbDB2.getConnection(Props, destRole);
-            case "tdsql" -> dbTDSQL.getConnection(Props, destRole);
             default -> dbPostgres.getConnection(Props, destRole, THREAD_NAME);
         };
 

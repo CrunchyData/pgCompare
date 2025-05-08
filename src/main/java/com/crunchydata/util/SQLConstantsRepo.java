@@ -24,7 +24,7 @@ public interface SQLConstantsRepo {
 
     // DC_PROJECT
     String REPO_DDL_DC_PROJECT = """
-            CREATE TABLE IF NOT EXISTS dc_project (
+            CREATE TABLE dc_project (
             	pid int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
             	project_name text DEFAULT 'default'::text NOT NULL,
             	project_config jsonb NULL,
@@ -38,7 +38,7 @@ public interface SQLConstantsRepo {
 
     // DC_RESULT
     String REPO_DDL_DC_RESULT = """
-            CREATE TABLE IF NOT EXISTS dc_result (
+            CREATE TABLE dc_result (
                 cid serial4 NOT NULL,
                 rid numeric NULL,
                 tid int8 NULL,
@@ -57,26 +57,26 @@ public interface SQLConstantsRepo {
             """;
 
     String REPO_DDL_DC_RESULT_IDX1 = """
-            CREATE INDEX IF NOT EXISTS dc_result_idx1 ON dc_result USING btree (table_name, compare_start)
+            CREATE INDEX dc_result_idx1 ON dc_result USING btree (table_name, compare_start)
             """;
 
     // DC_SOURCE
     String REPO_DDL_DC_SOURCE = """
-            CREATE TABLE IF NOT EXISTS dc_source (
-                tid BIGINT NULL,
-                table_name TEXT NULL,
-                batch_nbr INT NULL,
-                pk JSON NULL,
-                pk_hash VARCHAR(100) NULL,
-                column_hash VARCHAR(100) NULL,
-                compare_result CHAR(1) NULL,
-                thread_nbr INT NULL
+            CREATE TABLE dc_source (
+                tid int8 NULL,
+                table_name text NULL,
+                batch_nbr int4 NULL,
+                pk jsonb NULL,
+                pk_hash varchar(100) NULL,
+                column_hash varchar(100) NULL,
+                compare_result bpchar(1) NULL,
+                thread_nbr int4 NULL
             )
             """;
 
     // DC_TABLE
     String REPO_DDL_DC_TABLE = """
-            CREATE TABLE IF NOT EXISTS dc_table (
+            CREATE TABLE dc_table (
             	pid int8 DEFAULT 1 NOT NULL,
             	tid int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
             	table_alias text NULL,
@@ -88,12 +88,13 @@ public interface SQLConstantsRepo {
             """;
 
     String REPO_DDL_DC_TABLE_IDX1 = """
-            CREATE INDEX IF NOT EXISTS dc_table_idx1 ON dc_table USING btree (table_alias)
+            CREATE INDEX dc_table_idx1 ON dc_table USING btree (table_alias)
             """;
+
 
     // DC_TABLE_COLUMN
     String REPO_DDL_DC_TABLE_COLUMN = """
-            CREATE TABLE IF NOT EXISTS dc_table_column (
+            CREATE TABLE dc_table_column (
             	tid int8 NOT NULL,
             	column_id int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
             	column_alias varchar(50) NOT NULL,
@@ -103,7 +104,7 @@ public interface SQLConstantsRepo {
             """;
 
     String REPO_DDL_DC_TABLE_COLUMN_IDX1 = """
-            CREATE INDEX IF NOT EXISTS dc_table_column_idx1 ON dc_table_column USING btree (column_alias, tid, column_id)
+            CREATE INDEX dc_table_column_idx1 ON dc_table_column USING btree (column_alias, tid, column_id)
             """;
 
     String REPO_DDL_DC_TABLE_COLUMN_FK = """
@@ -112,7 +113,7 @@ public interface SQLConstantsRepo {
 
     // DC_TABLE_COLUMN_MAP
     String REPO_DDL_DC_TABLE_COLUMN_MAP = """
-            CREATE TABLE IF NOT EXISTS dc_table_column_map (
+            CREATE TABLE dc_table_column_map (
             	tid int8 NOT NULL,
             	column_id int8 NOT NULL,
             	column_origin varchar(10) DEFAULT 'source'::character varying NOT NULL,
@@ -136,9 +137,10 @@ public interface SQLConstantsRepo {
             ALTER TABLE dc_table_column_map ADD CONSTRAINT dc_table_column_map_fk FOREIGN KEY (column_id) REFERENCES dc_table_column(column_id) ON DELETE CASCADE
             """;
 
+
     // DC_TABLE_HISTORY
     String REPO_DDL_DC_TABLE_HISTORY = """
-            CREATE TABLE IF NOT EXISTS dc_table_history (
+            CREATE TABLE dc_table_history (
             	tid int8 NOT NULL,
             	load_id varchar(100) NULL,
             	batch_nbr int4 NOT NULL,
@@ -151,12 +153,12 @@ public interface SQLConstantsRepo {
             """;
 
     String REPO_DDL_DC_TABLE_HISTORY_IDX1 = """
-            CREATE INDEX IF NOT EXISTS dc_table_history_idx1 ON dc_table_history USING btree (tid, start_dt)
+            CREATE INDEX dc_table_history_idx1 ON dc_table_history USING btree (tid, start_dt)
             """;
 
     // DC_TABLE_MAP
     String REPO_DDL_DC_TABLE_MAP = """
-            CREATE TABLE IF NOT EXISTS dc_table_map (
+            CREATE TABLE dc_table_map (
             	tid int8 NOT NULL,
             	dest_type varchar(20) DEFAULT 'target'::character varying NOT NULL,
             	schema_name text NOT NULL,
@@ -176,7 +178,7 @@ public interface SQLConstantsRepo {
 
     // DC_TARGET
     String REPO_DDL_DC_TARGET = """
-            CREATE TABLE IF NOT EXISTS dc_target (
+            CREATE TABLE dc_target (
             	tid int8 NULL,
             	table_name text NULL,
             	batch_nbr int4 NULL,
@@ -187,9 +189,6 @@ public interface SQLConstantsRepo {
             	thread_nbr int4 NULL
             )
             """;
-
-
-////////////////////////////////////
 
 
     //
@@ -274,6 +273,16 @@ public interface SQLConstantsRepo {
             DELETE FROM dc_result WHERE tid NOT IN (SELECT tid FROM dc_table)
             """;
 
+    String SQL_REPO_DCRESULT_REPORT = """
+            SELECT table_name as "Table", status as "Status", compare_start as "Compare Start", compare_end as "Compare End",
+                   EXTRACT(EPOCH FROM (compare_end-compare_start)) as "Run Time (s)",
+                   source_cnt as "Source Count", target_cnt as "Target Count", 
+                   equal_cnt as "Equal", not_equal_cnt as "Not Equal", 
+                   missing_source_cnt as "Missing Source", missing_target_cnt as "Missing Target"
+            FROM dc_result
+            WHERE rid=?
+            ORDER BY compare_start
+            """;
 
     //
     // Repository SQL - DC_SOURCE
@@ -356,7 +365,6 @@ public interface SQLConstantsRepo {
     //
     // Repository SQL - DC_TABLE_COLUMN_MAP
     //
-    // ... existing code ...
     String SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID = """
             WITH column_map AS (
             	    SELECT

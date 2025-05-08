@@ -165,7 +165,7 @@
                                 <resource>
                                     <directory>.</directory>
                                     <includes>
-                                        <include>pgcompare.properties</include>
+                                        <include>pgcompare.properties.sample</include>
                                     </includes>
                                 </resource>
                                 <resource>

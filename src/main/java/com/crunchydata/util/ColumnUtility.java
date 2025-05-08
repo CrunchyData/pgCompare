@@ -41,7 +41,6 @@ import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsTDSQL.SQL_TDSQL_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
 
 /**
@@ -152,7 +151,6 @@ public class ColumnUtility {
             case "mysql" -> SQL_MYSQL_SELECT_COLUMNS;
             case "mssql" -> SQL_MSSQL_SELECT_COLUMNS;
             case "db2" -> SQL_DB2_SELECT_COLUMNS;
-            case "tdsql" -> SQL_TDSQL_SELECT_COLUMNS;
             default -> SQL_POSTGRES_SELECT_COLUMNS;
         };
 

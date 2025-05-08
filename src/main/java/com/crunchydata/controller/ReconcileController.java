@@ -16,16 +16,6 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.models.DataCompare;
-import com.crunchydata.services.*;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.ThreadSync;
-import org.json.JSONObject;
-
-import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -34,16 +24,27 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import javax.sql.rowset.CachedRowSet;
+
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTable;
+import com.crunchydata.models.DCTableMap;
+import com.crunchydata.models.DataCompare;
+import com.crunchydata.util.Logging;
+import com.crunchydata.util.ThreadSync;
+import com.crunchydata.services.*;
 
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+
+import org.json.JSONObject;
 
 /**
  * ReconcileController class that manages the data reconciliation process.
  *
  * @author Brian Pace
  */
-public class ReconcileControllerOK {
+public class ReconcileController {
 
     private static final String THREAD_NAME = "ReconcileController";
 
@@ -73,11 +74,11 @@ public class ReconcileControllerOK {
         BlockingQueue<DataCompare[]> qs;
         BlockingQueue<DataCompare[]> qt;
         if (useLoaderThreads) {
-            qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
-            qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+           qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
+           qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
         } else {
-            qs = null;
-            qt = null;
+           qs = null;
+           qt = null;
         }
 
         // Capture the start time for the compare run.
@@ -139,7 +140,6 @@ public class ReconcileControllerOK {
                 case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "tdsql" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
                 default -> "";
             });
 
