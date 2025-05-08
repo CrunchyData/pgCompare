@@ -76,24 +76,11 @@ public class dbTDSQL {
      * @param column JSONObject containing column information.
      * @return String representing the column value expression.
      */
-    public static String columnValueMapTDSQL(Properties Props, JSONObject column) {
+    public static String columnValueMapTDSQL(JSONObject column) {
+        String columnName = column.getString("columnName");
         String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
 
-        if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            switch (column.getString("dataType").toLowerCase()) {
-                case "float":
-                case "double":
-                    colExpression = "coalesce(if(" + columnName + "=0,'0.000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 6),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
-                    break;
-                default:
-                    if (Props.getProperty("number-cast").equals("notation")) {
-                        colExpression = "coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
-                    } else {
-                        colExpression = "coalesce(if(instr(convert(" + columnName + ",char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(convert(abs(" + columnName + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + columnName + ",char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(convert(" + columnName + ",char),22,'0'),'.',rpad('',22,'0'))),' ')";
-                    }
-            }
-        } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
+        if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = "case when coalesce(convert(" + columnName + ",char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
@@ -121,21 +108,23 @@ public class dbTDSQL {
      */
     public static Connection getConnection(Properties connectionProperties, String destType) {
         Connection conn = null;
-        String url = "jdbc:mysql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
+        String url = "jdbc:mysql://" + connectionProperties.getProperty(destType+"-host") + ":" +
+                connectionProperties.getProperty(destType+"-port") + "/" +
+                connectionProperties.getProperty(destType+"-dbname") +
+                "?allowPublicKeyRetrieval=true&useSSL=" +
+                (connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
         Properties dbProps = new Properties();
 
-        dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
-        dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
+        dbProps.setProperty("user", connectionProperties.getProperty(destType+"-user"));
+        dbProps.setProperty("password", connectionProperties.getProperty(destType+"-password"));
 
         try {
-            conn = DriverManager.getConnection(url,dbProps);
-            dbCommon.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
+            conn = DriverManager.getConnection(url, dbProps);
+            dbCommon.simpleUpdate(conn, "set session sql_mode='ANSI'", new ArrayList<>(), false);
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error connecting to MySQL:  %s", e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error connecting to TDSQL: %s", e.getMessage()));
         }
 
         return conn;
-
     }
-
 }
