@@ -76,11 +76,17 @@ public class dbPostgres {
         String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "float4", "real", "float8" ->
-                    "coalesce(trim(to_char(" + columnName + ",'0.999999EEEE')),' ')";
-                default ->
-                        Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
+            switch (column.getString("dataType").toLowerCase()) {
+                case "float4", "real":
+                    if (Props.getProperty("source-type").equals("mssql") || Props.getProperty("target-type").equals("mssql")) {
+                        colExpression = Props.getProperty("float-cast").equals("char") ? String.format("trim(trailing '.' from trim(trailing '0' from cast(cast(cast(%1$s as float8) as decimal(30,7)) as text)))", columnName) : String.format("coalesce(trim(to_char(%1$s,'0.999999EEEE')),' ')", columnName);
+                        break;
+                    }
+                case "float8":
+                    colExpression = Props.getProperty("float-cast").equals("char") ? String.format("cast(cast(%1$s as double precision) as text)",columnName) : String.format("coalesce(trim(to_char(%1$s,'0.999999EEEE')),' ')",columnName);
+                    break;
+                default:
+                    colExpression = Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
             };
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {

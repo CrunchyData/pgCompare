@@ -105,6 +105,7 @@ public class Settings {
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("message-queue-size","1000");
         defaultProps.setProperty("number-cast","notation");
+        defaultProps.setProperty("float-cast","char");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");

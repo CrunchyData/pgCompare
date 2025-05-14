@@ -80,8 +80,10 @@ public class dbOracle {
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
 
             colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "float", "binary_float", "binary_double" ->
-                        "lower(nvl(trim(to_char(" +columnName + ",'0.999999EEEE')),' '))";
+                case "float" ->
+                        Props.getProperty("float-cast").equals("char") ? String.format("to_char(cast(%1$s as double precision))",columnName) : String.format("lower(nvl(trim(to_char(%1$s,'0.999999EEEE')),' '))",columnName);
+                case "binary_float", "binary_double" ->
+                        String.format("lower(nvl(trim(to_char(%1$s,'0.999999EEEE')),' '))",columnName);
                 default ->
                         Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + columnName+ ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + columnName+ ",'" + Props.getProperty("standard-number-format") + "')),' ')";
             };

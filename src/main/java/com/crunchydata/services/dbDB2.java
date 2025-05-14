@@ -79,8 +79,8 @@ public class dbDB2 {
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
 
             colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "real", "float", "binary_float", "binary_double", "double" ->
-                       scientificNotation(columnName);
+                case "binary_float", "real", "float", "binary_double", "double" ->
+                        Props.getProperty("float-cast").equals("char") ? String.format("case when abs(%1$s) < 1 then '0' else '' end|| trim(trailing '.' from trim(trailing '0' from cast(cast(cast(%1$s as double) as decimal(30,18)) as varchar(1000))))",columnName) : scientificNotation(columnName);
                 default ->
                         Props.getProperty("number-cast").equals("notation") ? scientificNotation(columnName) : "nvl(trim(to_char(" + columnName+ ", '" + Props.getProperty("standard-number-format") + "')),' ')";
             };

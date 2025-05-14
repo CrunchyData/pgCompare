@@ -46,6 +46,7 @@ Before initiating the build and installation process, ensure the following prere
 - Unsupported data types: blob, long, longraw, bytea.
 - Cross-platform comparison limitations with boolean type.
 - Low precission types (float, real) cannot be compared to high precission types (double).
+- Different databases cast float to different values.  Use float-cast option to switch between char and notation (scientific notation) if there are compare problems with float data types.
 
 # Getting Started
 
@@ -91,7 +92,7 @@ java -jar pgcompare.jar --discovery
     Discover and map tables in specified schemas:
 
     ```shell
-    java -jar pgcompare.jar --discovery
+    java -jar pgcompare.jar --discover
     ```
 
 2. Manual Registration 
@@ -201,7 +202,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
 - database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
-- float-cast: Defines how float and double data types are cast for hash function (notation|standard).  Default is notation (for scientific notation).
+- float-cast: Defines how float and double data types are cast for hash function (notation|char).  Default is char.
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
 - log-level:   Level to determine the amount of log messages written to the log destination.
 - log-destination:  Location where log messages will be written.  Default is stdout.
@@ -212,6 +213,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
 
 ### Repository
+
 - repo-dbname:  Repository database name.
 - repo-host: Host name of server hosting the Postgres repository database.
 - repo-password:  Postgres database user password.

@@ -83,9 +83,8 @@ public class dbMariaDB {
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             switch (column.getString("dataType").toLowerCase()) {
-                case "float":
-                case "double":
-                    colExpression = "coalesce(if(" + columnName + "=0,'0.000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 6),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ')";
+                case "float", "double":
+                    colExpression = Props.getProperty("float-cast").equals("char") ? String.format("cast(cast(%1$s as double) as char)",columnName) : String.format("coalesce(if(%1$s=0,'0.000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 6),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(%1$s))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ')",columnName);
                     break;
                 default:
                     if (Props.getProperty("number-cast").equals("notation")) {

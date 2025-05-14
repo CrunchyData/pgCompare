@@ -83,7 +83,7 @@ public class dbMSSQL {
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             colExpression = switch (column.getString("dataType").toLowerCase()) {
                 case "real", "float", "float4", "float8" ->
-                        "lower(replace(coalesce(trim(format(" + columnName + ",'E6')),' '),'E+0','e+'))";
+                        Props.getProperty("float-cast").equals("char") ? String.format("rtrim(rtrim(cast(cast(%1$s as DECIMAL(30,7)) as varchar(1000)),'0'),'.')",columnName) : String.format("lower(replace(coalesce(trim(format(%1$s,'E6')),' '),'E+0','e+'))",columnName);
                 default ->
                         Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(format(" + columnName + ",'E10')),' '),'E+0','e+'))"   : "coalesce(cast(format(" + columnName + ", '"+ Props.getProperty("standard-number-format") + "') as text),' ')";
             };
