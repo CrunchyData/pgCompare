@@ -50,9 +50,9 @@ public class ReconcileController {
 
     private static final RepoController rpc = new RepoController();
 
-    private static List<threadReconcile> compareList = new ArrayList<>();
-    private static List<threadLoader> loaderList = new ArrayList<>();
-    private static List<threadReconcileObserver> observerList = new ArrayList<>();
+    private static final List<threadReconcile> compareList = new ArrayList<>();
+    private static final List<threadLoader> loaderList = new ArrayList<>();
+    private static final List<threadReconcileObserver> observerList = new ArrayList<>();
 
     /**
      * Reconciles data between source and target databases.

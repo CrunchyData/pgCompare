@@ -70,13 +70,13 @@ public class TableController {
 
         // Clear Incomplete Map
         binds.clear();
-        binds.add(0,pid);
+        binds.addFirst(pid);
         CachedRowSet crs = dbCommon.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
 
         try {
             while (crs.next()) {
                 binds.clear();
-                binds.add(0,crs.getInt("tid"));
+                binds.addFirst(crs.getInt("tid"));
 
                 Logging.write("warning",THREAD_NAME,String.format("Skipping table %s due to incomplete mapping (missing source or target)",crs.getString("table_alias")));
                 dbCommon.simpleUpdate(connRepo,SQL_REPO_DCTABLE_DELETEBYTID, binds,true);

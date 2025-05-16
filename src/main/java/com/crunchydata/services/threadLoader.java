@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  * @author Brian Pace
  */
 public class threadLoader extends Thread  {
-    private BlockingQueue<DataCompare[]> q;
+    private final BlockingQueue<DataCompare[]> q;
     private final Integer instanceNumber;
     private final String stagingTable;
     private final String targetType;
@@ -148,7 +148,7 @@ public class threadLoader extends Thread  {
             stmtLoad = null;
             repoConn = null;
 
-            ts.loaderThreadComplete++;
+            ts.incrementLoaderThreadComplete();
 
         } catch( SQLException e) {
             StackTraceElement[] stackTrace = e.getStackTrace();

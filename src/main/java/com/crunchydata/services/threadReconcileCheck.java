@@ -31,7 +31,6 @@ import com.crunchydata.models.DCTable;
 import com.crunchydata.models.DCTableMap;
 import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.DataUtility;
-import com.crunchydata.util.JsonUtility;
 import com.crunchydata.util.Logging;
 
 import org.json.JSONArray;
@@ -87,7 +86,7 @@ public class threadReconcileCheck {
 
                 // Get Column Info and Mapping
                 binds.clear();
-                binds.add(0, dct.getTid());
+                binds.addFirst(dct.getTid());
                 JSONObject columnMapping = new JSONObject(dbCommon.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
 
                 int pkColumnCount = 0;
@@ -127,7 +126,6 @@ public class threadReconcileCheck {
         } catch (Exception e) {
             result.put("status","failed");
             StackTraceElement[] stackTrace = e.getStackTrace();
-            e.printStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s at line %s:  %s", dct.getTableAlias(), stackTrace[0].getLineNumber(), e.getMessage()));
         }
 

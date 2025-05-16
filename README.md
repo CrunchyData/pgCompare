@@ -183,16 +183,6 @@ FROM dc_source s
 
 # Reference
 
-## Column Map
-
-The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the `dc_table_column` and `dc_table_column_map` repository tables. This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column mapping is present, the program will not perform a remap unless instructed to using the `maponly` flag.
-
-To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
-
-```shell
-java -jar pgcompare.jar --batch 0 --maponly
-```
-
 ## Properties
 
 Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of the property in upper case with dashes '-' converted to underscore '_' and prefixed with PGCOMPARE_.  For example, batch-fetch-size can be set by using the environment variable PGCOMPARE_BATCH_FETCH_SIZE.

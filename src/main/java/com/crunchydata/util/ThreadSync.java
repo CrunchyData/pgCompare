@@ -53,6 +53,13 @@ public class ThreadSync {
     public volatile int loaderThreadComplete = 0;
 
     /**
+     * Increase the number of threads complete.
+     */
+    public synchronized void incrementLoaderThreadComplete() {
+        loaderThreadComplete++;
+    }
+
+    /**
      * Causes the current thread to wait until it is notified.
      * This method must be called from a synchronized context.
      */

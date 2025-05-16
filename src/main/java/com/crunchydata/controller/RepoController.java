@@ -146,7 +146,7 @@ public class RepoController {
      */
     public static String getProjectConfig (Connection conn, Integer pid) {
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0, pid);
+        binds.addFirst(pid);
 
         return dbCommon.simpleSelectReturnString(conn, "SELECT coalesce(project_config,'{}') project_config FROM dc_project WHERE pid=?", binds);
     }
@@ -166,7 +166,7 @@ public class RepoController {
         String sql = SQL_REPO_DCTABLE_SELECTBYPID;
 
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0, pid);
+        binds.addFirst(pid);
 
         if ( batchNbr > 0 ) {
             binds.add(binds.size(), batchNbr);

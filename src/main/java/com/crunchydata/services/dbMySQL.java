@@ -37,7 +37,7 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
  * <p>
  *     MySQL Data Types
  *         Date/Time: date, datetime, timestamp, time, year
- *         Numeric: integer, smallint, decimal, numeric, float, real, double, int, dec, fixed
+ *         Numeric: integer, smallint, bigint, decimal, numeric, float, real, double, int, dec, fixed
  *         String: char, varchar, text, json
  *         Unsupported: bit, binary, varbinary, blob, enum, set
  *

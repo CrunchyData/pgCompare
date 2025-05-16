@@ -87,7 +87,7 @@ public class dbPostgres {
                     break;
                 default:
                     colExpression = Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
-            };
+            }
 
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
             String booleanConvert = "case when coalesce(" + columnName + "::text,'0') = 'true' then 1 else 0 end";

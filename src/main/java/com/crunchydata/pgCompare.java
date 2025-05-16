@@ -87,7 +87,7 @@ public class pgCompare {
 
         // Load Properties from Project (dc_project)
         if ( !action.equals("init") ) {
-            setProjectConfig(connRepo, pid, Props);
+            setProjectConfig(connRepo, pid);
         }
 
         // Preflight
@@ -113,7 +113,6 @@ public class pgCompare {
             }
             System.exit(0);
         }
-
 
         // Connect to Source
         connSource = getDatabaseConnection(Props.getProperty("source-type"), "source");
