@@ -155,6 +155,7 @@ public class ReconcileController {
                     Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation",dctmTarget.getTableName()));
                     result.put("status", "skipped");
                     result.put("compareStatus", "skipped");
+                    binds.clear();
                     binds.add(0, cid);
                     dbCommon.simpleUpdate(connRepo, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
                 } else {
