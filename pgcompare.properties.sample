@@ -21,6 +21,10 @@ loader-threads = 2
 # default: 100
 message-queue-size = 100
 
+# Method used to cast float and double data types to string (notation|standard)
+# default: notation
+float-cast=notation
+
 # Method used to cast number to string (notation|standard)
 # default: notation
 number-cast=notation

@@ -2,15 +2,26 @@ create user pgctest identified by "welcome1";
 grant unlimited tablespace to pgctest;
 grant connect,resource to pgctest;
 
+
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST."Test_Case"';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+
 CREATE TABLE pgctest."Test_Case"
-   (EID NUMBER,
-    FIRST_NAME VARCHAR2(40 BYTE),
-    LAST_NAME VARCHAR2(40 BYTE),
-    EMAIL VARCHAR2(100 BYTE),
-    HIRE_DT DATE,
-    AGE NUMBER(3,0),
-    "Zip" NUMBER(5,0),
-    STATUS CHAR(3 BYTE),
+(EID NUMBER,
+ FIRST_NAME VARCHAR2(40 BYTE),
+ LAST_NAME VARCHAR2(40 BYTE),
+ EMAIL VARCHAR2(100 BYTE),
+ HIRE_DT DATE,
+ AGE NUMBER(3,0),
+ "Zip" NUMBER(5,0),
+ STATUS CHAR(3 BYTE),
     SALARY NUMBER(12,2),
     LAST_LOGIN TIMESTAMP (6),
     BIO VARCHAR2(2000 BYTE)
@@ -39,33 +50,55 @@ Insert into pgctest."Test_Case" (EID,FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT,AGE,"Zip
 Insert into pgctest."Test_Case" (EID,FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT,AGE,"Zip",STATUS,SALARY,LAST_LOGIN,BIO) values (19,'Rachel','White','rachel.white@example.com',to_date('22-DEC-04','DD-MON-RR'),32,98109,'INA',72000,to_timestamp('02-AUG-24 09.15.00.000000000 AM','DD-MON-RR HH.MI.SSXFF AM'),'Graphic Designer with a background in branding.');
 Insert into pgctest."Test_Case" (EID,FIRST_NAME,LAST_NAME,EMAIL,HIRE_DT,AGE,"Zip",STATUS,SALARY,LAST_LOGIN,BIO) values (20,'Sam','Young','sam.young@example.com',to_date('17-JAN-03','DD-MON-RR'),49,60611,'ACT',91000,to_timestamp('01-AUG-24 05.00.00.000000000 PM','DD-MON-RR HH.MI.SSXFF AM'),'Product Manager with experience in e-commerce.');
 
-DROP TABLE IF EXISTS pgctest.test_nbr;
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST.test_nbr';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+
 CREATE TABLE pgctest.test_nbr
 (   id              NUMBER(8) NOT NULL PRIMARY KEY
-,   col_small       NUMBER(4)
-,   col_int         NUMBER(9)
-,   col_bigint      NUMBER(18)
-,   col_dec_20      NUMBER(20)
-,   col_dec_38      NUMBER(38)
-,   col_dec_10_2    NUMBER(10,2)
-,   col_float32     binary_float
-,   col_float64     binary_double
-,   col_dec_38_9    NUMBER(38,9)
-,   col_dec_38_30   NUMBER(38,30)
+    ,   col_small       NUMBER(4)
+    ,   col_int         NUMBER(9)
+    ,   col_bigint      NUMBER(18)
+    ,   col_dec_20      NUMBER(20)
+    ,   col_dec_38      NUMBER(38)
+    ,   col_dec_10_2    NUMBER(10,2)
+    ,   col_float32     binary_float
+    ,   col_float64     binary_double
+    ,   col_dec_38_9    NUMBER(38,9)
+    ,   col_dec_38_30   NUMBER(38,30)
 );
 
+delete from pgctest.test_nbr;
 INSERT INTO pgctest.test_nbr VALUES (1, 1, 1, 1, 12345678901234567890, 1234567890123456789012345, 123.11, 123456.1, 12345678.1, 12345678901234567890123456789.123456789, 12345678.123456789012345678901234567890);
 INSERT INTO pgctest.test_nbr VALUES (2, 2, 2, 2, 12345678901234567890, 1234567890123456789012345, 123.22, 123456.2, 12345678.2, 22345678901234567890123456789.123456789, 22345678.123456789012345678901234567890);
 INSERT INTO pgctest.test_nbr VALUES (3, 3, 3, 3, 12345678901234567890, 1234567890123456789012345, 123.3 , 123456.3, 12345678.3, 32345678901234567890123456789.123456789, 32345678.123456789012345678901234567890);
 INSERT INTO pgctest.test_nbr VALUES (4, 4, 4, 4, null                , 1234567890123456789012345, 123.3 , 123456.3, 12345678.3, null                                   , 32345678.123456789012345678901234567890);
 INSERT INTO pgctest.test_nbr VALUES (5, -5, -5, -5, -12345678901234567890, -1234567890123456789012345, -123.3 , -123456.3, -12345678.3, -32345678901234567890123456789.123456789, -32345678.123456789012345678901234567890);
+INSERT INTO pgctest.test_nbr VALUES (0, 0, 0, 0, 0, 0, 0, .01, .001, 0, 0);
+INSERT INTO pgctest.test_nbr VALUES (6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+INSERT INTO pgctest.test_nbr VALUES (7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-DROP TABLE IF EXISTS pgctest.test_char;
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST.test_char';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+
 CREATE TABLE pgctest.test_char
 (   id              NUMBER(8) NOT NULL PRIMARY KEY
-,   col_charnull    varchar2(30)
-,   col_char_2      char(2)
-,   col_string      varchar2(4000)
+    ,   col_charnull    varchar2(30)
+    ,   col_char_2      char(2)
+    ,   col_string      varchar2(4000)
 );
 
 INSERT INTO pgctest.test_char VALUES (1, 'abc', 'A ', 'when in the course of human events it becomes necessary...');
@@ -74,14 +107,24 @@ INSERT INTO pgctest.test_char VALUES (3, 'xyx', 'C ', 'when in the course of hum
 INSERT INTO pgctest.test_char VALUES (4, null , 'D ', 'when in the course of human events it becomes necessary...');
 
 
-DROP TABLE IF EXISTS pgctest.test_dt;
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST.test_dt';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+
+
 CREATE TABLE pgctest.test_dt
 (   id              NUMBER(8) NOT NULL PRIMARY KEY
-,   col_date        date
-,   col_datetime    timestamp(3)
-,   col_tstz        timestamp(3) with time zone
-,   col_ts6         timestamp(6)
-,   col_ts6tz       timestamp(6) with time zone
+    ,   col_date        date
+    ,   col_datetime    timestamp(3)
+    ,   col_tstz        timestamp(3) with time zone
+    ,   col_ts6         timestamp(6)
+    ,   col_ts6tz       timestamp(6) with time zone
 );
 
 INSERT INTO pgctest.test_dt VALUES (1, DATE'1970-01-01', TIMESTAMP'1976-07-04 01:00:01', to_timestamp_tz('1976-07-04 02:00:01 -01:00','YYYY-MM-DD HH24:MI:SS TZH:TZM'), TIMESTAMP'1976-07-04 03:00:01.123456',  to_timestamp_tz('1976-07-04 04:00:01.123456 -01:00','YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM'));
@@ -89,19 +132,39 @@ INSERT INTO pgctest.test_dt VALUES (2, DATE'1970-01-02', TIMESTAMP'1991-01-02 01
 INSERT INTO pgctest.test_dt VALUES (3, DATE'1970-01-03', TIMESTAMP'2030-01-03 01:00:03', to_timestamp_tz('2030-01-03 02:00:03 -03:00','YYYY-MM-DD HH24:MI:SS TZH:TZM'), TIMESTAMP'2030-01-03 03:00:03.123456',  to_timestamp_tz('2030-01-03 04:00:03.123456 -03:00','YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM'));
 INSERT INTO pgctest.test_dt VALUES (4, DATE'1970-01-04', TIMESTAMP'2030-01-04 01:00:03', to_timestamp_tz('2030-01-04 02:00:03 -03:00','YYYY-MM-DD HH24:MI:SS TZH:TZM'), null                                 ,  null                                                                                    );
 
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST.multipk';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+
 CREATE TABLE pgctest.multipk (
-	"COL_1" varchar2(10) NULL,
-	"PK" number(8) NOT NULL,
-	pk2 number(8) NOT NULL,
-	CONSTRAINT multipk_pk PRIMARY KEY ("PK", pk2)
+                                 "COL_1" varchar2(10) NULL,
+                                 "PK" number(8) NOT NULL,
+                                 pk2 number(8) NOT NULL,
+                                 CONSTRAINT multipk_pk PRIMARY KEY ("PK", pk2)
 );
 
 
 INSERT INTO pgctest.multipk ("PK", pk2, "COL_1") VALUES (1, 1, 'test');
 
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST.plat';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+
 CREATE TABLE pgctest.plat (
-   id number(8) NOT NULL,
-   plat varchar2(10),
-   CONSTRAINT plat_pk PRIMARY KEY (id));
+                              id number(8) NOT NULL,
+                              plat varchar2(10),
+                              CONSTRAINT plat_pk PRIMARY KEY (id));
 
 INSERT INTO pgctest.plat (id, plat) VALUES (1, 'oracle');

@@ -48,7 +48,6 @@ public class Reporter {
                 // Header
                 writer.write("<tr>");
 
-                JSONObject firstObject = sectionData.getJSONObject(0);
                 for (int j =0; j < section.getJSONArray("layout").length(); j++) {
                     JSONObject rowLayout = section.getJSONArray("layout").getJSONObject(j);
                     writer.write(String.format("<th>%s</th>", rowLayout.getString("columnHeader")));

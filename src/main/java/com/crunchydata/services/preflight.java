@@ -34,11 +34,7 @@ public class preflight {
 
                 break;
 
-            case "mariadb":
-                // No restrictions
-                break;
-
-            case "mysql":
+            case "mariadb", "mysql", "oracle", "postgres":
                 // No restrictions
                 break;
 
@@ -50,13 +46,6 @@ public class preflight {
                 }
                 break;
 
-            case "oracle":
-                // No restrictions
-                break;
-
-            case "postgres":
-                // No restrictions
-                break;
         }
 
     }

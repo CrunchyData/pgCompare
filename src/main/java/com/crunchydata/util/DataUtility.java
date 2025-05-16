@@ -84,6 +84,16 @@ public class DataUtility {
         };
     }
 
+    public static String getQuoteString(String databasePlatform) {
+        return switch (databasePlatform) {
+            case "oracle" -> dbOracle.quoteChar;
+            case "mariadb" -> dbMariaDB.quoteChar;
+            case "mysql" -> dbMySQL.quoteChar;
+            case "mssql" -> dbMSSQL.quoteChar;
+            case "db2" -> dbDB2.quoteChar;
+            default -> dbPostgres.quoteChar;
+        };
+    }
 
     public static boolean isMixedCase(String str) {
         boolean hasUpper = false;
@@ -107,14 +117,14 @@ public class DataUtility {
     }
 
     public static boolean containsSpecialCharacter(String str) {
-        return str.matches(".*[^a-zA-Z0-9].*");
+        return str.matches(".*[^a-zA-Z0-9_].*");
     }
 
     public static boolean preserveCase(String expectedCase, String str) {
-        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || Arrays.asList(reservedWords).contains(str) || containsSpecialCharacter(str));
+        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || Arrays.asList(reservedWords).equals(str) || containsSpecialCharacter(str));
     }
 
-    public static String ShouldQuoteString(Boolean preserveCase, String str) {
-        return (preserveCase) ? String.format("\"%s\"",str) :  str;
+    public static String ShouldQuoteString(Boolean preserveCase, String str, String quoteChar) {
+        return (preserveCase) ? String.format("%s%s%s", quoteChar, str, quoteChar) :  str;
     }
 }

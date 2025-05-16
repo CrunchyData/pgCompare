@@ -61,7 +61,7 @@ import java.util.Properties;
 public class Settings {
 
     public static Properties Props;
-    public static final String VERSION = "0.3.6.4";
+    public static final String VERSION = "0.3.7.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
@@ -105,6 +105,7 @@ public class Settings {
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("message-queue-size","1000");
         defaultProps.setProperty("number-cast","notation");
+        defaultProps.setProperty("float-cast","char");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");
@@ -171,9 +172,8 @@ public class Settings {
      *
      * @param conn Connection to the repository database.
      * @param pid  Project ID.
-     * @param prop the {@code Properties} object to which environment variables are applied
      */
-    public static void setProjectConfig (Connection conn, Integer pid, Properties prop) {
+    public static void setProjectConfig (Connection conn, Integer pid) {
 
         JSONObject projectConfig = new JSONObject(RepoController.getProjectConfig(conn, pid));
 

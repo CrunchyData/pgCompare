@@ -18,6 +18,7 @@ package com.crunchydata.services;
 
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import static com.crunchydata.util.SQLConstantsRepo.*;
@@ -42,27 +43,32 @@ public class dbRepository {
         dbCommon.simpleUpdate(conn,String.format(REPO_DDL_SCHEMA,Props.getProperty("repo-schema"),Props.getProperty("repo-user")),binds, true);
 
         // Create Tables
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_PROJECT, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_RESULT, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_SOURCE, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_MAP, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_HISTORY, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_MAP, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TARGET, binds, true);
+        List<String> ddlConstants = List.of(
+                REPO_DDL_DC_PROJECT,
+                REPO_DDL_DC_RESULT,
+                REPO_DDL_DC_SOURCE,
+                REPO_DDL_DC_TABLE,
+                REPO_DDL_DC_TABLE_COLUMN,
+                REPO_DDL_DC_TABLE_COLUMN_MAP,
+                REPO_DDL_DC_TABLE_HISTORY,
+                REPO_DDL_DC_TABLE_MAP,
+                REPO_DDL_DC_TARGET
+        );
 
-        // Create Indexes
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_RESULT_IDX1, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_HISTORY_IDX1, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_IDX1, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_IDX1, binds, true);
+        ddlConstants.forEach(ddl -> dbCommon.simpleUpdate(conn, ddl, binds, true));
 
+        // Create Indexes and Constraints
+        List<String> ddlConstantsIndexConstraint = List.of(
+                REPO_DDL_DC_RESULT_IDX1,
+                REPO_DDL_DC_TABLE_HISTORY_IDX1,
+                REPO_DDL_DC_TABLE_IDX1,
+                REPO_DDL_DC_TABLE_COLUMN_IDX1,
+                REPO_DDL_DC_TABLE_COLUMN_FK,
+                REPO_DDL_DC_TABLE_MAP_FK,
+                REPO_DDL_DC_TABLE_COLUMN_MAP_FK
+        );
 
-        // Add Constraints
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_FK, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_MAP_FK, binds, true);
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_TABLE_COLUMN_MAP_FK, binds, true);
+        ddlConstantsIndexConstraint.forEach(ddl -> dbCommon.simpleUpdate(conn, ddl, binds, true));
 
         // Data
         dbCommon.simpleUpdate(conn,REPO_DDL_DC_PROJECT_DATA, binds, true);

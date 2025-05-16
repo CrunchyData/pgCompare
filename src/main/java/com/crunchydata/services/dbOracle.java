@@ -41,6 +41,7 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
  */
 public class dbOracle {
     public static final String nativeCase = "upper";
+    public static final String quoteChar = "\"";
 
     private static final String THREAD_NAME = "dbOracle";
 
@@ -54,9 +55,9 @@ public class dbOracle {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "LOWER(STANDARD_HASH(" +  columnMetadata.getPk() + ",'MD5')) pk_hash, " + columnMetadata.getPkJSON() + " pk, LOWER(STANDARD_HASH(" + columnMetadata.getColumn() + ",'MD5')) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql += "LOWER(STANDARD_HASH(" +  columnMetadata.getPk() + ",'MD5')) pk_hash, " + columnMetadata.getPkJSON() + " pk, LOWER(STANDARD_HASH(" + columnMetadata.getColumn() + ",'MD5')) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         } else {
-            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         }
 
         if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
@@ -74,13 +75,15 @@ public class dbOracle {
      */
     public static String columnValueMapOracle(Properties Props, JSONObject column) {
         String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
 
             colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "float", "binary_float", "binary_double" ->
-                        "lower(nvl(trim(to_char(" +columnName + ",'0.999999EEEE')),' '))";
+                case "float" ->
+                        Props.getProperty("float-cast").equals("char") ? String.format("to_char(cast(%1$s as double precision))",columnName) : String.format("lower(nvl(trim(to_char(%1$s,'0.999999EEEE')),' '))",columnName);
+                case "binary_float", "binary_double" ->
+                        String.format("lower(nvl(trim(to_char(%1$s,'0.999999EEEE')),' '))",columnName);
                 default ->
                         Props.getProperty("number-cast").equals("notation") ? "lower(nvl(trim(to_char(" + columnName+ ",'0.9999999999EEEE')),' '))" : "nvl(trim(to_char(" + columnName+ ",'" + Props.getProperty("standard-number-format") + "')),' ')";
             };

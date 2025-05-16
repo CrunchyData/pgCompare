@@ -45,6 +45,7 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
  */
 public class dbMariaDB {
     public static final String nativeCase = "lower";
+    public static final String quoteChar = "`";
 
     private static final String THREAD_NAME = "dbMariaDB";
 
@@ -58,9 +59,9 @@ public class dbMariaDB {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "lower(md5(" +  columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(md5(" + columnMetadata.getColumn() + ")) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql += "lower(md5(" +  columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(md5(" + columnMetadata.getColumn() + ")) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         } else {
-            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         }
 
         if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
@@ -78,23 +79,22 @@ public class dbMariaDB {
      */
     public static String columnValueMapMariaDB(Properties Props, JSONObject column) {
         String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             switch (column.getString("dataType").toLowerCase()) {
-                case "float":
-                case "double":
-                    colExpression = "coalesce(if(" + columnName + "=0,'0.000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 6),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                case "float", "double":
+                    colExpression = Props.getProperty("float-cast").equals("char") ? String.format("cast(cast(%1$s as double) as char)",columnName) : String.format("coalesce(if(%1$s=0,'0.000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 6),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(%1$s))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ')",columnName);
                     break;
                 default:
                     if (Props.getProperty("number-cast").equals("notation")) {
-                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ') end";
+                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ') end";
                     } else {
-                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(instr(convert(" + columnName + ",char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(convert(abs(" + columnName + "),char),'.',1),22,'0'),'.',rpad(substring_index(convert(" + columnName + ",char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(convert(" + columnName + ",char),22,'0'),'.',rpad('',22,'0'))),' ') end";
+                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(instr(cast(" + columnName + " as char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(cast(abs(" + columnName + ") as char),'.',1),22,'0'),'.',rpad(substring_index(cast(" + columnName + "as char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(cast(" + columnName + " as char),22,'0'),'.',rpad('',22,'0'))),' ') end";
                     }
             }
         } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(convert(" + columnName + ",char),'0') = 'true' then '1' else '0' end";
+            colExpression = "case when coalesce(cast(" + columnName + " as char),'0') = 'true' then '1' else '0' end";
         } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
             if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
                 // Casting with factoring in session.time_zone seems to cause issues

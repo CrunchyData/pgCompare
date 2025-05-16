@@ -37,6 +37,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
+import static com.crunchydata.util.ColumnUtility.findColumnAlias;
+import static com.crunchydata.util.DataUtility.getQuoteString;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
 /**
@@ -81,6 +83,12 @@ public class threadReconcileCheck {
                 dcRow.setPkHash(rs.getString("pk_hash"));
                 dcRow.setPk(rs.getString("pk"));
                 dcRow.setCompareResult("compare_result");
+
+                // Get Column Info and Mapping
+                binds.clear();
+                binds.addFirst(dct.getTid());
+                JSONObject columnMapping = new JSONObject(dbCommon.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
+
                 int pkColumnCount = 0;
                 binds.clear();
                 dctmSource.setTableFilter(" ");
@@ -90,6 +98,7 @@ public class threadReconcileCheck {
                 Iterator<String> keys = pk.keys();
                 while (keys.hasNext()) {
                     String key = keys.next();
+                    String columnAlias = findColumnAlias(columnMapping.getJSONArray("columns"),  key.replace("`","").replace("\"",""),  "source");
                     if (pk.get(key) instanceof String) {
                         String value = pk.getString(key);
                         binds.add(pkColumnCount,value);
@@ -97,11 +106,11 @@ public class threadReconcileCheck {
                         Integer value = pk.getInt(key);
                         binds.add(pkColumnCount,value);
                     }
-                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), key.toLowerCase(), "source"));
-                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), key.toLowerCase(), "target"));
+                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteString(Props.getProperty("source-type"))));
+                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteString(Props.getProperty("target-type"))));
                     pkColumnCount++;
                 }
-                Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter().substring(6)));
+                Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter()));
 
                 JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
 

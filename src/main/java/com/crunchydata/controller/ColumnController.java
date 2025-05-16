@@ -15,7 +15,11 @@ import static com.crunchydata.util.ColumnUtility.getColumns;
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
-@SuppressWarnings("ALL")
+/**
+ * ColumnController class that collects column metadata.
+ *
+ * @author Brian Pace
+ */
 public class ColumnController {
     private static final String THREAD_NAME = "ColumnController";
 
@@ -43,7 +47,7 @@ public class ColumnController {
         StringBuilder pkJSON = new StringBuilder();
         StringBuilder pkList = new StringBuilder();
 
-        // Construct Columns
+        // Gather column metadata from the columnMap json and save in the ColumnMetadata class
         try {
             JSONArray columnsArray = columnMap.getJSONArray("columns");
             for (int i = 0; i < columnsArray.length(); i++) {
@@ -51,8 +55,9 @@ public class ColumnController {
 
                 JSONObject joColumn = columnObject.getJSONObject(targetType);
 
+                // Identify if column is priary key and save primary keys to pk string
                 if (joColumn.getBoolean("primaryKey")) {
-                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName")) : joColumn.getString("columnName").toLowerCase();
+                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform)) : joColumn.getString("columnName").toLowerCase();
                     nbrPKColumns++;
                     pk.append(joColumn.getString("valueExpression"))
                             .append(concatOperator)
@@ -81,8 +86,9 @@ public class ColumnController {
                         }
                     }
                 } else {
+                    // Process non-primary key columns
                     nbrColumns++;
-                    columnList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"))).append(",");
+                    columnList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform))).append(",");
                     column.append(useDatabaseHash
                             ? joColumn.getString("valueExpression") + concatOperator
                             : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase() + ",");
@@ -119,7 +125,16 @@ public class ColumnController {
 
     }
 
-
+    /**
+     * Prepare to discover columns from source and target.
+     *
+     * @param Props            Properties for application settings
+     * @param pid              Project id
+     * @param table            Table to discover columns for
+     * @param connRepo         Connection to repository
+     * @param connSource       Connection to source database
+     * @param connTarget       Connection to target database
+     */
     public static void discoverColumns(Properties Props, Integer pid, String table, Connection connRepo, Connection connSource, Connection connTarget) {
         ArrayList<Object> binds = new ArrayList<>();
 
@@ -150,7 +165,7 @@ public class ColumnController {
 
             while (crs.next()) {
                 // Repopulate Columns
-                loadColumns(Props, pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connTarget, "target", true);
+                loadColumns(Props, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connTarget, "target", true);
             }
 
             crs.close();
@@ -172,7 +187,7 @@ public class ColumnController {
             crs = dbCommon.simpleSelect(connRepo, sql, binds);
 
             while (crs.next()) {
-                loadColumns(Props, pid, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connSource, "source", true);
+                loadColumns(Props, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connSource, "source", true);
             }
 
             crs.close();
@@ -184,7 +199,19 @@ public class ColumnController {
 
     }
 
-    public static void loadColumns(Properties Props, Integer pid, Integer tid, String schema, String tableName, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTableColumn) {
+    /**
+     * Perform column discovery
+     *
+     * @param Props            Properties for application settings
+     * @param tid              Table id
+     * @param schema           Schema name
+     * @param tableName        Table name
+     * @param connRepo         Connection to repository
+     * @param connDest         Connection to source or target database
+     * @param destRole         Destination role (source or target)
+     * @param populateDCTableColumn  Whether to populate the DCTableColumn with column alias
+     */
+    public static void loadColumns(Properties Props, Integer tid, String schema, String tableName, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTableColumn) {
         String destType=Props.getProperty(destRole+"-type");
         ArrayList<Object> binds = new ArrayList<>();
         Integer columnCount = 0;
@@ -193,9 +220,6 @@ public class ColumnController {
 
         // Get Tables based on Platform
         JSONArray columns = getColumns(Props, connDest,schema,tableName, destRole);
-
-        // Get Default Case for Platform
-        String nativeCase = getNativeCase(destType);
 
         // Populate dc_table_column and dc_table_column_map
         for (int i = 0; i < columns.length(); i++) {

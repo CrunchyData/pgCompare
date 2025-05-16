@@ -45,8 +45,8 @@ Before initiating the build and installation process, ensure the following prere
 - Date/Timestamps compared only to the second (format: DDMMYYYYHH24MISS).
 - Unsupported data types: blob, long, longraw, bytea.
 - Cross-platform comparison limitations with boolean type.
-- Reserved words cannot be used for table/column names.
-- If a column is quoted in the RDBMS's native case, you will need to override the `preserve_case` in the `dc_table_column_map` table for that column.  For example, if a column was created in Oracle with quotes in upper case ("MYCOL").
+- Low precission types (float, real) cannot be compared to high precission types (double).
+- Different databases cast float to different values.  Use float-cast option to switch between char and notation (scientific notation) if there are compare problems with float data types.
 
 # Getting Started
 
@@ -92,7 +92,7 @@ java -jar pgcompare.jar --discovery
     Discover and map tables in specified schemas:
 
     ```shell
-    java -jar pgcompare.jar --discovery
+    java -jar pgcompare.jar --discover
     ```
 
 2. Manual Registration 
@@ -183,16 +183,6 @@ FROM dc_source s
 
 # Reference
 
-## Column Map
-
-The system will automatically generate a column mapping during the first execution on a table.  This column mapping will be stored in the `dc_table_column` and `dc_table_column_map` repository tables. This mapping can be performed ahead of time or the generated mapping modified as needed.  If a column mapping is present, the program will not perform a remap unless instructed to using the `maponly` flag.
-
-To create or overwrite current column mappings stored in column_map colum of dc_table, execute the following:
-
-```shell
-java -jar pgcompare.jar --batch 0 --maponly
-```
-
 ## Properties
 
 Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of the property in upper case with dashes '-' converted to underscore '_' and prefixed with PGCOMPARE_.  For example, batch-fetch-size can be set by using the environment variable PGCOMPARE_BATCH_FETCH_SIZE.
@@ -202,6 +192,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
 - database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
+- float-cast: Defines how float and double data types are cast for hash function (notation|char).  Default is char.
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
 - log-level:   Level to determine the amount of log messages written to the log destination.
 - log-destination:  Location where log messages will be written.  Default is stdout.
@@ -212,6 +203,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
 
 ### Repository
+
 - repo-dbname:  Repository database name.
 - repo-host: Host name of server hosting the Postgres repository database.
 - repo-password:  Postgres database user password.

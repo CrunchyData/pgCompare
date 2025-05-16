@@ -37,7 +37,7 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
  * <p>
  *     MySQL Data Types
  *         Date/Time: date, datetime, timestamp, time, year
- *         Numeric: integer, smallint, decimal, numeric, float, real, double, int, dec, fixed
+ *         Numeric: integer, smallint, bigint, decimal, numeric, float, real, double, int, dec, fixed
  *         String: char, varchar, text, json
  *         Unsupported: bit, binary, varbinary, blob, enum, set
  *
@@ -45,6 +45,7 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
  */
 public class dbMySQL {
     public static final String nativeCase = "lower";
+    public static final String quoteChar = "`";
 
     private static final String THREAD_NAME = "dbMySQL";
 
@@ -58,9 +59,9 @@ public class dbMySQL {
         String sql = "SELECT ";
 
         if (useDatabaseHash) {
-            sql += "lower(md5(" +  columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(md5(" + columnMetadata.getColumn() + ")) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql += "lower(md5(" +  columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(md5(" + columnMetadata.getColumn() + ")) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         } else {
-            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName()) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName()) + " WHERE 1=1 ";
+            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
         }
 
         if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
@@ -78,13 +79,15 @@ public class dbMySQL {
      */
     public static String columnValueMapMySQL(Properties Props, JSONObject column) {
         String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"));
+        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
 
         if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
             switch (column.getString("dataType").toLowerCase()) {
                 case "float":
+                    colExpression = Props.getProperty("float-cast").equals("char") ? String.format("cast(cast(%1$s as double) as char)",columnName) : String.format("coalesce(if(%1$s=0,'0.000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 6),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(%1$s))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')",columnName);
+                    break;
                 case "double":
-                    colExpression = "coalesce(if(" + columnName + "=0,'0.000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 6),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')";
+                    colExpression = String.format("coalesce(if(%1$s=0,'0.000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 6),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(convert(FORMAT(floor(log10(abs(%1$s))), 2)/100,char),'0.',''),'-',''),2,'0'))),' ')",columnName);
                     break;
                 default:
                     if (Props.getProperty("number-cast").equals("notation")) {
