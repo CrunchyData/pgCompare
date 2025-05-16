@@ -97,7 +97,7 @@ public class ReconcileController {
 
         try {
             // Get Column Info and Mapping
-            binds.add(0, dct.getTid());
+            binds.addFirst(dct.getTid());
             String columnMapping = dbCommon.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
 
 
@@ -155,8 +155,10 @@ public class ReconcileController {
                     Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation",dctmTarget.getTableName()));
                     result.put("status", "skipped");
                     result.put("compareStatus", "skipped");
+
                     binds.clear();
-                    binds.add(0, cid);
+                    binds.addFirst(cid);
+
                     dbCommon.simpleUpdate(connRepo, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
                 } else {
                     Logging.write("info", THREAD_NAME, "Starting compare hash threads");
