@@ -61,7 +61,7 @@ import java.util.Properties;
 public class Settings {
 
     public static Properties Props;
-    public static final String VERSION = "0.3.7.0";
+    public static final String VERSION = "0.4.0.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static {
@@ -99,6 +99,8 @@ public class Settings {
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
+        defaultProps.setProperty("column-hash-method","raw|database|hybrid");
+        defaultProps.setProperty("compare-location","repo");
         defaultProps.setProperty("database-sort","true");
         defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
@@ -123,7 +125,6 @@ public class Settings {
         defaultProps.setProperty("repo-user","pgcompare");
 
         // Source
-        defaultProps.setProperty("source-database-hash","true");
         defaultProps.setProperty("source-dbname","postgres");
         defaultProps.setProperty("source-host","localhost");
         defaultProps.setProperty("source-password","welcome1");
@@ -135,7 +136,6 @@ public class Settings {
         defaultProps.setProperty("source-schema",defaultProps.getProperty("source-user"));
 
         // Target
-        defaultProps.setProperty("target-database-hash","true");
         defaultProps.setProperty("target-dbname","postgres");
         defaultProps.setProperty("target-host","localhost");
         defaultProps.setProperty("target-password","welcome1");

@@ -17,18 +17,11 @@
 package com.crunchydata.services;
 
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
-import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.Arrays;
 import java.util.Properties;
-
-import static com.crunchydata.util.ColumnUtility.*;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 
 /**
  * Utility class for interacting with DB2 databases.
@@ -41,70 +34,9 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 public class dbDB2 {
     public static final String nativeCase = "upper";
     public static final String quoteChar = "\"";
+    public static final String columnHash= "LOWER(HASH(%s,'MD5')) AS %s";
 
     private static final String THREAD_NAME = "dbDB2";
-
-    /**
-     * Builds a SQL query for loading data from a DB2 table.
-     *
-     * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @return SQL query string for loading data from the specified table.
-     */
-    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
-        String sql = "SELECT ";
-
-        if (useDatabaseHash) {
-            sql += "LOWER(HASH(" +  columnMetadata.getPk() + ",'MD5')) pk_hash, " + columnMetadata.getPkJSON() + " pk, LOWER(HASH(" + columnMetadata.getColumn() + ",'MD5')) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        } else {
-            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        }
-
-        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
-            sql += " AND " + tableMap.getTableFilter();
-        }
-
-        return sql;
-    }
-
-    /**
-     * Generates a column value expression for DB2 based on the column's data type.
-     *
-     * @param column JSONObject containing column information.
-     * @return String representing the column value expression.
-     */
-    public static String columnValueMapDB2(Properties Props, JSONObject column) {
-        String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
-
-        if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-
-            colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "binary_float", "real", "float", "binary_double", "double" ->
-                        Props.getProperty("float-cast").equals("char") ? String.format("case when abs(%1$s) < 1 then '0' else '' end|| trim(trailing '.' from trim(trailing '0' from cast(cast(cast(%1$s as double) as decimal(30,18)) as varchar(1000))))",columnName) : scientificNotation(columnName);
-                default ->
-                        Props.getProperty("number-cast").equals("notation") ? scientificNotation(columnName) : "nvl(trim(to_char(" + columnName+ ", '" + Props.getProperty("standard-number-format") + "')),' ')";
-            };
-
-
-        } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "nvl(to_char(" + columnName + "),'0')";
-        } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
-                colExpression = "nvl(to_char(" + columnName + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
-            } else {
-                colExpression = "nvl(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
-            }
-        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else trim(" + columnName + ") end";
-        } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when dbms_lob.getlength(" + columnName +") = 0 or " + columnName + " is null then ' ' else lower(dbms_crypto.hash(" + columnName + ",2)) end";
-        } else {
-            colExpression = "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
-        }
-
-        return colExpression;
-
-    }
 
     /**
      * Establishes a connection to an DB2 database using the provided connection properties.
@@ -129,20 +61,6 @@ public class dbDB2 {
         }
 
         return conn;
-
-    }
-
-    /**
-     * DB2 does not support controlling the format of scientific notation.  Therefore,
-     * this routine will construct a column expression for SQL that will return a formatted
-     * scientific notation that matches other platforms.
-     *
-     * @param columnName Column name.
-     * @return String object with column expression.
-     */
-    public static String scientificNotation(String columnName) {
-
-        return String.format("CASE WHEN %s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%s)/pow(10,floor(log10(abs(%s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%s))) AS integer))),2,'0') END",columnName,columnName,columnName,columnName,columnName,columnName,columnName,columnName);
 
     }
 

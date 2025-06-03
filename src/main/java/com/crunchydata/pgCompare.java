@@ -63,7 +63,9 @@ public class pgCompare {
         cmd = parseCommandLine(args);
         if (cmd == null) return;
 
-        Logging.initialize(Props);
+        Props.setProperty("isCheck", Boolean.toString(check));
+
+        Logging.initialize();
 
         // Catch Shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> Logging.write("info", THREAD_NAME, "Shutting down")));

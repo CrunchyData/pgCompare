@@ -214,7 +214,6 @@ Properties are categorized into four sections: system, repository, source, and t
 
 ### Source
 
-- source-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - source-dbname:  Database or service name.
 - source-host:  Database server name.
 - source-password:  Database password.
@@ -226,7 +225,6 @@ Properties are categorized into four sections: system, repository, source, and t
 
 ### Target
 
-- target-database-hash: True or false, instructs the application where the hash should be computed (on the database or by the application).
 - target-dbname:  Database or service name.
 - target-host:  Database server name.
 - target-password:  Database password.

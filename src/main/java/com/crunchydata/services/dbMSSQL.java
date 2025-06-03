@@ -16,18 +16,11 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
-import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.Arrays;
 import java.util.Properties;
-
-import static com.crunchydata.util.ColumnUtility.*;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 
 /**
  * Utility class for interacting with Microsoft SQL Server databases.
@@ -45,72 +38,9 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 public class dbMSSQL {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "\"";
+    public static final String columnHash= "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s";
 
     private static final String THREAD_NAME = "dbMSSQL";
-
-    /**
-     * Builds a SQL query for loading data from a SQL Server table.
-     *
-     * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @return SQL query string for loading data from the specified table.
-     */
-    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
-        String sql = "SELECT ";
-
-        if (useDatabaseHash) {
-            sql += "lower(convert(varchar, hashbytes('MD5'," +  columnMetadata.getPk() + "),2)) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(convert(varchar, hashbytes('MD5'," + columnMetadata.getColumn() + "),2)) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        } else {
-            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        }
-
-        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
-            sql += " AND " + tableMap.getTableFilter();
-        }
-
-        return sql;
-    }
-
-    /**
-     * Generates a column value expression for MSSQL based on the column's data type.
-     *
-     * @param column JSONObject containing column information.
-     * @return String representing the column value expression.
-     */
-    public static String columnValueMapMSSQL(Properties Props, JSONObject column) {
-        String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
-
-        if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "real", "float", "float4", "float8" ->
-                        Props.getProperty("float-cast").equals("char") ? String.format("rtrim(rtrim(cast(cast(%1$s as DECIMAL(30,7)) as varchar(1000)),'0'),'.')",columnName) : String.format("lower(replace(coalesce(trim(format(%1$s,'E6')),' '),'E+0','e+'))",columnName);
-                default ->
-                        Props.getProperty("number-cast").equals("notation") ? "lower(replace(coalesce(trim(format(" + columnName + ",'E10')),' '),'E+0','e+'))"   : "coalesce(cast(format(" + columnName + ", '"+ Props.getProperty("standard-number-format") + "') as text),' ')";
-            };
-        } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(cast(" + columnName + " as varchar),'0') = 'true' then '1' else '0' end";
-        } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = switch (column.getString("dataType").toLowerCase()) {
-                case "date" ->
-                        "coalesce(format(" + columnName + ",'MMddyyyyHHmmss'),' ')";
-                default ->
-                        "coalesce(format(" + columnName + " at time zone 'UTC','MMddyyyyHHmmss'),' ')";
-            };
-        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = switch (column.getString("dataType").toLowerCase()) {
-                // Cannot use trim on text data type.
-                case "text" ->
-                        "coalesce(" + columnName + ",' ')";
-                default ->
-                        column.getInt("dataLength") > 1 ? "case when len(" + columnName + ")=0 then ' ' else coalesce(rtrim(ltrim(" + columnName + ")),' ') end" :  "case when len(" + columnName + ")=0 then ' ' else rtrim(ltrim(" + columnName + ")) end";
-            };
-        } else {
-            colExpression = "coalesce(" + columnName + ",' ')";
-        }
-
-        return colExpression;
-
-    }
 
     /**
      * Establishes a connection to a MSSQL database using the provided connection properties.

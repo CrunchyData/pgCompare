@@ -1,10 +1,9 @@
 package com.crunchydata.util;
 
 import java.util.Properties;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
+import java.util.logging.*;
+
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for logging operations.
@@ -16,7 +15,7 @@ import java.util.logging.SimpleFormatter;
  */
 public class Logging {
 
-    private static final Logger logger = Logger.getLogger(Logging.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(Logging.class.getName());
 
     static {
         System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
@@ -25,14 +24,27 @@ public class Logging {
     /**
      * Initializes the Logging class with the provided properties.
      *
-     * @param Props the properties to configure logging
      */
-    public static void initialize(Properties Props) {
+    public static void initialize() {
 
         // Set the log level based on the property value
-        String logLevel = Props.getProperty("log-level", "INFO").toUpperCase();
-        Level level = Level.parse(logLevel);
-        logger.setLevel(level);
+        Level level = mapLogLevel(Props.getProperty("log-level", "INFO").toUpperCase());
+        LOGGER.setLevel(level);
+
+        LOGGER.setUseParentHandlers(false);
+
+        Handler[] handlers = LOGGER.getHandlers();
+
+        if (handlers.length == 0) {
+            ConsoleHandler handler = new ConsoleHandler();
+            handler.setLevel(level);
+            handler.setFormatter(new SimpleFormatter());
+            LOGGER.addHandler(handler);
+        } else {
+            for (Handler handler : handlers) {
+                handler.setLevel(level);
+            }
+        }
 
         // Configure file handler if log-destination is not stdout
         String logDestination = Props.getProperty("log-destination", "stdout");
@@ -40,11 +52,24 @@ public class Logging {
             try {
                 FileHandler fileHandler = new FileHandler(logDestination);
                 fileHandler.setFormatter(new SimpleFormatter());
-                logger.addHandler(fileHandler);
+                LOGGER.addHandler(fileHandler);
             } catch (Exception e) {
                 System.out.println("Cannot allocate log file, will use stdout");
             }
         }
+    }
+
+    private static Level mapLogLevel(String setting) {
+        return switch (setting.toUpperCase()) {
+            case "DEBUG" -> Level.FINE;
+            case "TRACE" -> Level.FINEST;
+            case "INFO" -> Level.INFO;
+            case "WARN", "WARNING" -> Level.WARNING;
+            case "ERROR", "SEVERE" -> Level.SEVERE;
+            case "ALL" -> Level.ALL;
+            case "OFF" -> Level.OFF;
+            default -> Level.INFO; // safe default
+        };
     }
 
     /**
@@ -55,24 +80,15 @@ public class Logging {
      * @param message  the log message
      */
     public static void write(String severity, String module, String message) {
-        String msgFormat = "[%-24s] %2$s";
+        String formattedMessage = String.format("[%-24s] %s", module, message);
 
-        String formattedMessage = String.format(msgFormat, module, message);
-
-        switch (severity.toLowerCase()) {
-            case "info":
-                logger.info(formattedMessage);
-                break;
-            case "warning":
-                logger.warning(formattedMessage);
-                break;
-            case "severe":
-                logger.severe(formattedMessage);
-                break;
-            default:
-                logger.finer(formattedMessage);
-                break;
+        try {
+            Level level = mapLogLevel(severity);
+            LOGGER.log(level, formattedMessage);
+        } catch (IllegalArgumentException e) {
+            LOGGER.fine(formattedMessage);
         }
+
     }
 
 }

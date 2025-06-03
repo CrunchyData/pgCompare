@@ -15,6 +15,8 @@
  */
 package com.crunchydata.services;
 
+import com.crunchydata.models.ColumnMetadata;
+import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,6 +28,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 
+import static com.crunchydata.util.DataUtility.ShouldQuoteString;
+import static com.crunchydata.util.Settings.Props;
+
 /**
  * Utility class that contains common actions performed against the database
  * which are agnostic to the database platform.
@@ -34,6 +39,57 @@ import java.util.ArrayList;
  */
 public class dbCommon {
     private static final String THREAD_NAME = "dbCommon";
+
+    /**
+     * Builds a SQL query for retrieving data from source or target.
+     * @param columnHashMethod  The database hash method to use (database, hybrid, raw)
+     * @param tableMap            Metadata information on table
+     * @param columnMetadata      Metadata on columns
+     * @return SQL query string for loading data from the specified table.
+     */
+    public static String buildLoadSQL (String columnHashMethod, DCTableMap tableMap, ColumnMetadata columnMetadata) {
+        String sql = "SELECT ";
+
+        String quoteChar = switch (Props.getProperty(String.format("%s-type", tableMap.getDestType()))) {
+            case "postgres" -> dbPostgres.quoteChar;
+            case "oracle" -> dbOracle.quoteChar;
+            case "mariadb" -> dbMariaDB.quoteChar;
+            case "mysql" -> dbMySQL.quoteChar;
+            case "mssql" -> dbMSSQL.quoteChar;
+            case "db2" -> dbDB2.quoteChar;
+            default -> "";
+        };
+
+        String columnHash = switch (Props.getProperty(String.format("%s-type", tableMap.getDestType()))) {
+            case "postgres" -> dbPostgres.columnHash;
+            case "oracle" -> dbOracle.columnHash;
+            case "mariadb" -> dbMariaDB.columnHash;
+            case "mysql" -> dbMySQL.columnHash;
+            case "mssql" -> dbMSSQL.columnHash;
+            case "db2" -> dbDB2.columnHash;
+            default -> "";
+        };
+
+        switch (columnHashMethod) {
+            case "raw":
+            case "hybrid":
+                sql += String.format("%s AS pk_hash, %s AS pk, %s ", columnMetadata.getPkExpressionList(), columnMetadata.getPkJSON(), columnMetadata.getColumnExpressionList());
+                break;
+            default:
+                sql += String.format(columnHash, columnMetadata.getPkExpressionList(),"pk_hash, ");
+                sql += String.format("%s as pk,", columnMetadata.getPkJSON());
+                sql += String.format(columnHash, columnMetadata.getColumnExpressionList(),"column_hash");
+                break;
+        }
+
+        sql += String.format(" FROM %s.%s WHERE 1=1",ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar), ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar));
+
+        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
+            sql += " AND " + tableMap.getTableFilter();
+        }
+
+        return sql;
+    }
 
     /**
      * Utility method to execute a provided SQL query and retrieve a list of tables.

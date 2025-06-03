@@ -85,7 +85,7 @@ public class ReconcileController {
         long startStopWatch = System.currentTimeMillis();
 
         // Prepare JSON formatted results
-        JSONObject checkResult = new JSONObject();
+        JSONObject checkResult;
         JSONObject result = new JSONObject();
         result.put("tableName", dct.getTableAlias());
         result.put("status", "processing");
@@ -110,8 +110,8 @@ public class ReconcileController {
 
             columnMap = new JSONObject(columnMapping);
 
-            ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), dctmSource.getSchemaName(), dctmSource.getTableName(), !check && Boolean.parseBoolean(Props.getProperty("source-database-hash")));
-            ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), dctmTarget.getSchemaName(), dctmTarget.getTableName(), !check && Boolean.parseBoolean(Props.getProperty("target-database-hash")));
+            ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), dctmSource.getSchemaName(), dctmSource.getTableName(), !check && "database".equals(Props.getProperty("column-hash-method")));
+            ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), dctmTarget.getSchemaName(), dctmTarget.getTableName(), !check && "database".equals(Props.getProperty("column-hash-method")));
 
             Logging.write("info", THREAD_NAME, String.format("(source) Columns: %s", ciSource.columnList));
             Logging.write("info", THREAD_NAME, String.format("(target) Columns: %s", ciTarget.columnList));
@@ -120,28 +120,8 @@ public class ReconcileController {
 
             Integer cid = rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
 
-            // Set Source & Target Variables
-            // For useDatabaseHash, we do not want to use has if we are performing a recheck (check=true) or
-            // use database hash has been specified for a normal compare run.
-            dctmSource.setCompareSQL(switch (Props.getProperty("source-type")) {
-                case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
-                case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
-                case "mariadb" -> dbMariaDB.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
-                case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
-                case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
-                case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("source-database-hash")), dctmSource, ciSource);
-                default -> "";
-            });
-
-            dctmTarget.setCompareSQL(switch (Props.getProperty("target-type")) {
-                case "postgres" -> dbPostgres.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "oracle" -> dbOracle.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "mariadb" -> dbMariaDB.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "mysql" -> dbMySQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "mssql" -> dbMSSQL.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                case "db2" -> dbDB2.buildLoadSQL(!check && Boolean.parseBoolean(Props.getProperty("target-database-hash")), dctmTarget, ciTarget);
-                default -> "";
-            });
+            dctmSource.setCompareSQL(dbCommon.buildLoadSQL(Props.getProperty("column-hash-method"), dctmSource, ciSource));
+            dctmTarget.setCompareSQL(dbCommon.buildLoadSQL(Props.getProperty("column-hash-method"), dctmTarget, ciTarget));
 
             Logging.write("info", THREAD_NAME, String.format("(source) Compare SQL: %s", dctmSource.getCompareSQL()));
             Logging.write("info", THREAD_NAME, String.format("(target) Compare SQL: %s", dctmTarget.getCompareSQL()));
@@ -179,13 +159,13 @@ public class ReconcileController {
 
                         // Start Source Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile cst = new threadReconcile(Props, i, dct, dctmSource, ciSource, cid, ts, Boolean.parseBoolean(Props.getProperty("source-database-hash")), stagingTableSource, qs);
+                        threadReconcile cst = new threadReconcile(Props, i, dct, dctmSource, ciSource, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableSource, qs);
                         cst.start();
                         compareList.add(cst);
 
                         // Start Target Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile ctt = new threadReconcile(Props, i, dct, dctmTarget, ciTarget, cid, ts, Boolean.parseBoolean(Props.getProperty("target-database-hash")), stagingTableTarget, qt);
+                        threadReconcile ctt = new threadReconcile(Props, i, dct, dctmTarget, ciTarget, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableTarget, qt);
                         ctt.start();
                         compareList.add(ctt);
 

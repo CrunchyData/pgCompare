@@ -11,9 +11,12 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Properties;
 
+import static com.crunchydata.util.CastUtility.cast;
+import static com.crunchydata.util.CastUtility.castRaw;
 import static com.crunchydata.util.ColumnUtility.getColumns;
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * ColumnController class that collects column metadata.
@@ -46,6 +49,7 @@ public class ColumnController {
         StringBuilder pk = new StringBuilder();
         StringBuilder pkJSON = new StringBuilder();
         StringBuilder pkList = new StringBuilder();
+        String quoteChar = getQuoteString(platform);
 
         // Gather column metadata from the columnMap json and save in the ColumnMetadata class
         try {
@@ -55,14 +59,42 @@ public class ColumnController {
 
                 JSONObject joColumn = columnObject.getJSONObject(targetType);
 
+                // If map_expression is not overridden, generate default expression
+                if ( joColumn.isNull("valueExpression") || joColumn.getString("valueExpression").isEmpty() ) {
+                    String columnName = ShouldQuoteString(
+                            joColumn.getBoolean("preserveCase"),
+                            joColumn.getString("columnName"),
+                            quoteChar
+                    );
+
+                    String dataType = joColumn.getString("dataType").toLowerCase();
+                    String columnHashMethod = Props.getProperty("column-hash-method");
+
+                    joColumn.put("valueExpression",  "raw".equals(columnHashMethod)
+                                                        ? castRaw(dataType, columnName, platform)
+                                                        : cast(dataType, columnName, platform, joColumn)
+                    );
+
+                } else {
+                    Logging.write("info", THREAD_NAME, String.format("(%s) Using custom column expression for column %s: %s", targetType, columnObject.getString("columnAlias"),joColumn.getString("valueExpression")));
+                }
+
+                Logging.write("debug", THREAD_NAME, String.format("(%s) Mapping expression for column %s: %s", targetType, columnObject.getString("columnAlias"), joColumn.getString("valueExpression")));
+
                 // Identify if column is priary key and save primary keys to pk string
                 if (joColumn.getBoolean("primaryKey")) {
                     String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform)) : joColumn.getString("columnName").toLowerCase();
                     nbrPKColumns++;
-                    pk.append(joColumn.getString("valueExpression"))
-                            .append(concatOperator)
-                            .append("'.'")
-                            .append(concatOperator);
+                    if (platform.equals("oracle")) {
+                        pk.append(joColumn.getString("valueExpression"))
+                                .append(concatOperator)
+                                .append("'.'")
+                                .append(concatOperator);
+                    } else {
+                        pk.append(joColumn.getString("valueExpression"))
+                                .append(",'.',");
+                    }
+
                     pkList.append(pkColumn).append(",");
 
                     if (pkJSON.isEmpty()) {
@@ -105,12 +137,21 @@ public class ColumnController {
             }
 
             if (!pk.isEmpty() && !pkList.isEmpty()) {
-                pk.setLength(pk.length() - (3 + (concatOperator.length() * 2)));
+                if (platform.equals("oracle")) {
+                    pk.setLength(pk.length() - (3 + (concatOperator.length() * 2)));
+                } else {
+                    pk.setLength(pk.length() - 5);
+                    if (nbrPKColumns > 1) {
+                        pk.insert(0, "concat(")
+                                .append(")");
+                    }
+                }
                 pkList.setLength(pkList.length() - 1);
                 pkJSON.append(concatOperator).append("'}'");
             }
 
         } catch (Exception e) {
+            e.printStackTrace();
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
@@ -259,7 +300,7 @@ public class ColumnController {
                 dctcm.setNumberScale(columns.getJSONObject(i).getInt("dataScale"));
                 dctcm.setColumnNullable(columns.getJSONObject(i).getBoolean("nullable"));
                 dctcm.setColumnPrimaryKey(columns.getJSONObject(i).getBoolean("primaryKey"));
-                dctcm.setMapExpression(columns.getJSONObject(i).getString("valueExpression"));
+                //dctcm.setMapExpression(columns.getJSONObject(i).getString("valueExpression"));
                 dctcm.setSupported(columns.getJSONObject(i).getBoolean("supported"));
                 dctcm.setPreserveCase(columns.getJSONObject(i).getBoolean("preserveCase"));
 

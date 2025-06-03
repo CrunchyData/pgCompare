@@ -25,15 +25,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Properties;
+import java.util.Set;
 
-import static com.crunchydata.services.dbDB2.columnValueMapDB2;
-import static com.crunchydata.services.dbMSSQL.columnValueMapMSSQL;
-import static com.crunchydata.services.dbMariaDB.columnValueMapMariaDB;
-import static com.crunchydata.services.dbMySQL.columnValueMapMySQL;
-import static com.crunchydata.services.dbOracle.columnValueMapOracle;
-import static com.crunchydata.services.dbPostgres.columnValueMapPostgres;
+import static com.crunchydata.util.CastUtility.cast;
+import static com.crunchydata.util.CastUtility.castRaw;
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
@@ -42,6 +38,7 @@ import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMN
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for column data type validation and classification.
@@ -55,58 +52,60 @@ public class ColumnUtility {
     private static final String THREAD_NAME = "columnUtility";
 
     /**
-     * Array of data types classified as boolean.
+     * BOOLEAN data types
      */
-    public static final String[] booleanTypes = new String[]{"bool", "boolean"};
+    public static final Set<String> BOOLEAN_TYPES = Set.of("bool", "boolean");
 
     /**
-     * Array of data types classified as character.
+     * STRING data types
      */
-    public static final String[] charTypes = new String[]{"bpchar", "char", "character", "clob", "enum", "json", "jsonb", "nchar", "nclob",
-            "ntext", "nvarchar", "nvarchar2", "text", "varchar", "varchar2", "xml"};
+    public static final Set<String> STRING_TYPES = Set.of("bpchar", "char", "character", "clob", "enum", "json", "jsonb", "nchar", "nclob",
+            "ntext", "nvarchar", "nvarchar2", "text", "varchar", "varchar2", "xml");
 
     /**
-     * Array of data types classified as numeric.
+     * NUMERIC data types
      */
-    public static final String[] numericTypes = new String[]{"bigint", "bigserial", "binary_double", "binary_float", "dec",
-            "decimal", "double", "double precision", "fixed", "float", "float4", "float8", "int", "integer", "int2",
-            "int4", "int8", "money", "number", "numeric", "real", "serial", "smallint", "smallmoney", "smallserial",
-            "tinyint"};
+    public static final Set<String> NUMERIC_TYPES = Set.of(
+            "bigint", "bigserial", "binary_double", "binary_float", "dec",
+            "decimal", "double", "double precision", "fixed", "float", "float4",
+            "float8", "int", "integer", "int2", "int4", "int8", "money", "number",
+            "numeric", "real", "serial", "smallint", "smallmoney", "smallserial", "tinyint"
+    );
+
 
     /**
-     * Array of data types classified as timestamp.
+     * TIMESTAMP data types
      */
-    public static final String[] timestampTypes = new String[]{"date", "datetime", "datetimeoffset", "datetime2",
+    public static final Set<String> TIMESTAMP_TYPES = Set.of("date", "datetime", "datetimeoffset", "datetime2",
             "smalldatetime", "time", "timestamp", "timestamptz", "timestamp(0)", "timestamp(1) with time zone",
             "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone",
-            "timestamp(9)", "timestamp(9) with time zone", "year"};
+            "timestamp(9)", "timestamp(9) with time zone", "year");
 
     /**
-     * Array of data types classified as binary.
+     * BINARY data types
      */
-    public static final String[] binaryTypes = new String[]{"bytea", "binary", "blob", "raw", "varbinary"};
+    public static final Set<String> BINARY_TYPES = Set.of("bytea", "binary", "blob", "raw", "varbinary");
 
     /**
-     * Array of unsupported data types.
+     * Unsupported data types
      */
-    public static final String[] unsupportedDataTypes = new String[]{"bfile", "bit", "cursor", "hierarchyid",
-            "image", "rowid", "rowversion", "set", "sql_variant", "uniqueidentifier", "long", "long raw"};
+    public static final Set<String> UNSUPPORTED_TYPES = Set.of("bfile", "bit", "cursor", "hierarchyid",
+            "image", "rowid", "rowversion", "set", "sql_variant", "uniqueidentifier", "long", "long raw");
 
     /**
-     * Array of reserved words
+     * Reserved Words
      */
-    public static final String[] reservedWords = new String[]{"add", "all", "alter", "and", "any", "as", "asc", "at", "authid", "between", "by",
-                                                        "character", "check", "cluster", "column", "comment", "connect", "constraint", "continue",
-                                                        "create", "cross", "current", "current_user", "cursor", "database", "date", "default",
-                                                        "delete", "desc", "distinct", "double", "else", "end", "except", "exception", "exists",
-                                                        "external", "fetch", "for", "from", "grant", "group", "having", "identified", "if", "in",
-                                                        "index", "insert", "integer", "intersect", "into", "is", "join", "like", "lock", "long", "loop",
-                                                        "modify", "natural", "no", "not", "null", "on", "open", "option", "or", "order", "outer",
-                                                        "package", "prior", "privileges", "procedure", "public", "rename", "replace", "rowid", "rownum",
-                                                        "schema", "select", "session", "set", "sql", "start", "statement", "sys", "table", "then", "to",
-                                                        "trigger", "union", "unique", "update", "values", "view", "varchar", "varchar2", "view", "when",
-                                                        "where", "with", "xor", "user"};
-
+    public static final Set<String> RESERVED_WORDS = Set.of("add", "all", "alter", "and", "any", "as", "asc", "at", "authid", "between", "by",
+            "character", "check", "cluster", "column", "comment", "connect", "constraint", "continue",
+            "create", "cross", "current", "current_user", "cursor", "database", "date", "default",
+            "delete", "desc", "distinct", "double", "else", "end", "except", "exception", "exists",
+            "external", "fetch", "for", "from", "grant", "group", "having", "identified", "if", "in",
+            "index", "insert", "integer", "intersect", "into", "is", "join", "like", "lock", "long", "loop",
+            "modify", "natural", "no", "not", "null", "on", "open", "option", "or", "order", "outer",
+            "package", "prior", "privileges", "procedure", "public", "rename", "replace", "rowid", "rownum",
+            "schema", "select", "session", "set", "sql", "start", "statement", "sys", "table", "then", "to",
+            "trigger", "union", "unique", "update", "values", "view", "varchar", "varchar2", "when",
+            "where", "with", "xor", "user");
 
     public static String createColumnFilterClause(Connection repoConn, Integer tid, String columnAlias, String destRole, String quoteChar) {
         String columnFilter = "";
@@ -155,9 +154,11 @@ public class ColumnUtility {
      */
     public static JSONArray getColumns (Properties Props, Connection conn, String schema, String table, String destRole) {
         JSONArray columnInfo = new JSONArray();
-        String nativeCase = getNativeCase(Props.getProperty(destRole + "-type"));
+        String platform = Props.getProperty(destRole + "-type");
+        String nativeCase = getNativeCase(platform);
+        String quoteChar = getQuoteString(platform);
 
-        String columnSQL = switch (Props.getProperty(destRole + "-type")) {
+        String columnSQL = switch (platform) {
             case "oracle" -> SQL_ORACLE_SELECT_COLUMNS;
             case "mariadb" -> SQL_MARIADB_SELECT_COLUMNS;
             case "mysql" -> SQL_MYSQL_SELECT_COLUMNS;
@@ -166,49 +167,50 @@ public class ColumnUtility {
             default -> SQL_POSTGRES_SELECT_COLUMNS;
         };
 
-
-                try {
-                    PreparedStatement stmt = conn.prepareStatement(columnSQL);
-                    stmt.setObject(1, schema);
-                    stmt.setObject(2, table);
-                    ResultSet rs = stmt.executeQuery();
-                    while (rs.next()) {
-                        JSONObject column = new JSONObject();
-                        if (Arrays.asList(unsupportedDataTypes).contains(rs.getString("data_type").toLowerCase())) {
-                            Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
-                            column.put("supported", false);
-                        } else {
-                            column.put("supported", true);
-                        }
-                        column.put("columnName", rs.getString("column_name"));
-                        column.put("dataType", rs.getString("data_type"));
-                        column.put("dataLength", rs.getInt("data_length"));
-                        column.put("dataPrecision", rs.getInt("data_precision"));
-                        column.put("dataScale", rs.getInt("data_scale"));
-                        column.put("nullable", rs.getString("nullable").equals("Y"));
-                        column.put("primaryKey", rs.getString("pk").equals("Y"));
-                        column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
-                        column.put("preserveCase", preserveCase(nativeCase, rs.getString("column_name")));
-
-                        String valueExpression = switch (Props.getProperty(destRole + "-type")) {
-                            case "oracle" -> columnValueMapOracle(Props, column);
-                            case "mariadb" -> columnValueMapMariaDB(Props, column);
-                            case "mysql" -> columnValueMapMySQL(Props, column);
-                            case "mssql" -> columnValueMapMSSQL(Props, column);
-                            case "db2" -> columnValueMapDB2(Props, column);
-                            default -> columnValueMapPostgres(Props, column);
-                        };
-
-                        column.put("valueExpression", valueExpression);
-
-                        columnInfo.put(column);
-                    }
-                    rs.close();
-                    stmt.close();
-                } catch (Exception e) {
-                    Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s", schema, table, e.getMessage()));
+        try {
+            PreparedStatement stmt = conn.prepareStatement(columnSQL);
+            stmt.setObject(1, schema);
+            stmt.setObject(2, table);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                JSONObject column = new JSONObject();
+                if (UNSUPPORTED_TYPES.contains(rs.getString("data_type").toLowerCase())) {
+                    Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", rs.getString("data_type"), rs.getString("column_name")));
+                    column.put("supported", false);
+                } else {
+                    column.put("supported", true);
                 }
-                return columnInfo;
+                column.put("columnName", rs.getString("column_name"));
+                column.put("dataType", rs.getString("data_type"));
+                column.put("dataLength", rs.getInt("data_length"));
+                column.put("dataPrecision", rs.getInt("data_precision"));
+                column.put("dataScale", rs.getInt("data_scale"));
+                column.put("nullable", rs.getString("nullable").equals("Y"));
+                column.put("primaryKey", rs.getString("pk").equals("Y"));
+                column.put("dataClass", getDataClass(rs.getString("data_type").toLowerCase()));
+                column.put("preserveCase", preserveCase(nativeCase, rs.getString("column_name")));
+
+                String columnName = ShouldQuoteString(
+                        column.getBoolean("preserveCase"),
+                        column.getString("columnName"),
+                        quoteChar
+                );
+
+                String dataType = column.getString("dataType").toLowerCase();
+                String columnHashMethod = Props.getProperty("column-hash-method");
+
+                column.put("valueExpression", "raw".equals(columnHashMethod)
+                                                ? castRaw(dataType, columnName, platform)
+                                                : cast(dataType, columnName, platform, column));
+
+                columnInfo.put(column);
+            }
+            rs.close();
+            stmt.close();
+        } catch (Exception e) {
+            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s", schema, table, e.getMessage()));
+        }
+        return columnInfo;
     }
 
     /**
@@ -226,15 +228,15 @@ public class ColumnUtility {
         // Default classification is "char"
         String dataClass = "char";
 
-        if (Arrays.asList(booleanTypes).contains(dataType.toLowerCase())) {
+        if (BOOLEAN_TYPES.contains(dataType.toLowerCase())) {
             dataClass = "boolean";
         }
 
-        if (Arrays.asList(numericTypes).contains(dataType.toLowerCase())) {
+        if (NUMERIC_TYPES.contains(dataType.toLowerCase())) {
             dataClass = "numeric";
         }
 
-        if (Arrays.asList(timestampTypes).contains(dataType.toLowerCase())) {
+        if (TIMESTAMP_TYPES.contains(dataType.toLowerCase())) {
             dataClass = "char";
         }
 

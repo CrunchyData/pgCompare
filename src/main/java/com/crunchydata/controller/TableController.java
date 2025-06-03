@@ -129,7 +129,6 @@ public class TableController {
         };
     }
 
-
     public static void loadTables(Properties Props, Integer pid, String table, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
         String destType=Props.getProperty(destRole+"-type");
         String schema=Props.getProperty(destRole+"-schema");

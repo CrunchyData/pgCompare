@@ -17,6 +17,11 @@ public class preflight {
 
         String databaseType = Props.getProperty(targetType + "-type");
 
+        if (Props.getProperty("isCheck").equals("true") && Props.getProperty("column-hash-method").equals("database")) {
+            Logging.write("info",THREAD_NAME,"Switching column hash method to hybrid for check");
+            Props.setProperty("column-hash-method","hybrid");
+        }
+
         switch (databaseType) {
             case "db2":
                 // Number Cast must be standard
@@ -27,9 +32,9 @@ public class preflight {
                 }
 
                 // Database side hash is not supported for DB2
-                if (Props.getProperty(targetType + "-database-hash").equals("true")) {
-                    Logging.write("warning",THREAD_NAME,"Switching database-hash to false as required for DB2");
-                    Props.setProperty(targetType + "-database-hash","false");
+                if ("database".equals(Props.getProperty("column-hash-method")) ) {
+                    Logging.write("warning",THREAD_NAME,"Switching column hash method to hybrid as required for DB2");
+                    Props.setProperty("column-hash-method","hybrid");
                 }
 
                 break;
@@ -40,9 +45,9 @@ public class preflight {
 
             case "mssql":
                 // Database side hash is not supported for MSSQL
-                if (Props.getProperty(targetType + "-database-hash").equals("true")) {
-                    Logging.write("warning",THREAD_NAME,"Switching database-hash to false as required for MSSQL");
-                    Props.setProperty(targetType + "-database-hash","false");
+                if ("database".equals(Props.getProperty("column-hash-method"))) {
+                    Logging.write("warning",THREAD_NAME,"Switching column hash method to hybrid as required for MSSQL");
+                    Props.setProperty("column-hash-method","hybrid");
                 }
                 break;
 

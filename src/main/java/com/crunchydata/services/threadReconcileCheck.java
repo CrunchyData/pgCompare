@@ -66,8 +66,6 @@ public class threadReconcileCheck {
         JSONObject result = new JSONObject();
         JSONArray rows = new JSONArray();
 
-        StringBuilder tableFilter;
-
         result.put("status","success");
 
         try {
@@ -78,6 +76,7 @@ public class threadReconcileCheck {
 
             while (rs.next()) {
                 DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, dct.getBatchNbr());
+
                 dcRow.setTid(dct.getTid());
                 dcRow.setTableName(dct.getTableAlias());
                 dcRow.setPkHash(rs.getString("pk_hash"));
@@ -93,7 +92,7 @@ public class threadReconcileCheck {
                 binds.clear();
                 dctmSource.setTableFilter(" ");
                 dctmTarget.setTableFilter(" ");
-                //tableFilter = new StringBuilder(" AND ");
+
                 JSONObject pk = new JSONObject(dcRow.getPk());
                 Iterator<String> keys = pk.keys();
                 while (keys.hasNext()) {
@@ -110,6 +109,7 @@ public class threadReconcileCheck {
                     dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteString(Props.getProperty("target-type"))));
                     pkColumnCount++;
                 }
+
                 Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter()));
 
                 JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);

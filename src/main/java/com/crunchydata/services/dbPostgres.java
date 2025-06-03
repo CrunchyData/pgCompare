@@ -18,17 +18,9 @@ package com.crunchydata.services;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.Arrays;
 import java.util.Properties;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
-
-import org.json.JSONObject;
-
-import static com.crunchydata.util.ColumnUtility.*;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 
 /**
  * Utility class for interacting with Postgres databases.
@@ -40,75 +32,9 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 public class dbPostgres {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "\"";
+    public static final String columnHash= "lower(md5(%s)) AS %s";
 
     private static final String THREAD_NAME = "dbPostgres";
-
-    /**
-     * Builds a SQL query for loading data from a Postgres table.
-     *
-     * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @return SQL query string for loading data from the specified table.
-     */
-    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
-        String sql = "SELECT ";
-
-        if (useDatabaseHash) {
-            sql += "md5(concat_ws('|'," + columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, md5(concat_ws(''," + columnMetadata.getColumn() + ")) FROM " +  ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        } else {
-            sql +=  columnMetadata.getPk() + " as pk_hash, " + columnMetadata.getPkJSON() + " as pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        }
-
-        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
-            sql += " AND " + tableMap.getTableFilter();
-        }
-
-        return sql;
-    }
-
-    /**
-     * Generates a column value expression for Postgres based on the column's data type.
-     *
-     * @param column JSONObject containing column information.
-     * @return String representing the column value expression.
-     */
-    public static String columnValueMapPostgres(Properties Props, JSONObject column) {
-        String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
-
-        if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            switch (column.getString("dataType").toLowerCase()) {
-                case "float4", "real":
-                    if (Props.getProperty("source-type").equals("mssql") || Props.getProperty("target-type").equals("mssql")) {
-                        colExpression = Props.getProperty("float-cast").equals("char") ? String.format("trim(trailing '.' from trim(trailing '0' from cast(cast(cast(%1$s as float8) as decimal(30,7)) as text)))", columnName) : String.format("coalesce(trim(to_char(%1$s,'0.999999EEEE')),' ')", columnName);
-                        break;
-                    }
-                case "float8":
-                    colExpression = Props.getProperty("float-cast").equals("char") ? String.format("cast(cast(%1$s as double precision) as text)",columnName) : String.format("coalesce(trim(to_char(%1$s,'0.999999EEEE')),' ')",columnName);
-                    break;
-                default:
-                    colExpression = Props.getProperty("number-cast").equals("notation") ? "coalesce(trim(to_char(" + columnName + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + columnName + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
-            }
-
-        } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            String booleanConvert = "case when coalesce(" + columnName + "::text,'0') = 'true' then 1 else 0 end";
-            colExpression = Props.getProperty("number-cast").equals("notation") ?  "coalesce(trim(to_char(" + booleanConvert + ",'0.9999999999EEEE')),' ')" : "coalesce(trim(to_char(trim_scale(" + booleanConvert + "),'"+ Props.getProperty("standard-number-format") + "')),' ')";
-        } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            if (column.getString("dataType").toLowerCase().contains("time zone") || column.getString("dataType").toLowerCase().contains("tz") ) {
-                colExpression = "coalesce(to_char(" + columnName + " at time zone 'UTC','MMDDYYYYHH24MISS'),' ')";
-            } else {
-                colExpression = "coalesce(to_char(" + columnName + ",'MMDDYYYYHH24MISS'),' ')";
-            }
-        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(case when length(coalesce(trim(" + columnName + "::text),''))=0 then ' ' else trim(" + columnName + "::text) end,' ')";
-        } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + columnName +"), ' ')";
-        } else {
-            colExpression = "coalesce(case when length(coalesce(" + columnName + "::text,''))=0 then ' ' else " + columnName + "::text end,' ')";
-        }
-
-        return colExpression;
-
-    }
 
     /**
      * Establishes a connection to a Postgres database using the provided connection properties.
@@ -140,6 +66,5 @@ public class dbPostgres {
         return conn;
 
     }
-
 
 }

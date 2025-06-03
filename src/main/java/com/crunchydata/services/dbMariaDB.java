@@ -16,19 +16,12 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTableMap;
 import com.crunchydata.util.Logging;
-import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Properties;
-
-import static com.crunchydata.util.ColumnUtility.*;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 
 /**
  * Utility class for interacting with MariaDB databases.
@@ -46,74 +39,9 @@ import static com.crunchydata.util.DataUtility.ShouldQuoteString;
 public class dbMariaDB {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "`";
+    public static final String columnHash= "lower(md5(%s)) AS %s";
 
     private static final String THREAD_NAME = "dbMariaDB";
-
-    /**
-     * Builds a SQL query for loading data from a MariaDB table.
-     *
-     * @param useDatabaseHash Whether to use MD5 hash for database columns.
-     * @return SQL query string for loading data from the specified table.
-     */
-    public static String buildLoadSQL (Boolean useDatabaseHash, DCTableMap tableMap, ColumnMetadata columnMetadata) {
-        String sql = "SELECT ";
-
-        if (useDatabaseHash) {
-            sql += "lower(md5(" +  columnMetadata.getPk() + ")) pk_hash, " + columnMetadata.getPkJSON() + " pk, lower(md5(" + columnMetadata.getColumn() + ")) column_hash FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        } else {
-            sql +=  columnMetadata.getPk() + " pk_hash, " + columnMetadata.getPkJSON() + " pk, " + columnMetadata.getColumn() + " FROM " + ShouldQuoteString(tableMap.isSchemaPreserveCase(), tableMap.getSchemaName(), quoteChar) + "." + ShouldQuoteString(tableMap.isTablePreserveCase(),tableMap.getTableName(), quoteChar) + " WHERE 1=1 ";
-        }
-
-        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().isEmpty()) {
-            sql += " AND " + tableMap.getTableFilter();
-        }
-
-        return sql;
-    }
-
-    /**
-     * Generates a column value expression for MariaDB based on the column's data type.
-     *
-     * @param column JSONObject containing column information.
-     * @return String representing the column value expression.
-     */
-    public static String columnValueMapMariaDB(Properties Props, JSONObject column) {
-        String colExpression;
-        String columnName = ShouldQuoteString(column.getBoolean("preserveCase"), column.getString("columnName"), quoteChar);
-
-        if ( Arrays.asList(numericTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            switch (column.getString("dataType").toLowerCase()) {
-                case "float", "double":
-                    colExpression = Props.getProperty("float-cast").equals("char") ? String.format("cast(cast(%1$s as double) as char)",columnName) : String.format("coalesce(if(%1$s=0,'0.000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 6),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(%1$s))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ')",columnName);
-                    break;
-                default:
-                    if (Props.getProperty("number-cast").equals("notation")) {
-                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(" + columnName + "=0,'0.0000000000e+00',concat(if(" + columnName + "<0, '-', ''),format(abs(" + columnName + ")/pow(10, floor(log10(abs(" + columnName + ")))), 10),'e',if(floor(log10(abs(" + columnName + ")))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(" + columnName + "))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ') end";
-                    } else {
-                        colExpression = "case when " + columnName + " is null then ' ' else coalesce(if(instr(cast(" + columnName + " as char),'.')>0,concat(if(" + columnName + "<0,'-',''),lpad(substring_index(cast(abs(" + columnName + ") as char),'.',1),22,'0'),'.',rpad(substring_index(cast(" + columnName + "as char),'.',-1),22,'0')),concat(if(" + columnName + "<0,'-',''),lpad(cast(" + columnName + " as char),22,'0'),'.',rpad('',22,'0'))),' ') end";
-                    }
-            }
-        } else if ( Arrays.asList(booleanTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "case when coalesce(cast(" + columnName + " as char),'0') = 'true' then '1' else '0' end";
-        } else if ( Arrays.asList(timestampTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            if (column.getString("dataType").toLowerCase().contains("timestamp") || column.getString("dataType").toLowerCase().contains("datetime") ) {
-                // Casting with factoring in session.time_zone seems to cause issues
-                //colExpression = "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'+00:00'),'%m%d%Y%H%i%S'),' ')";
-                colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
-            } else {
-                colExpression = "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
-            }
-        } else if ( Arrays.asList(charTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = column.getInt("dataLength") > 1 ? "case when length(" + columnName + ")=0 then ' ' else coalesce(trim(" + columnName + "),' ') end" :  "case when length(" + columnName + ")=0 then ' ' else trim(" + columnName + ") end";
-        } else if ( Arrays.asList(binaryTypes).contains(column.getString("dataType").toLowerCase()) ) {
-            colExpression = "coalesce(md5(" + columnName +"), ' ')";
-        } else {
-            colExpression = "case when length(" + columnName + ")=0 then ' ' else " + columnName + " end";
-        }
-
-        return colExpression;
-
-    }
 
     /**
      * Establishes a connection to a MariaDB database using the provided connection properties.
