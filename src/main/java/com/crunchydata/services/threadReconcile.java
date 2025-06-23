@@ -131,7 +131,11 @@ public class threadReconcile extends Thread {
 
             // Load Reconcile Data
             if ( parallelDegree > 1 && !modColumn.isEmpty()) {
-                sql += " AND mod(" + modColumn + "," + parallelDegree +")="+threadNumber;
+                if ("mssql".equals(Props.getProperty(targetType + "-type"))) {
+                    sql += " AND " + modColumn + "%" + parallelDegree +" = "+threadNumber;
+                } else {
+                    sql += " AND mod(" + modColumn + "," + parallelDegree +")="+threadNumber;
+                }
             }
 
             if (!pkList.isEmpty() && Props.getProperty("database-sort").equals("true")) {
