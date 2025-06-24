@@ -19,21 +19,27 @@ package com.crunchydata;
 import java.sql.Connection;
 import javax.sql.rowset.CachedRowSet;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import static com.crunchydata.controller.TableController.getTableMap;
-import static com.crunchydata.services.Reporter.createSection;
-import static com.crunchydata.services.Reporter.generateHtmlReport;
+import static com.crunchydata.controller.ReportController.createSection;
+import static com.crunchydata.controller.ReportController.generateHtmlReport;
+import static com.crunchydata.services.dbConnection.closeDatabaseConnection;
+import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.Settings.*;
 
 import com.crunchydata.controller.ColumnController;
+import com.crunchydata.controller.CompareController;
 import com.crunchydata.controller.TableController;
-import com.crunchydata.controller.ReconcileController;
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.models.DCTable;
 import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
+import com.crunchydata.util.Preflight;
 import com.crunchydata.util.Settings;
 
 import org.apache.commons.cli.*;
@@ -49,7 +55,7 @@ public class pgCompare {
     private static String action = "reconcile";
     private static String reportFileName;
     private static Integer batchParameter;
-    private static boolean check, genReport;
+    private static boolean genReport;
     private static CommandLine cmd;
     private static Integer pid = 1;
     private static Connection connRepo;
@@ -62,8 +68,7 @@ public class pgCompare {
         // Command Line Options
         cmd = parseCommandLine(args);
         if (cmd == null) return;
-
-        Props.setProperty("isCheck", Boolean.toString(check));
+        Props.setProperty("isCheck", Boolean.toString(action.equals("check")));
 
         Logging.initialize();
 
@@ -77,11 +82,10 @@ public class pgCompare {
         Logging.write("info", THREAD_NAME,  String.format("Starting - rid: %s", startStopWatch));
         Logging.write("info", THREAD_NAME, String.format("Version: %s",Settings.VERSION));
         Logging.write("info", THREAD_NAME, String.format("Batch Number: %s",batchParameter));
-        Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s",check));
 
         // Connect to Repository
         Logging.write("info", THREAD_NAME, "Connecting to repository database");
-        connRepo = dbPostgres.getConnection(Props, "repo", THREAD_NAME);
+        connRepo = getConnection("postgres", "repo");
         if (connRepo == null) {
             Logging.write("severe", THREAD_NAME, "Cannot connect to repository database");
             System.exit(1);
@@ -93,8 +97,8 @@ public class pgCompare {
         }
 
         // Preflight
-        preflight.database(Props,"source");
-        preflight.database(Props,"target");
+        Preflight.database(Props,"source");
+        Preflight.database(Props,"target");
 
         // Sort and Output parameter settings
         Logging.write("info", THREAD_NAME, "Parameters: ");
@@ -117,18 +121,19 @@ public class pgCompare {
         }
 
         // Connect to Source
-        connSource = getDatabaseConnection(Props.getProperty("source-type"), "source");
+        connSource = getConnection(Props.getProperty("source-type"), "source");
 
         // Connect to Target
-        connTarget = getDatabaseConnection(Props.getProperty("target-type"), "target");
+        connTarget = getConnection(Props.getProperty("target-type"), "target");
 
         // Call module/function to perform desired action
         switch (action) {
-            case "discovery":
+            case "discover":
                 performDiscovery();
                 break;
-            case "reconcile":
-                performReconciliation();
+            case "check":
+            case "compare":
+                performCompare();
                 break;
             default:
                 Logging.write("severe", THREAD_NAME, "Invalid action specified");
@@ -140,39 +145,6 @@ public class pgCompare {
         closeDatabaseConnection(connTarget);
         closeDatabaseConnection(connSource);
 
-    }
-
-    //
-    // Database Connection
-    //
-    private static void closeDatabaseConnection(Connection conn) {
-        if (conn != null) {
-            try {
-                conn.close();
-            } catch (Exception e) {
-                Logging.write("warning", THREAD_NAME, "Error closing connection: " + e.getMessage());
-            }
-        }
-    }
-
-    private static Connection getDatabaseConnection(String dbType, String destRole) {
-        Logging.write("info", THREAD_NAME, String.format("(%s) Connecting to database (type = %s, host = %s)", destRole, Props.getProperty(destRole+"-type"), Props.getProperty(destRole+"-host")));
-
-        Connection conn = switch (dbType) {
-            case "oracle" -> dbOracle.getConnection(Props, destRole);
-            case "mariadb" -> dbMariaDB.getConnection(Props, destRole);
-            case "mysql" -> dbMySQL.getConnection(Props, destRole);
-            case "mssql" -> dbMSSQL.getConnection(Props, destRole);
-            case "db2" -> dbDB2.getConnection(Props, destRole);
-            default -> dbPostgres.getConnection(Props, destRole, THREAD_NAME);
-        };
-
-        if (conn == null) {
-            Logging.write("severe", THREAD_NAME, String.format("Cannot connect to %s database", destRole));
-            System.exit(1);
-        }
-
-        return conn;
     }
 
     //
@@ -190,9 +162,13 @@ public class pgCompare {
     }
 
     //
-    // Reconciliation
+    // Compare
     //
-    private static void performReconciliation () {
+    private static void performCompare () {
+        boolean check  =  Props.getProperty("isCheck").equals("true");
+
+        Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s",check));
+
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
         RepoController rpc = new RepoController();
         int tablesProcessed = 0;
@@ -229,7 +205,7 @@ public class pgCompare {
                     rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
                 }
 
-                JSONObject actionResult = ReconcileController.reconcileData(Props, connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
+                JSONObject actionResult = CompareController.reconcileData(Props, connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
 
                 rpc.completeTableHistory(connRepo, dct.getTid(), "reconcile", dct.getBatchNbr(), 0, actionResult.toString());
 
@@ -243,7 +219,7 @@ public class pgCompare {
             Logging.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s",e.getMessage()));
         }
 
-        createSummary(tablesProcessed, runResult, startStopWatch);
+        createSummary(tablesProcessed, runResult, startStopWatch, check);
 
     }
 
@@ -265,20 +241,34 @@ public class pgCompare {
     private static CommandLine parseCommandLine(String[] args) {
         Options options = new Options();
 
-        options.addOption(Option.builder("b").longOpt("batch").argName("batch").hasArg(true).desc("Batch Number").build());
-        options.addOption(Option.builder("c").longOpt("check").argName("check").hasArg(false).desc("Recheck out of sync rows").build());
-        options.addOption(Option.builder("d").longOpt("discovery").argName("discovery").hasArg(false).desc("Discover tables in database").build());
-        options.addOption(Option.builder("h").longOpt("help").argName("help").hasArg(false).desc("Usage and help").build());
-        options.addOption(Option.builder("i").longOpt("init").argName("init").hasArg(false).desc("Initialize repository").build());
-        options.addOption(Option.builder("p").longOpt("project").argName("project").hasArg(true).desc("Project ID").build());
-        options.addOption(Option.builder("r").longOpt("report").argName("report").hasArg(true).desc("Generate report").build());
-        options.addOption(Option.builder("t").longOpt("table").argName("table").hasArg(true).desc("Limit to specified table").build());
-        options.addOption(Option.builder("v").longOpt("version").argName("version").hasArg(false).desc("Version").build());
+        // Define all valid options
+        options.addOption(Option.builder("b").longOpt("batch").hasArg().desc("Batch Number").build());
+        options.addOption(Option.builder("h").longOpt("help").hasArg(false).desc("Usage and help").build());
+        options.addOption(Option.builder("p").longOpt("project").hasArg().desc("Project ID").build());
+        options.addOption(Option.builder("r").longOpt("report").hasArg().desc("Generate report").build());
+        options.addOption(Option.builder("t").longOpt("table").hasArg().desc("Limit to specified table").build());
+        options.addOption(Option.builder("v").longOpt("version").hasArg(false).desc("Version").build());
 
         CommandLineParser parser = new DefaultParser();
         try {
-            CommandLine cmd = parser.parse(options, args);
+            // Find the verb first (non-option argument)
+            String verb = "compare"; // Default verb
+            List<String> argList = new ArrayList<>(Arrays.asList(args));
+            Iterator<String> iter = argList.iterator();
+            while (iter.hasNext()) {
+                String current = iter.next();
+                if (!current.startsWith("-")) {
+                    verb = current;
+                    iter.remove(); // Remove the verb so it's not parsed as an unknown option
+                    break;
+                }
+            }
 
+            action = verb; // Set your global or class-level action
+
+            CommandLine cmd = parser.parse(options, argList.toArray(new String[0]));
+
+            // Handle help/version actions
             if (cmd.hasOption("help")) {
                 showHelp();
                 return null;
@@ -288,22 +278,16 @@ public class pgCompare {
                 return null;
             }
 
+            // Set parameters
             if (cmd.hasOption("project")) {
                 pid = Integer.parseInt(cmd.getOptionValue("project"));
             }
 
-            // Capture Argument Values
-            batchParameter = (cmd.hasOption("batch")) ? Integer.parseInt(cmd.getOptionValue("batch")) : (System.getenv("PGCOMPARE-BATCH") == null) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
-            check = cmd.hasOption("check");
+            batchParameter = (cmd.hasOption("batch")) ?
+                    Integer.parseInt(cmd.getOptionValue("batch")) :
+                    (System.getenv("PGCOMPARE-BATCH") == null) ? 0 : Integer.parseInt(System.getenv("PGCOMPARE-BATCH"));
             genReport = cmd.hasOption("report");
-            reportFileName = (cmd.hasOption("report")) ? cmd.getOptionValue("report") : "";
-
-            // Determine the desired action, reconcile, discovery or init.
-            //   reconcile = Perform comparison between source and target databases.
-            //   discovery = Perform table discovery on source and target.
-            //   init      = Initialize the pgCompare repository.
-            action = (cmd.hasOption("discovery")) ? "discovery" : action;
-            action = (cmd.hasOption("init")) ? "init" : action;
+            reportFileName = cmd.getOptionValue("report", "");
 
             return cmd;
         } catch (ParseException e) {
@@ -327,7 +311,7 @@ public class pgCompare {
     //
     // Create Summary
     //
-    private static void createSummary(int tablesProcessed, JSONArray runResult, long startStopWatch) {
+    private static void createSummary(int tablesProcessed, JSONArray runResult, long startStopWatch, boolean check) {
         printSummary("Summary: ",0);
 
         if ( tablesProcessed > 0 ) {
@@ -440,11 +424,15 @@ public class pgCompare {
     //
     public static void showHelp () {
         System.out.println();
+        System.out.println("pgcompare <action> <options>");
+        System.out.println();
+        System.out.println("Actions:");
+        System.out.println("   check     Recompare the out of sync rows from previous compare");
+        System.out.println("   compare   Perform database compare");
+        System.out.println("   discover  Disocver tables and columns");
+        System.out.println("   init      Initialize the repository database");
         System.out.println("Options:");
         System.out.println("   -b|--batch <batch nbr>");
-        System.out.println("   -c|--check Check out of sync rows");
-        System.out.println("   -d|--discovery <schema> Discover tables in database");
-        System.out.println("   -i|--init <schema> Init tables in database");
         System.out.println("   -p|--project Project ID");
         System.out.println("   -r|--report <file> Create html report of compare");
         System.out.println("   -t|--table <target table>");

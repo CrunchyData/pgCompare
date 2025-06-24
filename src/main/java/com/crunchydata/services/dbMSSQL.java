@@ -24,9 +24,6 @@ import java.util.Properties;
 
 /**
  * Utility class for interacting with Microsoft SQL Server databases.
- * This class provides methods for database connection, SQL query generation,
- * column information retrieval, and data type mapping.
- * <p>
  *     MSSQL Data Types
  *         Date/Time: datetime, smalldatetime, date, time, datetimeoffset, datetime2
  *         Numeric: bigint, int, smallint, tinyint, decimal, numeric, money, smallmoney
@@ -40,31 +37,6 @@ public class dbMSSQL {
     public static final String quoteChar = "\"";
     public static final String columnHash= "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s";
 
-    private static final String THREAD_NAME = "dbMSSQL";
-
-    /**
-     * Establishes a connection to a MSSQL database using the provided connection properties.
-     *
-     * @param connectionProperties Properties containing database connection information.
-     * @param destType             Type of destination (e.g., source, target).
-     * @return Connection object to MSSQL database.
-     */
-    public static Connection getConnection(Properties connectionProperties, String destType) {
-        Connection conn = null;
-        String url = "jdbc:sqlserver://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+";databaseName="+connectionProperties.getProperty(destType+"-dbname")+";encrypt="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
-        Properties dbProps = new Properties();
-
-        dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
-        dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
-
-        try {
-            conn = DriverManager.getConnection(url,dbProps);
-        } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error connecting to MSSQL:  %s",e.getMessage()));
-        }
-
-        return conn;
-
-    }
+    private static final String THREAD_NAME = "db-mssql";
 
 }

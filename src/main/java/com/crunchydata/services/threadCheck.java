@@ -46,9 +46,9 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
  *
  * @author Brian Pace
  */
-public class threadReconcileCheck {
+public class threadCheck {
 
-    private static final String THREAD_NAME = "ReconcileCheck";
+    private static final String THREAD_NAME = "check";
 
     /**
      * Pulls a list of out-of-sync rows from the repository dc_source and dc_target tables.
@@ -191,6 +191,7 @@ public class threadReconcileCheck {
                             columnOutofSync++;
                         }
                     } catch (Exception e) {
+                        e.printStackTrace();
                         StackTraceElement[] stackTrace = e.getStackTrace();
                         Logging.write("severe", THREAD_NAME, String.format("Error comparing column values at line %s: %s",stackTrace[0].getLineNumber(), e.getMessage()));
                         Logging.write("severe", THREAD_NAME, String.format("Error on column %s",column));

@@ -31,14 +31,16 @@ import com.crunchydata.models.DCTableMap;
 import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.*;
 
+import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.HashUtility.getMd5;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread to pull data from source or target and load into the repository database.
  *
  * @author Brian Pace
  */
-public class threadReconcile extends Thread {
+public class threadCompare extends Thread {
     private final Integer tid, batchNbr, cid, nbrColumns, parallelDegree, threadNumber;
     private final String modColumn, pkList, stagingTable, targetType;
     private String sql;
@@ -47,7 +49,7 @@ public class threadReconcile extends Thread {
     private final Boolean useDatabaseHash;
     private Properties Props;
 
-    public threadReconcile(Properties Props, Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
+    public threadCompare(Properties Props, Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;
         this.modColumn = dctm.getModColumn();
         this.parallelDegree = dct.getParallelDegree();
@@ -67,7 +69,7 @@ public class threadReconcile extends Thread {
 
     public void run() {
 
-        String threadName = String.format("Reconcile-%s-c%s-t%s", targetType, cid, threadNumber);
+        String threadName = String.format("compare-%s-c%s-t%s", targetType, cid, threadNumber);
         Logging.write("info", threadName, String.format("(%s) Start database reconcile thread",targetType));
 
 
@@ -82,7 +84,7 @@ public class threadReconcile extends Thread {
         DecimalFormat formatter = new DecimalFormat("#,###");
         int loadRowCount = Integer.parseInt(Props.getProperty("batch-progress-report-size"));
         int observerRowCount = Integer.parseInt(Props.getProperty("observer-throttle-size"));
-        Connection repoConn = null;
+        Connection connRepo = null;
         RepoController rpc = new RepoController();
         ResultSet rs = null;
         PreparedStatement stmt = null;
@@ -91,38 +93,18 @@ public class threadReconcile extends Thread {
         try {
             // Connect to Repository
             Logging.write("info", threadName, String.format("(%s) Connecting to repository database", targetType));
-            repoConn = dbPostgres.getConnection(Props,"repo", "reconcile");
+            connRepo = getConnection("postgres", "repo");
 
-            if ( repoConn == null) {
+            if ( connRepo == null) {
                 Logging.write("severe", threadName, String.format("(%s) Cannot connect to repository database", targetType));
                 System.exit(1);
             }
-            repoConn.setAutoCommit(false);
+            connRepo.setAutoCommit(false);
 
             // Connect to Source/Target
             Logging.write("info", threadName, String.format("(%s) Connecting to database", targetType));
 
-            switch (Props.getProperty(targetType + "-type")) {
-                case "oracle":
-                    conn = dbOracle.getConnection(Props,targetType);
-                    break;
-                case "mariadb":
-                    conn = dbMariaDB.getConnection(Props,targetType);
-                    break;
-                case "mysql":
-                    conn = dbMySQL.getConnection(Props,targetType);
-                    break;
-                case "mssql":
-                    conn = dbMSSQL.getConnection(Props,targetType);
-                    break;
-                case "db2":
-                    conn = dbDB2.getConnection(Props,targetType);
-                    break;
-                default:
-                    conn = dbPostgres.getConnection(Props,targetType, "reconcile");
-                    conn.setAutoCommit(false);
-                    break;
-            }
+            conn = getConnection(Props.getProperty(targetType+"-type"), targetType);
 
             if ( conn == null) {
                 Logging.write("severe", threadName, String.format("(%s) Cannot connect to database", targetType));
@@ -151,8 +133,8 @@ public class threadReconcile extends Thread {
 
             if (!useLoaderThreads) {
                 String sqlLoad = "INSERT INTO " + stagingTable + " (tid, pk_hash, column_hash, pk) VALUES (?,?,?,(?)::jsonb)";
-                repoConn.setAutoCommit(false);
-                stmtLoad = repoConn.prepareStatement(sqlLoad);
+                connRepo.setAutoCommit(false);
+                stmtLoad = connRepo.prepareStatement(sqlLoad);
             }
 
             DataCompare[] dc = new DataCompare[batchCommitSize];
@@ -198,7 +180,7 @@ public class threadReconcile extends Thread {
                     } else {
                         stmtLoad.executeLargeBatch();
                         stmtLoad.clearBatch();
-                        repoConn.commit();
+                        connRepo.commit();
                     }
                     cntRecord=0;
                 }
@@ -213,9 +195,9 @@ public class threadReconcile extends Thread {
 
                         Logging.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
 
-                        rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
+                        rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
 
-                        repoConn.commit();
+                        connRepo.commit();
 
                         cntRecord=0;
 
@@ -248,7 +230,7 @@ public class threadReconcile extends Thread {
                 } else {
                     stmtLoad.executeBatch();
                 }
-                rpc.dcrUpdateRowCount(repoConn, targetType, cid, cntRecord);
+                rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
             }
 
             Logging.write("info", threadName, String.format("(%s) Complete. Total rows loaded: %s", targetType, formatter.format(totalRows)));
@@ -289,8 +271,8 @@ public class threadReconcile extends Thread {
                 }
 
                 // Close Connections
-                if (repoConn != null) {
-                    repoConn.close();
+                if (connRepo != null) {
+                    connRepo.close();
                 }
 
                 if (conn != null) {

@@ -24,7 +24,7 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class ColumnController {
-    private static final String THREAD_NAME = "ColumnController";
+    private static final String THREAD_NAME = "column-ctrl";
 
     /**
      * Retrieves column metadata for a given table.
@@ -85,14 +85,17 @@ public class ColumnController {
                 if (joColumn.getBoolean("primaryKey")) {
                     String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform)) : joColumn.getString("columnName").toLowerCase();
                     nbrPKColumns++;
-                    if (platform.equals("oracle")) {
-                        pk.append(joColumn.getString("valueExpression"))
-                                .append(concatOperator)
-                                .append("'.'")
-                                .append(concatOperator);
-                    } else {
-                        pk.append(joColumn.getString("valueExpression"))
-                                .append(",'.',");
+                    switch (platform) {
+                        case "db2":
+                        case "oracle":
+                            pk.append(joColumn.getString("valueExpression"))
+                                    .append(concatOperator)
+                                    .append("'.'")
+                                    .append(concatOperator);
+                            break;
+                        default:
+                            pk.append(joColumn.getString("valueExpression"))
+                                    .append(",'.',");
                     }
 
                     pkList.append(pkColumn).append(",");
@@ -137,15 +140,26 @@ public class ColumnController {
             }
 
             if (!pk.isEmpty() && !pkList.isEmpty()) {
-                if (platform.equals("oracle")) {
-                    pk.setLength(pk.length() - (3 + (concatOperator.length() * 2)));
-                } else {
-                    pk.setLength(pk.length() - 5);
-                    if (nbrPKColumns > 1) {
-                        pk.insert(0, "concat(")
-                                .append(")");
-                    }
+                switch (platform) {
+                    case "db2":
+                    case "oracle":
+                        pk.setLength(pk.length() - (3 + (concatOperator.length() * 2)));
+                        break;
+                    case"postgres":
+                    case "mariadb":
+                    case "mssql":
+                    case "mysql":
+                        pk.setLength(pk.length() - 5);
+                        if (nbrPKColumns > 1) {
+                            pk.insert(0, "concat(")
+                                    .append(")");
+                        }
+                        break;
+                    default:
+                        pk.setLength(pk.length() - 5);
+                        break;
                 }
+
                 pkList.setLength(pkList.length() - 1);
                 pkJSON.append(concatOperator).append("'}'");
             }

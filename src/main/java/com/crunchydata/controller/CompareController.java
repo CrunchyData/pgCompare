@@ -40,19 +40,19 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
 import org.json.JSONObject;
 
 /**
- * ReconcileController class that manages the data reconciliation process.
+ * CompareController class that manages the data reconciliation process.
  *
  * @author Brian Pace
  */
-public class ReconcileController {
+public class CompareController {
 
-    private static final String THREAD_NAME = "ReconcileController";
+    private static final String THREAD_NAME = "compare-ctrl";
 
     private static final RepoController rpc = new RepoController();
 
-    private static final List<threadReconcile> compareList = new ArrayList<>();
+    private static final List<threadCompare> compareList = new ArrayList<>();
     private static final List<threadLoader> loaderList = new ArrayList<>();
-    private static final List<threadReconcileObserver> observerList = new ArrayList<>();
+    private static final List<threadObserver> observerList = new ArrayList<>();
 
     /**
      * Reconciles data between source and target databases.
@@ -127,7 +127,7 @@ public class ReconcileController {
             Logging.write("info", THREAD_NAME, String.format("(target) Compare SQL: %s", dctmTarget.getCompareSQL()));
 
             if (check) {
-                checkResult = threadReconcileCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+                checkResult = threadCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
                 result.put("checkResult", checkResult);
             } else {
                 // Execute Compare SQL
@@ -153,19 +153,19 @@ public class ReconcileController {
 
                         // Start Observer Thread
                         ThreadSync ts = new ThreadSync();
-                        threadReconcileObserver rot = new threadReconcileObserver(Props, dct, cid, ts, i, stagingTableSource, stagingTableTarget);
+                        threadObserver rot = new threadObserver(Props, dct, cid, ts, i, stagingTableSource, stagingTableTarget);
                         rot.start();
                         observerList.add(rot);
 
                         // Start Source Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile cst = new threadReconcile(Props, i, dct, dctmSource, ciSource, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableSource, qs);
+                        threadCompare cst = new threadCompare(Props, i, dct, dctmSource, ciSource, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableSource, qs);
                         cst.start();
                         compareList.add(cst);
 
                         // Start Target Reconcile Thread
                         // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadReconcile ctt = new threadReconcile(Props, i, dct, dctmTarget, ciTarget, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableTarget, qt);
+                        threadCompare ctt = new threadCompare(Props, i, dct, dctmTarget, ciTarget, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableTarget, qt);
                         ctt.start();
                         compareList.add(ctt);
 
@@ -190,12 +190,12 @@ public class ReconcileController {
 
                     Logging.write("info", THREAD_NAME, "Waiting for compare threads to complete");
                     // Check Threads
-                    for (threadReconcile thread : compareList) {
+                    for (threadCompare thread : compareList) {
                         thread.join();
                     }
 
                     Logging.write("info", THREAD_NAME, "Waiting for reconcile threads to complete");
-                    for (threadReconcileObserver thread : observerList) {
+                    for (threadObserver thread : observerList) {
                         thread.join();
                     }
                 }

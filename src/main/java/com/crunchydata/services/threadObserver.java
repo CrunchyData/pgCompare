@@ -27,6 +27,7 @@ import com.crunchydata.models.DCTable;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
+import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
 
@@ -45,7 +46,7 @@ import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
  *
  * @author Brian Pace
  */
-public class threadReconcileObserver extends Thread  {
+public class threadObserver extends Thread  {
 
     private final Integer tid;
     private final String tableAlias;
@@ -70,7 +71,7 @@ public class threadReconcileObserver extends Thread  {
      *
      * @author Brian Pace
      */
-    public threadReconcileObserver(Properties Props, DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
+    public threadObserver(Properties Props, DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
         this.tid = dct.getTid();
         this.tableAlias = dct.getTableAlias();
         this.cid = cid;
@@ -89,7 +90,7 @@ public class threadReconcileObserver extends Thread  {
      * and performs cleanup operations on staging tables.
      */
     public void run() {
-        String threadName = String.format("Observer-c%s-t%s", cid, threadNbr);
+        String threadName = String.format("observer-c%s-t%s", cid, threadNbr);
         Logging.write("info", threadName, "Starting reconcile observer");
 
         ArrayList<Object> binds = new ArrayList<>();
@@ -103,7 +104,7 @@ public class threadReconcileObserver extends Thread  {
 
         // Connect to Repository
         Logging.write("info", threadName, "Connecting to repository database");
-        Connection repoConn = dbPostgres.getConnection(Props,"repo", "observer");
+        Connection repoConn = getConnection("postgres", "repo");
 
         if ( repoConn == null) {
             Logging.write("severe", threadName, "Cannot connect to repository database");

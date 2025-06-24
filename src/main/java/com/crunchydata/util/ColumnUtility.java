@@ -49,7 +49,7 @@ import static com.crunchydata.util.Settings.Props;
  */
 public class ColumnUtility {
 
-    private static final String THREAD_NAME = "columnUtility";
+    private static final String THREAD_NAME = "column-util";
 
     /**
      * BOOLEAN data types
@@ -208,6 +208,7 @@ public class ColumnUtility {
             rs.close();
             stmt.close();
         } catch (Exception e) {
+            e.printStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s", schema, table, e.getMessage()));
         }
         return columnInfo;

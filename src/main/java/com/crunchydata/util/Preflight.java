@@ -1,19 +1,17 @@
-package com.crunchydata.services;
-
-import com.crunchydata.util.Logging;
+package com.crunchydata.util;
 
 import java.util.Properties;
 
-public class preflight {
+public class Preflight {
 
-    private static final String THREAD_NAME = "preflight";
+    private static final String THREAD_NAME = "preflight-util";
 
     /**
      * Preflight method to validate settings used for DB2.
      *
      */
     public static void database (Properties Props, String targetType) {
-        Logging.write("info",THREAD_NAME,String.format("Performing preflight checks for %s",targetType));
+        Logging.write("info",THREAD_NAME,String.format("Performing Preflight checks for %s",targetType));
 
         String databaseType = Props.getProperty(targetType + "-type");
 

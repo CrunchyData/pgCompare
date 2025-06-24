@@ -38,7 +38,7 @@ import static com.crunchydata.util.Settings.Props;
  * @author Brian Pace
  */
 public class dbCommon {
-    private static final String THREAD_NAME = "dbCommon";
+    private static final String THREAD_NAME = "common";
 
     /**
      * Builds a SQL query for retrieving data from source or target.

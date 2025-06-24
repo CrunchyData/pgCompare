@@ -1,4 +1,4 @@
-package com.crunchydata.services;
+package com.crunchydata.controller;
 
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
@@ -7,7 +7,9 @@ import org.json.JSONObject;
 import java.io.FileWriter;
 import java.text.DecimalFormat;
 
-public class Reporter {
+public class ReportController {
+
+    private static final String THREAD_NAME = "report-ctrl";
 
     public static JSONObject createSection(String title, Object data, JSONArray layout) {
         return new JSONObject()
@@ -70,7 +72,7 @@ public class Reporter {
             writer.close();
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", "main", String.format("Error generating report at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error generating report at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
     }
     

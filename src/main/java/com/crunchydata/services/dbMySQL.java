@@ -25,9 +25,6 @@ import java.util.Properties;
 
 /**
  * Utility class for interacting with MySQL databases.
- * This class provides methods for database connection, SQL query generation,
- * column information retrieval, and data type mapping.
- * <p>
  *     MySQL Data Types
  *         Date/Time: date, datetime, timestamp, time, year
  *         Numeric: integer, smallint, bigint, decimal, numeric, float, real, double, int, dec, fixed
@@ -40,33 +37,4 @@ public class dbMySQL {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "`";
     public static final String columnHash= "lower(md5(%s)) AS %s";
-
-    private static final String THREAD_NAME = "dbMySQL";
-
-    /**
-     * Establishes a connection to a MySQL database using the provided connection properties.
-     *
-     * @param connectionProperties Properties containing database connection information.
-     * @param destType             Type of destination (e.g., source, target).
-     * @return Connection object to MySQL database.
-     */
-    public static Connection getConnection(Properties connectionProperties, String destType) {
-        Connection conn = null;
-        String url = "jdbc:mysql://"+connectionProperties.getProperty(destType+"-host")+":"+connectionProperties.getProperty(destType+"-port")+"/"+connectionProperties.getProperty(destType+"-dbname")+"?allowPublicKeyRetrieval=true&useSSL="+(connectionProperties.getProperty(destType+"-sslmode").equals("disable") ? "false" : "true");
-        Properties dbProps = new Properties();
-
-        dbProps.setProperty("user",connectionProperties.getProperty(destType+"-user"));
-        dbProps.setProperty("password",connectionProperties.getProperty(destType+"-password"));
-
-        try {
-            conn = DriverManager.getConnection(url,dbProps);
-            dbCommon.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
-        } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error connecting to MySQL:  %s", e.getMessage()));
-        }
-
-        return conn;
-
-    }
-
 }

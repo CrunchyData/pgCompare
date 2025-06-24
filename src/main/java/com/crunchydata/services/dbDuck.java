@@ -4,6 +4,8 @@ import java.sql.*;
 
 public class dbDuck {
 
+        private static final String THREAD_NAME = "db-duck";
+
         /**
          * Loads a given ResultSet into a DuckDB table.
          *

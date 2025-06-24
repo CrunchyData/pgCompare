@@ -37,7 +37,7 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
  */
 public class RepoController {
 
-    private static final String THREAD_NAME = "RepoController";
+    private static final String THREAD_NAME = "repo-ctrl";
 
 
     /**

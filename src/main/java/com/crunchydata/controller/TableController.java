@@ -29,7 +29,7 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
 
 public class TableController {
 
-    private static final String THREAD_NAME = "DiscoveryController";
+    private static final String THREAD_NAME = "table-ctrl";
 
     /**
      * Discover Tables in Specified Schema.
