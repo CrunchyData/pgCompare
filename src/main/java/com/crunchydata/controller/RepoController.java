@@ -75,7 +75,7 @@ public class RepoController {
         // Dynamic SQL
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
-                    tid     int8 NOT NULL,
+                    tid int8 NOT NULL,
                 	pk_hash text NULL,
                 	column_hash text NULL,
                 	pk jsonb NULL,
