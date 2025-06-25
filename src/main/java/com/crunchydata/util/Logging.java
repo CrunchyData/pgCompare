@@ -1,6 +1,5 @@
 package com.crunchydata.util;
 
-import java.util.Properties;
 import java.util.logging.*;
 
 import static com.crunchydata.util.Settings.Props;

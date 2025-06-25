@@ -31,10 +31,7 @@ import static com.crunchydata.services.dbConnection.closeDatabaseConnection;
 import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.Settings.*;
 
-import com.crunchydata.controller.ColumnController;
-import com.crunchydata.controller.CompareController;
-import com.crunchydata.controller.TableController;
-import com.crunchydata.controller.RepoController;
+import com.crunchydata.controller.*;
 import com.crunchydata.models.DCTable;
 import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.*;
@@ -47,21 +44,28 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
+ * Main class for pgCompare, a tool for comparing and reconciling database tables.
+ *
  * @author Brian Pace
  */
 public class pgCompare {
     private static final String THREAD_NAME = "main";
 
     private static String action = "reconcile";
-    private static String reportFileName;
     private static Integer batchParameter;
-    private static boolean genReport;
     private static CommandLine cmd;
     private static Integer pid = 1;
+
+    private static boolean genReport;
+    private static String reportFileName;
+
+
     private static Connection connRepo;
     private static Connection connSource;
-    private static long startStopWatch;
     private static Connection connTarget;
+
+    private static long startStopWatch;
+
 
     public static void main(String[] args) {
 
@@ -172,7 +176,10 @@ public class pgCompare {
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
         RepoController rpc = new RepoController();
         int tablesProcessed = 0;
+
+        // Get list of tables to be compared
         CachedRowSet crsTable = rpc.getTables(pid, connRepo, batchParameter, table, check);
+
         JSONArray runResult = new JSONArray();
 
         try {
@@ -205,6 +212,7 @@ public class pgCompare {
                     rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
                 }
 
+                // Start compare
                 JSONObject actionResult = CompareController.reconcileData(Props, connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
 
                 rpc.completeTableHistory(connRepo, dct.getTid(), "reconcile", dct.getBatchNbr(), 0, actionResult.toString());
@@ -264,7 +272,7 @@ public class pgCompare {
                 }
             }
 
-            action = verb; // Set your global or class-level action
+            action = verb.toLowerCase(); // Set your global or class-level action
 
             CommandLine cmd = parser.parse(options, argList.toArray(new String[0]));
 

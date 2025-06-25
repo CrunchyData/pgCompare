@@ -16,13 +16,6 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.util.Logging;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.ArrayList;
-import java.util.Properties;
-
 /**
  * Utility class for interacting with MySQL databases.
  *     MySQL Data Types

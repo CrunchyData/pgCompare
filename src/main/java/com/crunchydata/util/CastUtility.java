@@ -18,41 +18,38 @@ public class CastUtility {
 
 
     public static String castBinary(String dataType, String columnName, String platform) {
-        switch (platform) {
+        return switch (platform) {
             // MSSQL does not have a binary type.
             // Postgres and MySQL use the same function for binary types.
-            case "db2":
-                return String.format("case when dbms_lob.getlength(%1$s) = 0 or %1$s is null then ' ' else lower(dbms_crypto.hash(%1$s,2)) end", columnName);
-            case "mariadb":
-                return String.format("coalesce(md5(%1$s),'0'), ' ')", columnName);
-            case "oracle":
-                return String.format("case when dbms_lob.getlength(%1$s) = 0 or %1$s is null then ' ' else lower(dbms_crypto.hash(%1$s,2)) end", columnName);
-            default:
-                return String.format("coalesce(md5(%1$s), ' ')", columnName);
-        }
+            case "db2" ->
+                    String.format("case when dbms_lob.getlength(%1$s) = 0 or %1$s is null then ' ' else lower(dbms_crypto.hash(%1$s,2)) end", columnName);
+            case "mariadb" -> String.format("coalesce(md5(%1$s),'0'), ' ')", columnName);
+            case "oracle" ->
+                    String.format("case when dbms_lob.getlength(%1$s) = 0 or %1$s is null then ' ' else lower(dbms_crypto.hash(%1$s,2)) end", columnName);
+            default -> String.format("coalesce(md5(%1$s), ' ')", columnName);
+        };
     }
 
     public static String castBoolean(String dataType, String columnName, String platform) {
         String numberCast = Props.getProperty("number-cast");
         String numberFormat = Props.getProperty("standard-number-format");
 
-        switch (platform) {
-            case "db2":
-                return String.format("coalesce(to_char(%1$s),'0')", columnName);
-            case "oracle":
-                return String.format("nvl(to_char(%1$s),'0')", columnName);
-            case "mariadb":
-                return String.format("case when coalesce(cast(%1$s as char),'0') = 'true' then '1' else '0' end", columnName);
-            case "mssql":
-                return String.format("case when coalesce(cast(%1$s as varchar),'0') = 'true' then '1' else '0' end", columnName);
-            case "mysql":
-                return String.format("case when coalesce(convert(%1$s,char),'0') = 'true' then '1' else '0' end", columnName);
-            default:
+        return switch (platform) {
+            case "db2" -> String.format("coalesce(to_char(%1$s),'0')", columnName);
+            case "oracle" -> String.format("nvl(to_char(%1$s),'0')", columnName);
+            case "mariadb" ->
+                    String.format("case when coalesce(cast(%1$s as char),'0') = 'true' then '1' else '0' end", columnName);
+            case "mssql" ->
+                    String.format("case when coalesce(cast(%1$s as varchar),'0') = 'true' then '1' else '0' end", columnName);
+            case "mysql" ->
+                    String.format("case when coalesce(convert(%1$s,char),'0') = 'true' then '1' else '0' end", columnName);
+            default -> {
                 String booleanConvert = String.format("case when coalesce(%s::text,'0') = 'true' then 1 else 0 end", columnName);
-                return "notation".equals(numberCast)
+                yield "notation".equals(numberCast)
                         ? String.format("coalesce(trim(to_char(%s,'0.9999999999EEEE')),' ')", booleanConvert)
                         : String.format("coalesce(trim(to_char(trim_scale(%s),'%s')),' ')", booleanConvert, numberFormat);
-        }
+            }
+        };
 
     }
 
@@ -85,58 +82,36 @@ public class CastUtility {
 
         String numberCast = Props.getProperty("number-cast");
 
-        switch (dataType) {
+        return switch (dataType) {
             // float32
-            case "binary_float":
-            case "float":
-            case "float4":
-            case "real":
             // float64
-            case "double":
-            case "binary_double":
-            case "float8":
-                switch (platform) {
-                    case "db2":
-                        return String.format("trim(to_char(%s,'999999999999999999999999999990.000'))", columnName);
-                    case "mariadb":
-                    case "mysql":
-                        return String.format("trim(cast(cast(%s as decimal(32,3)) as char))", columnName);
-                    case "mssql":
-                        return String.format("trim(cast(cast(%s as decimal(32,3)) as char))", columnName);
-                    case "oracle":
-                        return String.format("trim(to_char(cast(%s as NUMBER(32,3)),'99999999999999999999999999999990.000'))", columnName);
-                    default:
-                        return String.format("trim(cast(cast(cast(%s as double precision) as numeric(32,3)) as text))", columnName);
-                }
-
-            default:
-
-                switch (platform) {
-                    case "db2":
-                        return "notation".equals(numberCast)
-                                ? String.format("CASE WHEN %1$s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %1$s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%1$s)/pow(10,floor(log10(abs(%1$s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%1$s)/pow(10,floor(log10(abs(%1$s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%1$s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%1$s))) AS integer))),2,'0') END",columnName)
-                                : String.format("coalesce(trim(to_char(%s, '%s')),' ')", columnName, Props.getProperty("standard-number-format"));
-                    case "mariadb":
-                    case "mysql":
-                        return "notation".equals(numberCast)
-                                ? String.format("case when %1$s is null then ' ' else coalesce(if(%1$s=0,'0.0000000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 10),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(%1$s))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ') end", columnName)
-                                : String.format("case when %1$s is null then ' ' else coalesce(if(instr(cast(%1$s as char),'.')>0,concat(if(%1$s<0,'-',''),lpad(substring_index(cast(abs(%1$s) as char),'.',1),22,'0'),'.',rpad(substring_index(cast(%1$s as char),'.',-1),22,'0')),concat(if(%1$s<0,'-',''),lpad(cast(%1$s as char),22,'0'),'.',rpad('',22,'0'))),' ') end", columnName);
-                    case "mssql":
-                        return "notation".equals(numberCast)
-                                ? String.format("lower(replace(coalesce(trim(format(%1$s,'E10')),' '),'E+0','e+'))", columnName)
-                                : String.format("coalesce(cast(format(%s, '%s') as text),' ')", columnName, Props.getProperty("standard-number-format"));
-                    case "oracle":
-                        return "notation".equals(numberCast)
-                                ? String.format("lower(nvl(trim(to_char(%1$s,'0.9999999999EEEE')),' '))", columnName)
-                                : String.format("nvl(trim(to_char(%s,'%s')),' ')", columnName, Props.getProperty("standard-number-format"));
-                    default:
-                        return "notation".equals(numberCast)
-                                ? String.format("coalesce(trim(to_char(%1$s,'0.9999999999EEEE')),' ')", columnName)
-                                : String.format("coalesce(trim(to_char(trim_scale(%1$s),'" + Props.getProperty("standard-number-format") + "')),' ')", columnName);
-
-                }
-
-        }
+            case "binary_float", "float", "float4", "real", "double", "binary_double", "float8" -> switch (platform) {
+                case "db2" -> String.format("trim(to_char(%s,'999999999999999999999999999990.000'))", columnName);
+                case "mariadb", "mysql", "mssql" ->
+                        String.format("trim(cast(cast(%s as decimal(32,3)) as char))", columnName);
+                case "oracle" ->
+                        String.format("trim(to_char(cast(%s as NUMBER(32,3)),'99999999999999999999999999999990.000'))", columnName);
+                default ->
+                        String.format("trim(cast(cast(cast(%s as double precision) as numeric(32,3)) as text))", columnName);
+            };
+            default -> switch (platform) {
+                case "db2" -> "notation".equals(numberCast)
+                        ? String.format("CASE WHEN %1$s = 0 THEN '0.000000e+00' ELSE (CASE WHEN %1$s < 0 THEN '-' ELSE '' END) || substr(trim(char(CAST(round(abs(%1$s)/pow(10,floor(log10(abs(%1$s)))),6) AS float))),1,instr(trim(char(CAST(round(abs(%1$s)/pow(10,floor(log10(abs(%1$s)))),6) AS float))),'E')-1) || 'e' || (CASE WHEN floor(log10(abs(%1$s))) >= 0 THEN '+' ELSE '-' END) || lpad(trim(char(CAST(floor(log10(abs(%1$s))) AS integer))),2,'0') END", columnName)
+                        : String.format("coalesce(trim(to_char(%s, '%s')),' ')", columnName, Props.getProperty("standard-number-format"));
+                case "mariadb", "mysql" -> "notation".equals(numberCast)
+                        ? String.format("case when %1$s is null then ' ' else coalesce(if(%1$s=0,'0.0000000000e+00',concat(if(%1$s<0, '-', ''),format(abs(%1$s)/pow(10, floor(log10(abs(%1$s)))), 10),'e',if(floor(log10(abs(%1$s)))>=0,'+','-'),lpad(replace(replace(cast(FORMAT(floor(log10(abs(%1$s))), 2)/100 as char),'0.',''),'-',''),2,'0'))),' ') end", columnName)
+                        : String.format("case when %1$s is null then ' ' else coalesce(if(instr(cast(%1$s as char),'.')>0,concat(if(%1$s<0,'-',''),lpad(substring_index(cast(abs(%1$s) as char),'.',1),22,'0'),'.',rpad(substring_index(cast(%1$s as char),'.',-1),22,'0')),concat(if(%1$s<0,'-',''),lpad(cast(%1$s as char),22,'0'),'.',rpad('',22,'0'))),' ') end", columnName);
+                case "mssql" -> "notation".equals(numberCast)
+                        ? String.format("lower(replace(coalesce(trim(format(%1$s,'E10')),' '),'E+0','e+'))", columnName)
+                        : String.format("coalesce(cast(format(%s, '%s') as text),' ')", columnName, Props.getProperty("standard-number-format"));
+                case "oracle" -> "notation".equals(numberCast)
+                        ? String.format("lower(nvl(trim(to_char(%1$s,'0.9999999999EEEE')),' '))", columnName)
+                        : String.format("nvl(trim(to_char(%s,'%s')),' ')", columnName, Props.getProperty("standard-number-format"));
+                default -> "notation".equals(numberCast)
+                        ? String.format("coalesce(trim(to_char(%1$s,'0.9999999999EEEE')),' ')", columnName)
+                        : String.format("coalesce(trim(to_char(trim_scale(%1$s),'" + Props.getProperty("standard-number-format") + "')),' ')", columnName);
+            };
+        };
 
     }
 
@@ -144,36 +119,28 @@ public class CastUtility {
         // When casting to raw, need to trim fixed length strings for all dbms platforms
         String columnHashMethod = Props.getProperty("column-hash-method");
 
-        switch (platform) {
-            case "db2":
-            case "mariadb":
-            case "mysql":
-                return "raw".equals(columnHashMethod)
-                        ? STRING_TYPES.contains(dataType)
-                            ? String.format("trim(%s)",columnName)
-                            : columnName
-                        : String.format("case when length(%1$s)=0 then ' ' else %1$s end", columnName);
-
-            case "mssql":
-                return "raw".equals(columnHashMethod)
-                        ? (STRING_TYPES.contains(dataType) && !dataType.equals("text"))
-                            ? String.format("trim(%s)",columnName)
-                            : columnName
-                        : String.format("coalesce(%1$s,' ')", columnName);
-            case "oracle":
-                return "raw".equals(columnHashMethod)
-                        ? STRING_TYPES.contains(dataType)
-                            ? String.format("trim(%s)",columnName)
-                            : columnName
-                        : String.format("nvl(%1$s,' ')", columnName);
-            default:
-                return "raw".equals(columnHashMethod)
-                        ? STRING_TYPES.contains(dataType)
-                            ? String.format("trim(%s)",columnName)
-                            : columnName
-                        : String.format("coalesce(case when length(coalesce(%s::text,''))=0 then ' ' else %s::text end,' ')",columnName, columnName);
-
-        }
+        return switch (platform) {
+            case "db2", "mariadb", "mysql" -> "raw".equals(columnHashMethod)
+                    ? STRING_TYPES.contains(dataType)
+                    ? String.format("trim(%s)", columnName)
+                    : columnName
+                    : String.format("case when length(%1$s)=0 then ' ' else %1$s end", columnName);
+            case "mssql" -> "raw".equals(columnHashMethod)
+                    ? (STRING_TYPES.contains(dataType) && !dataType.equals("text"))
+                    ? String.format("trim(%s)", columnName)
+                    : columnName
+                    : String.format("coalesce(%1$s,' ')", columnName);
+            case "oracle" -> "raw".equals(columnHashMethod)
+                    ? STRING_TYPES.contains(dataType)
+                    ? String.format("trim(%s)", columnName)
+                    : columnName
+                    : String.format("nvl(%1$s,' ')", columnName);
+            default -> "raw".equals(columnHashMethod)
+                    ? STRING_TYPES.contains(dataType)
+                    ? String.format("trim(%s)", columnName)
+                    : columnName
+                    : String.format("coalesce(case when length(coalesce(%s::text,''))=0 then ' ' else %s::text end,' ')", columnName, columnName);
+        };
 
     }
 
@@ -207,33 +174,29 @@ public class CastUtility {
     }
 
     public static String castTimestamp(String dataType, String columnName, String platform) {
-        switch (platform) {
-            case "db2":
-                return (dataType.contains("time zone") || dataType.contains("tz"))
-                        ? String.format("coalesce(to_char(%1$s at time zone 'UTC','MMDDYYYYHH24MISS'),' ')", columnName)
-                        : String.format("coalesce(to_char(%1$s,'MMDDYYYYHH24MISS'),' ')", columnName);
-            case "mariadb":
+        return switch (platform) {
+            case "db2" -> (dataType.contains("time zone") || dataType.contains("tz"))
+                    ? String.format("coalesce(to_char(%1$s at time zone 'UTC','MMDDYYYYHH24MISS'),' ')", columnName)
+                    : String.format("coalesce(to_char(%1$s,'MMDDYYYYHH24MISS'),' ')", columnName);
+            case "mariadb" ->
                 // Casting with factoring in session.time_zone seems to cause issues
-                return String.format("coalesce(date_format(%1$s,'%%m%%d%%Y%%H%%i%%S'),' ')", columnName);
-
-            case "mssql":
-                return "date".equals(dataType)
-                        ? String.format("coalesce(format(%1$s,'MMddyyyyHHmmss'),' ')", columnName)
-                        : String.format("coalesce(format(%1$s at time zone 'UTC','MMddyyyyHHmmss'),' ')", columnName);
-            case "mysql":
-                return (dataType.contains("timestamp") || dataType.contains("datetime"))
-                        ? "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')"
-                        : "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
-            case "oracle":
-                return (dataType.contains("time zone") || dataType.contains("tz"))
-                        ? String.format("nvl(to_char(%1$s at time zone 'UTC','MMDDYYYYHH24MISS'),' ')", columnName)
-                        : String.format("nvl(to_char(%1$s,'MMDDYYYYHH24MISS'),' ')", columnName);
-            default:
+                    String.format("coalesce(date_format(%1$s,'%%m%%d%%Y%%H%%i%%S'),' ')", columnName);
+            case "mssql" -> "date".equals(dataType)
+                    ? String.format("coalesce(format(%1$s,'MMddyyyyHHmmss'),' ')", columnName)
+                    : String.format("coalesce(format(%1$s at time zone 'UTC','MMddyyyyHHmmss'),' ')", columnName);
+            case "mysql" -> (dataType.contains("timestamp") || dataType.contains("datetime"))
+                    ? "coalesce(date_format(convert_tz(" + columnName + ",@@session.time_zone,'UTC'),'%m%d%Y%H%i%S'),' ')"
+                    : "coalesce(date_format(" + columnName + ",'%m%d%Y%H%i%S'),' ')";
+            case "oracle" -> (dataType.contains("time zone") || dataType.contains("tz"))
+                    ? String.format("nvl(to_char(%1$s at time zone 'UTC','MMDDYYYYHH24MISS'),' ')", columnName)
+                    : String.format("nvl(to_char(%1$s,'MMDDYYYYHH24MISS'),' ')", columnName);
+            default -> {
                 boolean hasTZ = dataType.contains("time zone") || dataType.contains("tz");
-                return hasTZ
+                yield hasTZ
                         ? String.format("coalesce(to_char(%1$s at time zone 'UTC','MMDDYYYYHH24MISS'),' ')", columnName)
                         : String.format("coalesce(to_char(%1$s,'MMDDYYYYHH24MISS'),' ')", columnName);
-        }
+            }
+        };
 
     }
 

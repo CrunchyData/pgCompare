@@ -16,13 +16,6 @@
 
 package com.crunchydata.services;
 
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.Properties;
-
-import com.crunchydata.util.Logging;
-
 /**
  * Utility class for interacting with Oracle databases.
  *

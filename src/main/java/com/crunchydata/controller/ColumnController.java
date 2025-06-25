@@ -45,7 +45,7 @@ public class ColumnController {
         StringBuilder columnList = new StringBuilder();
         String concatOperator = platform.equals("mssql") ? "+" : "||";
         int nbrColumns = 0;
-        Integer nbrPKColumns = 0;
+        int nbrPKColumns = 0;
         StringBuilder pk = new StringBuilder();
         StringBuilder pkJSON = new StringBuilder();
         StringBuilder pkList = new StringBuilder();
@@ -81,7 +81,7 @@ public class ColumnController {
 
                 Logging.write("debug", THREAD_NAME, String.format("(%s) Mapping expression for column %s: %s", targetType, columnObject.getString("columnAlias"), joColumn.getString("valueExpression")));
 
-                // Identify if column is priary key and save primary keys to pk string
+                // Identify if column is primary key and save primary keys to pk string
                 if (joColumn.getBoolean("primaryKey")) {
                     String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform)) : joColumn.getString("columnName").toLowerCase();
                     nbrPKColumns++;
@@ -165,7 +165,6 @@ public class ColumnController {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
@@ -314,7 +313,6 @@ public class ColumnController {
                 dctcm.setNumberScale(columns.getJSONObject(i).getInt("dataScale"));
                 dctcm.setColumnNullable(columns.getJSONObject(i).getBoolean("nullable"));
                 dctcm.setColumnPrimaryKey(columns.getJSONObject(i).getBoolean("primaryKey"));
-                //dctcm.setMapExpression(columns.getJSONObject(i).getString("valueExpression"));
                 dctcm.setSupported(columns.getJSONObject(i).getBoolean("supported"));
                 dctcm.setPreserveCase(columns.getJSONObject(i).getBoolean("preserveCase"));
 

@@ -16,12 +16,6 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.util.Logging;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.Properties;
-
 /**
  * Utility class for interacting with Microsoft SQL Server databases.
  *     MSSQL Data Types
@@ -36,7 +30,4 @@ public class dbMSSQL {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "\"";
     public static final String columnHash= "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s";
-
-    private static final String THREAD_NAME = "db-mssql";
-
 }

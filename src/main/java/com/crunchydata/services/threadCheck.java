@@ -191,7 +191,6 @@ public class threadCheck {
                             columnOutofSync++;
                         }
                     } catch (Exception e) {
-                        e.printStackTrace();
                         StackTraceElement[] stackTrace = e.getStackTrace();
                         Logging.write("severe", THREAD_NAME, String.format("Error comparing column values at line %s: %s",stackTrace[0].getLineNumber(), e.getMessage()));
                         Logging.write("severe", THREAD_NAME, String.format("Error on column %s",column));

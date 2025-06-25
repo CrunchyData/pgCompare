@@ -7,18 +7,6 @@ import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.Properties;
 
-import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
 import static com.crunchydata.util.Settings.Props;
 
 public class dbConnection {

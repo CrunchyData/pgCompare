@@ -100,7 +100,6 @@ public class Settings {
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("column-hash-method","raw|database|hybrid");
-        defaultProps.setProperty("compare-location","repo");
         defaultProps.setProperty("database-sort","true");
         defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
@@ -112,6 +111,7 @@ public class Settings {
         defaultProps.setProperty("observer-vacuum","true");
         defaultProps.setProperty("stage-table-parallel","0");
         defaultProps.setProperty("standard-number-format","0000000000000000000000.0000000000000000000000");
+        defaultProps.setProperty("work-area","repo");
 
 
         // Repository

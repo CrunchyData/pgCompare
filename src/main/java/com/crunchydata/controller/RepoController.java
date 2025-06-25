@@ -76,11 +76,10 @@ public class RepoController {
         String sql = """
                 CREATE UNLOGGED TABLE dc_source (
                     tid     int8 NOT NULL,
-                	pk_hash varchar(100) NULL,
-                	column_hash varchar(100) NULL,
+                	pk_hash text NULL,
+                	column_hash text NULL,
                 	pk jsonb NULL,
-                	compare_result bpchar(1) NULL,
-                	CONSTRAINT dc_source_pk PRIMARY KEY (tid, pk_hash)
+                	compare_result bpchar(1) NULL
                 ) with (autovacuum_enabled=false, parallel_workers=
                 """ + Props.getProperty("stage-table-parallel") + ")";
 

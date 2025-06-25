@@ -38,7 +38,6 @@ import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMN
 import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Utility class for column data type validation and classification.
@@ -208,7 +207,6 @@ public class ColumnUtility {
             rs.close();
             stmt.close();
         } catch (Exception e) {
-            e.printStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s:  %s", schema, table, e.getMessage()));
         }
         return columnInfo;

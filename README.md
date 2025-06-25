@@ -46,6 +46,7 @@ Before initiating the build and installation process, ensure the following prere
 - Unsupported data types: blob, long, longraw, bytea.
 - Cross-platform comparison limitations with boolean type.
 - Low precission types (float, real) cannot be compared to high precission types (double).
+- All low precission types are cast using a scale of 3.  If a higher scale is required consider using the map-expression override option.
 - Different databases cast float to different values.  Use float-cast option to switch between char and notation (scientific notation) if there are compare problems with float data types.
 
 # Getting Started
@@ -72,7 +73,7 @@ At a minimal the `repo-xxxxx` parameters are required in the properties file (or
 Run the script or use the command below to set up the PostgreSQL repository:
 
 ```shell
-java -jar pgcompare.jar --init
+java -jar pgcompare.jar init
 ```
 
 ## 5. Discover Tables
@@ -80,10 +81,34 @@ java -jar pgcompare.jar --init
 Discover and map tables in specified schemas:
 
 ```shell
-java -jar pgcompare.jar --discovery
+java -jar pgcompare.jar discover
 ```
 
 # Usage
+
+## Command Line
+
+```shell
+java -jar pgcompare.jar <action> <options>
+```
+
+Actions:
+- **check**:  Recompare the out of sync rows from previous compare
+- **compare**:  Perform database compare
+- **discover**:  Disocver tables and columns
+- **init**: Initialize the repository database
+
+Options:
+
+   -b|--batch {batch nbr}
+
+   -p|--project Project ID
+
+   -r|--report {file} Create html report of compare
+
+   -t|--table {target table}
+
+   --help
 
 ## Define Table Mapping
 
@@ -92,17 +117,17 @@ java -jar pgcompare.jar --discovery
     Discover and map tables in specified schemas:
 
     ```shell
-    java -jar pgcompare.jar --discover
+    java -jar pgcompare.jar discover
     ```
 
 2. Manual Registration 
 
-    Insert mappings into `dc_table` and `dc_table_map` tables in the repository.
+    Insert mappings into `dc_table`, `dc_table_map`, `dc_table_column`, and `dc_table_column_map` tables in the repository.
 
 ## Run Data Comparison
 
 ```shell
-java -jar pgcompare.jar --batch 0
+java -jar pgcompare.jar compare --batch 0
 ```
 
 Batch 0 processes all data. Use `PGCOMPARE-BATCH` or specify the batch number using the `--batch` argument to specify a batch number.
@@ -112,10 +137,19 @@ Batch 0 processes all data. Use `PGCOMPARE-BATCH` or specify the batch number us
 Revalidate flagged rows:
 
 ```shell
-java -jar pgcompare.jar --batch 0 --check
+java -jar pgcompare.jar check --batch 0
 ```
 
 # Upgrading
+
+## Version 0.4.0 Enhancements
+
+- Improved casting of low precision data types.
+- Added html report generation.
+- Refactored code for efficiency.
+- Modified arguments and added 'verb' clause to command line.
+  
+**Note:** Drop and recreate the repository to upgrade to 0.4.0.
 
 ## Version 0.3.0 Enhancements
 
@@ -188,11 +222,11 @@ FROM dc_source s
 Properties are categorized into four sections: system, repository, source, and target. Each section has specific properties, as described in detail in the documentation.  The properties can be specified via a configuration file, environment variables or a combination of both.  To use environment variables, the environment variable will be the name of the property in upper case with dashes '-' converted to underscore '_' and prefixed with PGCOMPARE_.  For example, batch-fetch-size can be set by using the environment variable PGCOMPARE_BATCH_FETCH_SIZE.
 
 ### System
+
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
 - database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
-- float-cast: Defines how float and double data types are cast for hash function (notation|char).  Default is char.
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
 - log-level:   Level to determine the amount of log messages written to the log destination.
 - log-destination:  Location where log messages will be written.  Default is stdout.

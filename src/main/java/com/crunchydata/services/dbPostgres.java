@@ -16,12 +16,6 @@
 
 package com.crunchydata.services;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.Properties;
-
-import com.crunchydata.util.Logging;
-
 /**
  * Utility class for interacting with Postgres databases.
  *
@@ -31,5 +25,4 @@ public class dbPostgres {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "\"";
     public static final String columnHash= "lower(md5(%s)) AS %s";
-
 }

@@ -33,7 +33,6 @@ import com.crunchydata.util.*;
 
 import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.HashUtility.getMd5;
-import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread to pull data from source or target and load into the repository database.
@@ -69,7 +68,7 @@ public class threadCompare extends Thread {
 
     public void run() {
 
-        String threadName = String.format("compare-%s-c%s-t%s", targetType, cid, threadNumber);
+        String threadName = String.format("compare-%s-%s-t%s", targetType, tid, threadNumber);
         Logging.write("info", threadName, String.format("(%s) Start database reconcile thread",targetType));
 
 

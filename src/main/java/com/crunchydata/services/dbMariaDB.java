@@ -16,13 +16,6 @@
 
 package com.crunchydata.services;
 
-import com.crunchydata.util.Logging;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.ArrayList;
-import java.util.Properties;
-
 /**
  * Utility class for interacting with MariaDB databases.
  *     MariaDB Data Types
@@ -37,6 +30,4 @@ public class dbMariaDB {
     public static final String nativeCase = "lower";
     public static final String quoteChar = "`";
     public static final String columnHash= "lower(md5(%s)) AS %s";
-
-    private static final String THREAD_NAME = "db-mariadb";
 }
