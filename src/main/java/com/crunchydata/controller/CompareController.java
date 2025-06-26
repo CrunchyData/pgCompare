@@ -35,7 +35,9 @@ import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
 
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
+import static com.crunchydata.services.DatabaseService.buildLoadSQL;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static java.lang.Integer.parseInt;
 
 import org.json.JSONObject;
 
@@ -49,7 +51,6 @@ public class CompareController {
     private static final String THREAD_NAME = "compare-ctrl";
 
     private static final RepoController rpc = new RepoController();
-
     private static final List<threadCompare> compareList = new ArrayList<>();
     private static final List<threadLoader> loaderList = new ArrayList<>();
     private static final List<threadObserver> observerList = new ArrayList<>();
@@ -66,40 +67,27 @@ public class CompareController {
      */
     public static JSONObject reconcileData(Properties Props, Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
 
-        // Variables
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject columnMap;
-        boolean useLoaderThreads = (Integer.parseInt(Props.getProperty("loader-threads")) > 0);
 
-        BlockingQueue<DataCompare[]> qs;
-        BlockingQueue<DataCompare[]> qt;
-        if (useLoaderThreads) {
-           qs = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
-           qt = new ArrayBlockingQueue<>(Integer.parseInt(Props.getProperty("message-queue-size")));
-        } else {
-           qs = null;
-           qt = null;
-        }
+        boolean useLoaderThreads = (parseInt(Props.getProperty("loader-threads")) > 0);
+        int messageQueueSize = Integer.parseInt(Props.getProperty("message-queue-size"));
+
+        BlockingQueue<DataCompare[]> qs = useLoaderThreads ? new ArrayBlockingQueue<>(messageQueueSize) : null;
+        BlockingQueue<DataCompare[]> qt = useLoaderThreads ? new ArrayBlockingQueue<>(messageQueueSize) : null;
 
         // Capture the start time for the compare run.
-        long startStopWatch = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
 
         // Prepare JSON formatted results
         JSONObject checkResult;
-        JSONObject result = new JSONObject();
-        result.put("tableName", dct.getTableAlias());
-        result.put("status", "processing");
-        result.put("compareStatus", "processing");
-        result.put("missingSource", 0);
-        result.put("missingTarget", 0);
-        result.put("notEqual", 0);
-        result.put("equal", 0);
+        JSONObject result = initializeResult(dct);
 
         try {
             // Get Column Info and Mapping
+            binds.clear();
             binds.addFirst(dct.getTid());
-            String columnMapping = dbCommon.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
-
+            String columnMapping = SQLService.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
 
             // Preflight checks
             if ( ! reconcilePreflight(dct, dctmSource, dctmTarget, columnMapping)) {
@@ -108,153 +96,47 @@ public class CompareController {
                 return result;
             }
 
+            // Get column mapping and metadata
             columnMap = new JSONObject(columnMapping);
-
             ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"), dctmSource.getSchemaName(), dctmSource.getTableName(), !check && "database".equals(Props.getProperty("column-hash-method")));
             ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"), dctmTarget.getSchemaName(), dctmTarget.getTableName(), !check && "database".equals(Props.getProperty("column-hash-method")));
+            logColumnMetadata(ciSource, ciTarget);
 
-            Logging.write("info", THREAD_NAME, String.format("(source) Columns: %s", ciSource.columnList));
-            Logging.write("info", THREAD_NAME, String.format("(target) Columns: %s", ciTarget.columnList));
-            Logging.write("info", THREAD_NAME, String.format("(source) PK Columns: %s", ciSource.pkList));
-            Logging.write("info", THREAD_NAME, String.format("(target) PK Columns: %s", ciTarget.pkList));
-
+            // Create Compare ID (cid) for this run
             Integer cid = rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
 
-            dctmSource.setCompareSQL(dbCommon.buildLoadSQL(Props.getProperty("column-hash-method"), dctmSource, ciSource));
-            dctmTarget.setCompareSQL(dbCommon.buildLoadSQL(Props.getProperty("column-hash-method"), dctmTarget, ciTarget));
-
-            Logging.write("info", THREAD_NAME, String.format("(source) Compare SQL: %s", dctmSource.getCompareSQL()));
-            Logging.write("info", THREAD_NAME, String.format("(target) Compare SQL: %s", dctmTarget.getCompareSQL()));
+            // Generate Compare SQL
+            prepareCompareSQL(Props, dctmSource, dctmTarget, ciSource, ciTarget);
 
             if (check) {
+                // Execute recheck of rows that were out of sync during last run
                 checkResult = threadCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
                 result.put("checkResult", checkResult);
             } else {
                 // Execute Compare SQL
                 if (ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() || ciSource.pkList.isBlank() || ciSource.pkList.isEmpty()) {
-                    Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation",dctmTarget.getTableName()));
-                    result.put("status", "skipped");
-                    result.put("compareStatus", "skipped");
-
-                    binds.clear();
-                    binds.addFirst(cid);
-
-                    dbCommon.simpleUpdate(connRepo, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
+                    // If there is no Primary Key, skipp compare
+                    skipReconciliation(connRepo, result, dctmTarget.getTableName(), cid);
                 } else {
                     Logging.write("info", THREAD_NAME, "Starting compare hash threads");
-
-                    // Start Reconciliation Threads
-                    for (Integer i = 0; i < dct.getParallelDegree(); i++) {
-                        Logging.write("info", THREAD_NAME, "Creating data compare staging tables");
-                        String stagingTableSource = rpc.createStagingTable(Props, connRepo, "source", dct.getTid(), i);
-                        String stagingTableTarget = rpc.createStagingTable(Props, connRepo, "target", dct.getTid(), i);
-
-                        Logging.write("info", THREAD_NAME, String.format("Starting compare thread %s",i));
-
-                        // Start Observer Thread
-                        ThreadSync ts = new ThreadSync();
-                        threadObserver rot = new threadObserver(Props, dct, cid, ts, i, stagingTableSource, stagingTableTarget);
-                        rot.start();
-                        observerList.add(rot);
-
-                        // Start Source Reconcile Thread
-                        // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadCompare cst = new threadCompare(Props, i, dct, dctmSource, ciSource, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableSource, qs);
-                        cst.start();
-                        compareList.add(cst);
-
-                        // Start Target Reconcile Thread
-                        // Reconcile threads load results into the message queue where they are saved to the database using the Loader Threads
-                        threadCompare ctt = new threadCompare(Props, i, dct, dctmTarget, ciTarget, cid, ts, "database".equals(Props.getProperty("column-hash-method")), stagingTableTarget, qt);
-                        ctt.start();
-                        compareList.add(ctt);
-
-                        // Start Loader Threads
-                        // Loader thread load data from the message queue into the appropriate staging tables in the database.
-                        // A loader thread is started for source and target up to the limit specified by system parameter loader-threads.
-                        if (useLoaderThreads) {
-                            for (int li = 1; li <= Integer.parseInt(Props.getProperty("loader-threads")); li++) {
-                                threadLoader cls = new threadLoader(Props, i, li, "source", qs, stagingTableSource, ts);
-                                cls.start();
-                                loaderList.add(cls);
-                                threadLoader clt = new threadLoader(Props, i, li, "target", qt, stagingTableTarget, ts);
-                                clt.start();
-                                loaderList.add(clt);
-                            }
-                        }
-
-                        // Sleep to avoid flooding source and target databases with connections.
-                        Thread.sleep(2000);
-
-                    }
+                    startReconcileThreads(Props, dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, qs, qt, useLoaderThreads, connRepo);
 
                     Logging.write("info", THREAD_NAME, "Waiting for compare threads to complete");
-                    // Check Threads
-                    for (threadCompare thread : compareList) {
-                        thread.join();
-                    }
+                    joinThreads(compareList);
 
                     Logging.write("info", THREAD_NAME, "Waiting for reconcile threads to complete");
-                    for (threadObserver thread : observerList) {
-                        thread.join();
-                    }
+                    joinThreads(observerList);
                 }
             }
 
-            ////////////////////////////////////////
             // Summarize Results
-            ////////////////////////////////////////
-            dbCommon.simpleExecute(connRepo, "set enable_nestloop='off'");
-
-            binds.clear();
-            binds.add(0, dct.getTid());
-            binds.add(1, dct.getTid());
-
-            Logging.write("info", THREAD_NAME, "Analyzing: Step 1 of 3 - Missing on Source");
-            Integer missingSource = dbCommon.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
-
-            Logging.write("info", THREAD_NAME, "Analyzing: Step 2 of 3 - Missing on Target");
-            Integer missingTarget = dbCommon.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
-
-            Logging.write("info", THREAD_NAME, "Analyzing: Step 3 of 3 - Not Equal");
-            Integer notEqual = dbCommon.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
-
-            dbCommon.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
-
-            result.put("missingSource", missingSource);
-            result.put("missingTarget", missingTarget);
-            result.put("notEqual", notEqual);
-            if (result.getString("compareStatus").equals("processing")) {
-                result.put("compareStatus", (missingSource + missingTarget + notEqual > 0) ? "out-of-sync" : "in-sync");
-            }
-
-            // Update and Check Status
-            binds.clear();
-            binds.add(0, missingSource);
-            binds.add(1, missingTarget);
-            binds.add(2, notEqual);
-            binds.add(3, result.getString("compareStatus"));
-            binds.add(4, cid);
-            CachedRowSet crsResult = dbCommon.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds);
-
-            while (crsResult.next()) {
-                result.put("equal", crsResult.getInt(1));
-            }
-
-            result.put("totalRows",notEqual+missingSource+missingTarget+result.getInt("equal"));
-
-            crsResult.close();
-
-            long endStopWatch = System.currentTimeMillis();
-            long elapsedTime = (endStopWatch - startStopWatch) / 1000;
+            summarizeResults(connRepo, dct.getTid(), result, cid);
+            long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
 
             result.put("elapsedTime", elapsedTime);
             result.put("rowsPerSecond", (result.getInt("elapsedTime") > 0 ) ? result.getInt("totalRows")/elapsedTime : result.getInt("totalRows"));
 
-            DecimalFormat formatter = new DecimalFormat("#,###");
-
-            String msgFormat = "Reconciliation Complete: Table = %s; Status = %s; Equal = %s; Not Equal = %s; Missing Source = %s; Missing Target = %s";
-            Logging.write("info", THREAD_NAME, String.format(msgFormat,dct.getTableAlias(), result.getString("compareStatus"), formatter.format(result.getInt("equal")), formatter.format(result.getInt("notEqual")), formatter.format(result.getInt("missingSource")), formatter.format(result.getInt("missingTarget"))));
+            logFinalResult(result, dct.getTableAlias());
 
             result.put("status", "success");
 
@@ -269,6 +151,138 @@ public class CompareController {
         }
 
         return result;
+    }
+
+    private static JSONObject initializeResult(DCTable dct) {
+        JSONObject result = new JSONObject();
+        result.put("tableName", dct.getTableAlias());
+        result.put("status", "processing");
+        result.put("compareStatus", "processing");
+        result.put("missingSource", 0);
+        result.put("missingTarget", 0);
+        result.put("notEqual", 0);
+        result.put("equal", 0);
+        return result;
+    }
+
+    private static void joinThreads(List<? extends Thread> threads) throws InterruptedException {
+        for (Thread t : threads) {
+            t.join();
+        }
+    }
+
+    private static void logColumnMetadata(ColumnMetadata source, ColumnMetadata target) {
+        Logging.write("info", THREAD_NAME, "(source) Columns: " + source.columnList);
+        Logging.write("info", THREAD_NAME, "(target) Columns: " + target.columnList);
+        Logging.write("info", THREAD_NAME, "(source) PK Columns: " + source.pkList);
+        Logging.write("info", THREAD_NAME, "(target) PK Columns: " + target.pkList);
+    }
+
+    private static void logFinalResult(JSONObject result, String tableAlias) {
+        DecimalFormat formatter = new DecimalFormat("#,###");
+        Logging.write("info", THREAD_NAME, String.format(
+                "Reconciliation Complete: Table = %s; Status = %s; Equal = %s; Not Equal = %s; Missing Source = %s; Missing Target = %s",
+                tableAlias, result.getString("compareStatus"),
+                formatter.format(result.getInt("equal")),
+                formatter.format(result.getInt("notEqual")),
+                formatter.format(result.getInt("missingSource")),
+                formatter.format(result.getInt("missingTarget"))
+        ));
+    }
+
+    private static void prepareCompareSQL(Properties props, DCTableMap source, DCTableMap target,
+                                          ColumnMetadata ciSource, ColumnMetadata ciTarget) {
+        String method = props.getProperty("column-hash-method");
+        source.setCompareSQL(buildLoadSQL(method, source, ciSource));
+        target.setCompareSQL(buildLoadSQL(method, target, ciTarget));
+
+        Logging.write("info", THREAD_NAME, "(source) Compare SQL: " + source.getCompareSQL());
+        Logging.write("info", THREAD_NAME, "(target) Compare SQL: " + target.getCompareSQL());
+    }
+
+    private static void skipReconciliation(Connection connRepo, JSONObject result, String tableName, int cid) {
+        Logging.write("warning", THREAD_NAME, String.format("Table %s has no Primary Key, skipping reconciliation", tableName));
+        result.put("status", "skipped");
+        result.put("compareStatus", "skipped");
+
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.addFirst(cid);
+        SQLService.simpleUpdate(connRepo, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
+    }
+
+    private static void startReconcileThreads(Properties props, DCTable dct, int cid, DCTableMap dctmSource, DCTableMap dctmTarget,
+                                              ColumnMetadata ciSource, ColumnMetadata ciTarget,
+                                              BlockingQueue<DataCompare[]> qs, BlockingQueue<DataCompare[]> qt,
+                                              boolean useLoaderThreads,
+                                              Connection connRepo) throws InterruptedException {
+
+        for (int i = 0; i < dct.getParallelDegree(); i++) {
+            ThreadSync ts = new ThreadSync();
+
+            String columnHashMethod = props.getProperty("column-hash-method");
+
+            String stagingSource = rpc.createStagingTable(props, connRepo, "source", dct.getTid(), i);
+            String stagingTarget = rpc.createStagingTable(props, connRepo, "target", dct.getTid(), i);
+
+            threadObserver observer = new threadObserver(props, dct, cid, ts, i, stagingSource, stagingTarget);
+            observer.start();
+            observerList.add(observer);
+
+            threadCompare srcThread = new threadCompare(props, i, dct, dctmSource, ciSource, cid, ts,
+                    columnHashMethod.equals("database"), stagingSource, qs);
+            threadCompare tgtThread = new threadCompare(props, i, dct, dctmTarget, ciTarget, cid, ts,
+                    columnHashMethod.equals("database"), stagingTarget, qt);
+
+            srcThread.start(); compareList.add(srcThread);
+            tgtThread.start(); compareList.add(tgtThread);
+
+            if (useLoaderThreads) {
+                int loaderThreads = Integer.parseInt(props.getProperty("loader-threads"));
+                for (int li = 1; li <= loaderThreads; li++) {
+                    threadLoader loaderSrc = new threadLoader(props, i, li, "source", qs, stagingSource, ts);
+                    threadLoader loaderTgt = new threadLoader(props, i, li, "target", qt, stagingTarget, ts);
+                    loaderSrc.start(); loaderList.add(loaderSrc);
+                    loaderTgt.start(); loaderList.add(loaderTgt);
+                }
+            }
+
+            Thread.sleep(2000);
+        }
+    }
+
+    private static void summarizeResults(Connection connRepo, long tid, JSONObject result, int cid) throws SQLException {
+        SQLService.simpleExecute(connRepo, "set enable_nestloop='off'");
+
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, tid);
+        binds.add(1, tid);
+        int missingSource = SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING,  binds, true);
+        int missingTarget = SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
+        int notEqual = SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
+        SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
+
+        result.put("missingSource", missingSource);
+        result.put("missingTarget", missingTarget);
+        result.put("notEqual", notEqual);
+
+        if ("processing".equals(result.getString("compareStatus"))) {
+            result.put("compareStatus", (missingSource + missingTarget + notEqual > 0) ? "out-of-sync" : "in-sync");
+        }
+
+        binds.clear();
+        binds.add(0, missingSource);
+        binds.add(1, missingTarget);
+        binds.add(2, notEqual);
+        binds.add(3, result.getString("compareStatus"));
+        binds.add(4, cid);
+
+        try (CachedRowSet crs = SQLService.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds)) {
+            if (crs.next()) {
+                int equal = crs.getInt(1);
+                result.put("equal", equal);
+                result.put("totalRows", equal + missingSource + missingTarget + notEqual);
+            }
+        }
     }
 
     private static Boolean reconcilePreflight(DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, String columnMapping) {

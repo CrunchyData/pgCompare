@@ -116,9 +116,9 @@ public class threadObserver extends Thread  {
         }
 
         try {
-            dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'");
-            dbCommon.simpleExecute(repoConn,"set work_mem='512MB'");
-            dbCommon.simpleExecute(repoConn,"set maintenance_work_mem='1024MB'");
+            SQLService.simpleExecute(repoConn,"set enable_nestloop='off'");
+            SQLService.simpleExecute(repoConn,"set work_mem='512MB'");
+            SQLService.simpleExecute(repoConn,"set maintenance_work_mem='1024MB'");
         } catch (Exception e) {
             // do nothing
         }
@@ -156,7 +156,7 @@ public class threadObserver extends Thread  {
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
-                            dbCommon.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
+                            SQLService.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
                             repoConn.setAutoCommit(false);
                         }
                     }

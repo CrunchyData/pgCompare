@@ -35,6 +35,25 @@ public class JsonUtility {
     }
 
     /**
+     * Build an expression that can be used in a SQL statement to construct a JSON object
+     *
+     * @param platform          Database platform.
+     * @param column            Column name.
+     * @param dataClass         Class of the data type.
+     * @param concatOperator    Operator to use for concatenation
+     * @return                  Expression for SQL statement.
+     */
+    public static String buildJsonExpression(String platform, String column, String dataClass, String concatOperator) {
+        if ("char".equals(dataClass)) {
+            return String.format("'\"%s\": \"' %s %s %s '\"' ", column.replace("\"",""), concatOperator, column, concatOperator);
+        } else if ("mssql".equals(platform)) {
+            return  String.format("'\"%s\": ' %s trim(cast(%s as varchar))",column.replace("\"",""), concatOperator, column);
+        } else {
+            return  String.format("'\"%s\": ' %s %s",column.replace("\"",""), concatOperator, column);
+        }
+    }
+
+    /**
      * Searches for a JSONObject within a JSONArray that contains a specified key-value pair.
      *
      * @param jsonArray the JSONArray to search

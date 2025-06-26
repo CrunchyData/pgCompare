@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Set;
 
+import static com.crunchydata.services.DatabaseService.getNativeCase;
+import static com.crunchydata.services.DatabaseService.getQuoteChar;
 import static com.crunchydata.util.CastUtility.cast;
 import static com.crunchydata.util.CastUtility.castRaw;
 import static com.crunchydata.util.DataUtility.*;
@@ -114,7 +116,7 @@ public class ColumnUtility {
         binds.add(1, columnAlias);
         binds.add(2, destRole);
 
-        CachedRowSet crs = dbCommon.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
+        CachedRowSet crs = SQLService.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
 
         try {
             while (crs.next()) {
@@ -155,7 +157,7 @@ public class ColumnUtility {
         JSONArray columnInfo = new JSONArray();
         String platform = Props.getProperty(destRole + "-type");
         String nativeCase = getNativeCase(platform);
-        String quoteChar = getQuoteString(platform);
+        String quoteChar = getQuoteChar(platform);
 
         String columnSQL = switch (platform) {
             case "oracle" -> SQL_ORACLE_SELECT_COLUMNS;

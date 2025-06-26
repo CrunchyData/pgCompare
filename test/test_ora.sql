@@ -2,6 +2,19 @@ create user pgctest identified by "welcome1";
 grant unlimited tablespace to pgctest;
 grant connect,resource to pgctest;
 
+BEGIN
+EXECUTE IMMEDIATE 'DROP TABLE PGCTEST.charpk';
+EXCEPTION
+	WHEN OTHERS THEN
+	IF SQLCODE != -942 THEN
+		RAISE;
+END IF;
+END;
+
+CREATE TABLE pgctest.charpk (tid varchar(40) NOT null,
+                             CONSTRAINT charpk_pkey PRIMARY KEY (tid));
+
+INSERT INTO pgctest.charpk (tid) values ('test');
 
 BEGIN
 EXECUTE IMMEDIATE 'DROP TABLE PGCTEST."Test_Case"';

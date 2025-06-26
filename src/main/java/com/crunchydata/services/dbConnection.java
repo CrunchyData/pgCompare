@@ -69,7 +69,7 @@ public class dbConnection {
                     break;
                 case "mariadb":
                 case "mysql":
-                    dbCommon.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
+                    SQLService.simpleUpdate(conn,"set session sql_mode='ANSI'", new ArrayList<>(), false);
                     break;
                 case "postgres":
                     conn.setAutoCommit(false);

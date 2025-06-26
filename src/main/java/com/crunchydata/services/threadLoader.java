@@ -96,8 +96,8 @@ public class threadLoader extends Thread  {
                 System.exit(1);
             }
 
-            dbCommon.simpleExecute(connRepo,"set synchronous_commit='off'");
-            dbCommon.simpleExecute(connRepo,"set work_mem='256MB'");
+            SQLService.simpleExecute(connRepo,"set synchronous_commit='off'");
+            SQLService.simpleExecute(connRepo,"set work_mem='256MB'");
 
             connRepo.setAutoCommit(false);
 

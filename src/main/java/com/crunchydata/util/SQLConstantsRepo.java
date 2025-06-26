@@ -190,6 +190,18 @@ public interface SQLConstantsRepo {
             )
             """;
 
+    String REPO_DDL_STAGE_TABLE = """
+            CREATE UNLOGGED TABLE dc_source (
+                    tid int8 NOT NULL,
+                	pk_hash text NULL,
+                	column_hash text NULL,
+                	pk jsonb NULL,
+                	compare_result bpchar(1) NULL
+                ) with (autovacuum_enabled=false, parallel_workers=%s)
+            """;
+
+    String REPO_DDL_DROP_TABLE = "DROP TABLE IF EXISTS %s";
+
 
     //
     // Repository SQL - Compare Task SQL

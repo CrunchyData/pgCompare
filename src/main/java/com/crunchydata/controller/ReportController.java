@@ -11,6 +11,13 @@ public class ReportController {
 
     private static final String THREAD_NAME = "report-ctrl";
 
+    /**
+     *
+     * @param title     Section title
+     * @param data      Report data
+     * @param layout    Layout settings
+     * @return          JSON Object
+     */
     public static JSONObject createSection(String title, Object data, JSONArray layout) {
         return new JSONObject()
                 .put("title", title)
@@ -18,6 +25,13 @@ public class ReportController {
                 .put("layout", layout);
     }
 
+    /**
+     * Generate HTML report.
+     *
+     * @param report        Report content.
+     * @param filePath      HTML file name and location.
+     * @param title         Report title.
+     */
     public static void generateHtmlReport(JSONArray report, String filePath, String title) {
         Logging.write("info","main", String.format("Generating HTML report:  %s...", filePath));
 

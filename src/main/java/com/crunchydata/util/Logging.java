@@ -1,5 +1,8 @@
 package com.crunchydata.util;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.logging.*;
 
 import static com.crunchydata.util.Settings.Props;
@@ -12,82 +15,87 @@ import static com.crunchydata.util.Settings.Props;
  *
  * @author Brian Pace
  */
-public class Logging {
+public final class Logging {
 
     private static final Logger LOGGER = Logger.getLogger(Logging.class.getName());
+    private static final String STDOUT = "stdout";
 
     static {
+        // Set default format for log messages
         System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
     }
 
+    // Private constructor to prevent instantiation
+    private Logging() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
     /**
-     * Initializes the Logging class with the provided properties.
-     *
+     * Initializes the logging configuration based on provided properties.
      */
     public static void initialize() {
-
-        // Set the log level based on the property value
-        Level level = mapLogLevel(Props.getProperty("log-level", "INFO").toUpperCase());
+        Level level = mapLogLevel(Props.getProperty("log-level", "INFO"));
         LOGGER.setLevel(level);
-
         LOGGER.setUseParentHandlers(false);
 
-        Handler[] handlers = LOGGER.getHandlers();
+        setupConsoleHandler(level);
+        setupFileHandler(level);
+    }
 
-        if (handlers.length == 0) {
-            ConsoleHandler handler = new ConsoleHandler();
-            handler.setLevel(level);
-            handler.setFormatter(new SimpleFormatter());
-            LOGGER.addHandler(handler);
+    private static void setupConsoleHandler(Level level) {
+        if (LOGGER.getHandlers().length == 0) {
+            ConsoleHandler consoleHandler = new ConsoleHandler();
+            consoleHandler.setLevel(level);
+            consoleHandler.setFormatter(new SimpleFormatter());
+            LOGGER.addHandler(consoleHandler);
         } else {
-            for (Handler handler : handlers) {
+            for (Handler handler : LOGGER.getHandlers()) {
                 handler.setLevel(level);
             }
         }
+    }
 
-        // Configure file handler if log-destination is not stdout
-        String logDestination = Props.getProperty("log-destination", "stdout");
-        if (!"stdout".equalsIgnoreCase(logDestination)) {
+    private static void setupFileHandler(Level level) {
+        String destination = Props.getProperty("log-destination", STDOUT).trim();
+
+        if (!STDOUT.equalsIgnoreCase(destination)) {
             try {
-                FileHandler fileHandler = new FileHandler(logDestination);
+                // Ensure parent directory exists
+                Files.createDirectories(Paths.get(destination).getParent());
+
+                FileHandler fileHandler = new FileHandler(destination, true);
+                fileHandler.setLevel(level);
                 fileHandler.setFormatter(new SimpleFormatter());
                 LOGGER.addHandler(fileHandler);
-            } catch (Exception e) {
-                System.out.println("Cannot allocate log file, will use stdout");
+            } catch (IOException e) {
+                System.err.printf("Warning: Cannot write to log file '%s'. Falling back to stdout.%n", destination);
             }
         }
     }
 
     private static Level mapLogLevel(String setting) {
-        return switch (setting.toUpperCase()) {
+        return switch (setting.trim().toUpperCase()) {
             case "DEBUG" -> Level.FINE;
             case "TRACE" -> Level.FINEST;
-            case "INFO" -> Level.INFO;
             case "WARN", "WARNING" -> Level.WARNING;
             case "ERROR", "SEVERE" -> Level.SEVERE;
             case "ALL" -> Level.ALL;
             case "OFF" -> Level.OFF;
-            default -> Level.INFO; // safe default
+            case "INFO" -> Level.INFO;
+            default -> Level.INFO; // fallback
         };
     }
 
     /**
-     * Writes a log message at the specified severity level.
+     * Logs a message with the specified severity.
      *
-     * @param severity the severity level of the log message (info, warning, severe)
-     * @param module   the module where the log message originated
-     * @param message  the log message
+     * @param severity the severity level (e.g., INFO, WARNING, ERROR)
+     * @param module   the source module name
+     * @param message  the message to log
      */
     public static void write(String severity, String module, String message) {
+        Level level = mapLogLevel(severity);
         String formattedMessage = String.format("[%-24s] %s", module, message);
-
-        try {
-            Level level = mapLogLevel(severity);
-            LOGGER.log(level, formattedMessage);
-        } catch (IllegalArgumentException e) {
-            LOGGER.fine(formattedMessage);
-        }
-
+        LOGGER.log(level, formattedMessage);
     }
-
 }

@@ -36,9 +36,9 @@ import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import static com.crunchydata.services.DatabaseService.getQuoteChar;
 import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
 import static com.crunchydata.util.ColumnUtility.findColumnAlias;
-import static com.crunchydata.util.DataUtility.getQuoteString;
 import static com.crunchydata.util.SQLConstantsRepo.*;
 
 /**
@@ -86,7 +86,7 @@ public class threadCheck {
                 // Get Column Info and Mapping
                 binds.clear();
                 binds.addFirst(dct.getTid());
-                JSONObject columnMapping = new JSONObject(dbCommon.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
+                JSONObject columnMapping = new JSONObject(SQLService.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
 
                 int pkColumnCount = 0;
                 binds.clear();
@@ -105,8 +105,8 @@ public class threadCheck {
                         Integer value = pk.getInt(key);
                         binds.add(pkColumnCount,value);
                     }
-                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteString(Props.getProperty("source-type"))));
-                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteString(Props.getProperty("target-type"))));
+                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteChar(Props.getProperty("source-type"))));
+                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteChar(Props.getProperty("target-type"))));
                     pkColumnCount++;
                 }
 
@@ -155,8 +155,8 @@ public class threadCheck {
         rowResult.put("missingSource",0);
         rowResult.put("missingTarget",0);
 
-        CachedRowSet sourceRow = dbCommon.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
-        CachedRowSet targetRow = dbCommon.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
+        CachedRowSet sourceRow = SQLService.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
+        CachedRowSet targetRow = SQLService.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
 
         try {
             rowResult.put("pk", dcRow.getPk());
@@ -215,8 +215,8 @@ public class threadCheck {
                 binds.add(0,dcRow.getTid());
                 binds.add(1,dcRow.getPkHash());
                 binds.add(2, dcRow.getBatchNbr());
-                dbCommon.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
-                dbCommon.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
+                SQLService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
+                SQLService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
             } else {
                 Logging.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
             }
@@ -226,7 +226,7 @@ public class threadCheck {
             binds.add(1,sourceRow.size());
             binds.add(2,targetRow.size());
             binds.add(3,cid);
-            dbCommon.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
+            SQLService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
 
 
         } catch (Exception e) {

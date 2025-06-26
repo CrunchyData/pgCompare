@@ -7,7 +7,7 @@ public class Preflight {
     private static final String THREAD_NAME = "preflight-util";
 
     /**
-     * Preflight method to validate settings used for DB2.
+     * Preflight method to validate settings
      *
      */
     public static void database (Properties Props, String targetType) {
@@ -52,7 +52,5 @@ public class Preflight {
         }
 
     }
-
-
 
 }

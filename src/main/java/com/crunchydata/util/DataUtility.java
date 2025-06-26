@@ -16,8 +16,6 @@
 
 package com.crunchydata.util;
 
-import com.crunchydata.services.*;
-
 import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -73,28 +71,6 @@ public class DataUtility {
         }
 
         return true;
-    }
-
-    public static String getNativeCase(String databasePlatform) {
-        return switch (databasePlatform) {
-            case "oracle" -> dbOracle.nativeCase;
-            case "mariadb" -> dbMariaDB.nativeCase;
-            case "mysql" -> dbMySQL.nativeCase;
-            case "mssql" -> dbMSSQL.nativeCase;
-            case "db2" -> dbDB2.nativeCase;
-            default -> dbPostgres.nativeCase;
-        };
-    }
-
-    public static String getQuoteString(String databasePlatform) {
-        return switch (databasePlatform) {
-            case "oracle" -> dbOracle.quoteChar;
-            case "mariadb" -> dbMariaDB.quoteChar;
-            case "mysql" -> dbMySQL.quoteChar;
-            case "mssql" -> dbMSSQL.quoteChar;
-            case "db2" -> dbDB2.quoteChar;
-            default -> dbPostgres.quoteChar;
-        };
     }
 
     public static boolean isMixedCase(String str) {
