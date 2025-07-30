@@ -501,7 +501,7 @@ public class pgCompare {
         System.out.println("   copy-table    Copy pgCompare metadata for table.  Must specify table alias to copy using --table option");
         System.out.println("   discover      Disocver tables and columns");
         System.out.println("   init          Initialize the repository database");
-        System.out.println("   load-project  Load properties file into dc_project table.  Must specify target project id using --project option");
+        //System.out.println("   load-project  Load properties file into dc_project table.  Must specify target project id using --project option");
         System.out.println("Options:");
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -p|--project Project ID");

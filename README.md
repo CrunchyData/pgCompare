@@ -95,6 +95,7 @@ java -jar pgcompare.jar <action> <options>
 Actions:
 - **check**:  Recompare the out of sync rows from previous compare
 - **compare**:  Perform database compare
+- **copy-table**: Copy pgCompare metadata for table.  Must specify table alias to copy using --table option
 - **discover**:  Disocver tables and columns
 - **init**: Initialize the repository database
 
@@ -226,7 +227,7 @@ Properties are categorized into four sections: system, repository, source, and t
 - batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
 - batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
 - batch-progress-report-size:  Defines the number of rows used in mod to report progress.
-- database-source:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
+- database-sort:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
 - loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
 - log-level:   Level to determine the amount of log messages written to the log destination.
 - log-destination:  Location where log messages will be written.  Default is stdout.
@@ -235,6 +236,8 @@ Properties are categorized into four sections: system, repository, source, and t
 - observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
 - observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
 - observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
+- stage-table-parallel: Default parallel degree to set on staging table (default: 0)
+- standard-number-format: Format used to cast numbers (default:0000000000000000000000.0000000000000000000000)
 
 ### Repository
 
