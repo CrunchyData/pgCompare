@@ -23,7 +23,9 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Utility class for managing application settings.
@@ -64,6 +66,13 @@ public class Settings {
     public static final String VERSION = "0.4.0.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
+    static Map<String, Set<String>> validPropertyValues = Map.of(
+            "column-hash-method", Set.of("database", "hybrid", "raw"),
+            "number-cast", Set.of("notation", "standard"),
+            "source-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql"),
+            "target-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql")
+    );
+
     static {
          Properties configProperties = setDefaults();
 
@@ -99,7 +108,7 @@ public class Settings {
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
-        defaultProps.setProperty("column-hash-method","raw|database|hybrid");
+        defaultProps.setProperty("column-hash-method","database");
         defaultProps.setProperty("database-sort","true");
         defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
@@ -111,7 +120,6 @@ public class Settings {
         defaultProps.setProperty("observer-vacuum","true");
         defaultProps.setProperty("stage-table-parallel","0");
         defaultProps.setProperty("standard-number-format","0000000000000000000000.0000000000000000000000");
-        defaultProps.setProperty("work-area","repo");
 
 
         // Repository
@@ -190,5 +198,6 @@ public class Settings {
         }
 
     }
+
 
 }

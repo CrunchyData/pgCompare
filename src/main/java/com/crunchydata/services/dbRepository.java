@@ -73,5 +73,8 @@ public class dbRepository {
         // Data
         SQLService.simpleUpdate(conn,REPO_DDL_DC_PROJECT_DATA, binds, true);
 
+        // Functions
+        SQLService.simpleUpdate(conn,REPO_DDL_DC_COPY_TABLE, binds, true);
+
     }
 }

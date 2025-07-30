@@ -21,7 +21,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 
 import com.crunchydata.controller.RepoController;
@@ -33,6 +32,8 @@ import com.crunchydata.util.*;
 
 import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.HashUtility.getMd5;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_STAGETABLE_INSERT;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread to pull data from source or target and load into the repository database.
@@ -46,9 +47,8 @@ public class threadCompare extends Thread {
     private BlockingQueue<DataCompare[]> q;
     private final ThreadSync ts;
     private final Boolean useDatabaseHash;
-    private Properties Props;
 
-    public threadCompare(Properties Props, Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
+    public threadCompare(Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;
         this.modColumn = dctm.getModColumn();
         this.parallelDegree = dct.getParallelDegree();
@@ -63,7 +63,6 @@ public class threadCompare extends Thread {
         this.useDatabaseHash = useDatabaseHash;
         this.batchNbr = dct.getBatchNbr();
         this.stagingTable = stagingTable;
-        this.Props = Props;
     }
 
     public void run() {
@@ -131,7 +130,7 @@ public class threadCompare extends Thread {
             StringBuilder columnValue = new StringBuilder();
 
             if (!useLoaderThreads) {
-                String sqlLoad = "INSERT INTO " + stagingTable + " (tid, pk_hash, column_hash, pk) VALUES (?,?,?,(?)::jsonb)";
+                String sqlLoad = String.format(SQL_REPO_STAGETABLE_INSERT, stagingTable);
                 connRepo.setAutoCommit(false);
                 stmtLoad = connRepo.prepareStatement(sqlLoad);
             }

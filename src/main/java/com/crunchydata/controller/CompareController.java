@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import javax.sql.rowset.CachedRowSet;
@@ -37,6 +36,7 @@ import com.crunchydata.services.*;
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
 import static com.crunchydata.services.DatabaseService.buildLoadSQL;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.Settings.Props;
 import static java.lang.Integer.parseInt;
 
 import org.json.JSONObject;
@@ -65,7 +65,7 @@ public class CompareController {
      * @param check          Whether to perform a check
      * @return JSON object with reconciliation results
      */
-    public static JSONObject reconcileData(Properties Props, Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
+    public static JSONObject reconcileData( Connection connRepo, Connection connSource, Connection connTarget, long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
 
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject columnMap;
@@ -106,11 +106,11 @@ public class CompareController {
             Integer cid = rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
 
             // Generate Compare SQL
-            prepareCompareSQL(Props, dctmSource, dctmTarget, ciSource, ciTarget);
+            prepareCompareSQL(dctmSource, dctmTarget, ciSource, ciTarget);
 
             if (check) {
                 // Execute recheck of rows that were out of sync during last run
-                checkResult = threadCheck.checkRows(Props, connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+                checkResult = threadCheck.checkRows(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
                 result.put("checkResult", checkResult);
             } else {
                 // Execute Compare SQL
@@ -119,7 +119,7 @@ public class CompareController {
                     skipReconciliation(connRepo, result, dctmTarget.getTableName(), cid);
                 } else {
                     Logging.write("info", THREAD_NAME, "Starting compare hash threads");
-                    startReconcileThreads(Props, dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, qs, qt, useLoaderThreads, connRepo);
+                    startReconcileThreads( dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, qs, qt, useLoaderThreads, connRepo);
 
                     Logging.write("info", THREAD_NAME, "Waiting for compare threads to complete");
                     joinThreads(compareList);
@@ -147,7 +147,7 @@ public class CompareController {
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
             result.put("status", "failed");
-            Logging.write("severe", THREAD_NAME, String.format("Error in reconcile controller at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error in compare controller at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         return result;
@@ -190,9 +190,9 @@ public class CompareController {
         ));
     }
 
-    private static void prepareCompareSQL(Properties props, DCTableMap source, DCTableMap target,
+    private static void prepareCompareSQL(DCTableMap source, DCTableMap target,
                                           ColumnMetadata ciSource, ColumnMetadata ciTarget) {
-        String method = props.getProperty("column-hash-method");
+        String method = Props.getProperty("column-hash-method");
         source.setCompareSQL(buildLoadSQL(method, source, ciSource));
         target.setCompareSQL(buildLoadSQL(method, target, ciTarget));
 
@@ -210,7 +210,7 @@ public class CompareController {
         SQLService.simpleUpdate(connRepo, "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", binds, true);
     }
 
-    private static void startReconcileThreads(Properties props, DCTable dct, int cid, DCTableMap dctmSource, DCTableMap dctmTarget,
+    private static void startReconcileThreads(DCTable dct, int cid, DCTableMap dctmSource, DCTableMap dctmTarget,
                                               ColumnMetadata ciSource, ColumnMetadata ciTarget,
                                               BlockingQueue<DataCompare[]> qs, BlockingQueue<DataCompare[]> qt,
                                               boolean useLoaderThreads,
@@ -219,28 +219,28 @@ public class CompareController {
         for (int i = 0; i < dct.getParallelDegree(); i++) {
             ThreadSync ts = new ThreadSync();
 
-            String columnHashMethod = props.getProperty("column-hash-method");
+            String columnHashMethod = Props.getProperty("column-hash-method");
 
-            String stagingSource = rpc.createStagingTable(props, connRepo, "source", dct.getTid(), i);
-            String stagingTarget = rpc.createStagingTable(props, connRepo, "target", dct.getTid(), i);
+            String stagingSource = rpc.createStagingTable( connRepo, "source", dct.getTid(), i);
+            String stagingTarget = rpc.createStagingTable( connRepo, "target", dct.getTid(), i);
 
-            threadObserver observer = new threadObserver(props, dct, cid, ts, i, stagingSource, stagingTarget);
+            threadObserver observer = new threadObserver( dct, cid, ts, i, stagingSource, stagingTarget);
             observer.start();
             observerList.add(observer);
 
-            threadCompare srcThread = new threadCompare(props, i, dct, dctmSource, ciSource, cid, ts,
+            threadCompare srcThread = new threadCompare( i, dct, dctmSource, ciSource, cid, ts,
                     columnHashMethod.equals("database"), stagingSource, qs);
-            threadCompare tgtThread = new threadCompare(props, i, dct, dctmTarget, ciTarget, cid, ts,
+            threadCompare tgtThread = new threadCompare( i, dct, dctmTarget, ciTarget, cid, ts,
                     columnHashMethod.equals("database"), stagingTarget, qt);
 
             srcThread.start(); compareList.add(srcThread);
             tgtThread.start(); compareList.add(tgtThread);
 
             if (useLoaderThreads) {
-                int loaderThreads = Integer.parseInt(props.getProperty("loader-threads"));
+                int loaderThreads = Integer.parseInt(Props.getProperty("loader-threads"));
                 for (int li = 1; li <= loaderThreads; li++) {
-                    threadLoader loaderSrc = new threadLoader(props, i, li, "source", qs, stagingSource, ts);
-                    threadLoader loaderTgt = new threadLoader(props, i, li, "target", qt, stagingTarget, ts);
+                    threadLoader loaderSrc = new threadLoader( i, li, "source", qs, stagingSource, ts);
+                    threadLoader loaderTgt = new threadLoader( i, li, "target", qt, stagingTarget, ts);
                     loaderSrc.start(); loaderList.add(loaderSrc);
                     loaderTgt.start(); loaderList.add(loaderTgt);
                 }
@@ -249,6 +249,7 @@ public class CompareController {
             Thread.sleep(2000);
         }
     }
+
 
     private static void summarizeResults(Connection connRepo, long tid, JSONObject result, int cid) throws SQLException {
         SQLService.simpleExecute(connRepo, "set enable_nestloop='off'");

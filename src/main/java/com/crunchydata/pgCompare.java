@@ -27,8 +27,11 @@ import java.util.List;
 import static com.crunchydata.controller.TableController.getTableMap;
 import static com.crunchydata.controller.ReportController.createSection;
 import static com.crunchydata.controller.ReportController.generateHtmlReport;
+import static com.crunchydata.services.SQLService.simpleUpdateReturningInteger;
 import static com.crunchydata.services.dbConnection.closeDatabaseConnection;
 import static com.crunchydata.services.dbConnection.getConnection;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLE_SELECT_BYNAME;
+import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DC_COPY_TABLE;
 import static com.crunchydata.util.Settings.*;
 
 import com.crunchydata.controller.*;
@@ -100,9 +103,17 @@ public class pgCompare {
             setProjectConfig(connRepo, pid);
         }
 
+
         // Preflight
-        Preflight.database(Props,"source");
-        Preflight.database(Props,"target");
+        if ( ! Preflight.all(action) ) {
+            Logging.write("severe", THREAD_NAME, "Error in preflight");
+            try {
+                connRepo.close();
+            } catch (Exception e) {
+                //nothing
+            }
+            System.exit(1);
+        }
 
         // Sort and Output parameter settings
         Logging.write("info", THREAD_NAME, "Parameters: ");
@@ -138,6 +149,9 @@ public class pgCompare {
             case "check":
             case "compare":
                 performCompare();
+                break;
+            case "copy-table":
+                performCopyTable();
                 break;
             default:
                 Logging.write("severe", THREAD_NAME, "Invalid action specified");
@@ -190,32 +204,47 @@ public class pgCompare {
                 DCTable dct = new DCTable();
                 dct.setPid(pid);
                 dct.setTid(crsTable.getInt("tid"));
-                dct.setStatus(crsTable.getString("status"));
+                dct.setEnabled(crsTable.getBoolean("enabled"));
                 dct.setBatchNbr(crsTable.getInt("batch_nbr"));
                 dct.setParallelDegree(crsTable.getInt("parallel_degree"));
                 dct.setTableAlias(crsTable.getString("table_alias"));
 
-                Logging.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE:  %s ---",dct.getTableAlias().toUpperCase()));
+                JSONObject actionResult;
 
-                // Construct DCTableMap Class for Source
-                DCTableMap sourceTableMap = createTableMap("source",dct);
+                if ( dct.getEnabled() ) {
+                    Logging.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE:  %s ---",dct.getTableAlias().toUpperCase()));
 
-                // Construct DCTableMap Class for Target
-                DCTableMap targetTableMap = createTableMap("target",dct);
+                    // Construct DCTableMap Class for Source
+                    DCTableMap sourceTableMap = createTableMap("source",dct);
 
-                // Create Table History Entry
-                rpc.startTableHistory(connRepo,dct.getTid(), "reconcile", dct.getBatchNbr());
+                    // Construct DCTableMap Class for Target
+                    DCTableMap targetTableMap = createTableMap("target",dct);
 
-                // Clear previous reconciliation results if not recheck.
-                if (!check) {
-                    Logging.write("info", THREAD_NAME, "Clearing data compare findings");
-                    rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
+                    // Create Table History Entry
+                    rpc.startTableHistory(connRepo,dct.getTid(), dct.getBatchNbr());
+
+                    // Clear previous reconciliation results if not recheck.
+                    if (!check) {
+                        Logging.write("info", THREAD_NAME, "Clearing data compare findings");
+                        rpc.deleteDataCompare(connRepo, dct.getTid(), dct.getBatchNbr());
+                    }
+
+                    // Start compare
+                    actionResult = CompareController.reconcileData(connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
+
+                    rpc.completeTableHistory(connRepo, dct.getTid(), dct.getBatchNbr(), 0, actionResult.toString());
+
+                } else {
+                    Logging.write("warning", THREAD_NAME, String.format("Skipping disabled table:  %s",dct.getTableAlias().toUpperCase()));
+                    actionResult = new JSONObject();
+                    actionResult.put("tableName", dct.getTableAlias());
+                    actionResult.put("status", "skipped");
+                    actionResult.put("compareStatus", "disabled");
+                    actionResult.put("missingSource", 0);
+                    actionResult.put("missingTarget", 0);
+                    actionResult.put("notEqual", 0);
+                    actionResult.put("equal", 0);
                 }
-
-                // Start compare
-                JSONObject actionResult = CompareController.reconcileData(Props, connRepo, connSource, connTarget, startStopWatch, check, dct, sourceTableMap, targetTableMap);
-
-                rpc.completeTableHistory(connRepo, dct.getTid(), "reconcile", dct.getBatchNbr(), 0, actionResult.toString());
 
                 runResult.put(actionResult);
 
@@ -229,6 +258,33 @@ public class pgCompare {
 
         createSummary(tablesProcessed, runResult, startStopWatch, check);
 
+    }
+
+    //
+    // Copy Table
+    //
+    private static int performCopyTable() {
+        int newTID = 0;
+        String tableName = Props.getProperty("table");
+        String newTableName = Props.getProperty("table")+"_copy";
+
+        Logging.write("info", THREAD_NAME, String.format("Copying table and column map for %s to %s", tableName, newTableName));
+
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0,Props.getProperty("table"));
+
+        Integer tid = SQLService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
+
+        binds.clear();
+        binds.add(0,pid);
+        binds.add(1,tid);
+        binds.add(2,newTableName);
+
+        newTID = simpleUpdateReturningInteger(connRepo, SQL_REPO_DC_COPY_TABLE, null);
+
+
+
+        return newTID;
     }
 
     //
@@ -289,6 +345,11 @@ public class pgCompare {
             // Set parameters
             if (cmd.hasOption("project")) {
                 pid = Integer.parseInt(cmd.getOptionValue("project"));
+                Props.setProperty("pid", pid.toString());
+            }
+
+            if (cmd.hasOption("table")) {
+                Props.setProperty("table", cmd.getOptionValue("table"));
             }
 
             batchParameter = (cmd.hasOption("batch")) ?
@@ -435,10 +496,12 @@ public class pgCompare {
         System.out.println("pgcompare <action> <options>");
         System.out.println();
         System.out.println("Actions:");
-        System.out.println("   check     Recompare the out of sync rows from previous compare");
-        System.out.println("   compare   Perform database compare");
-        System.out.println("   discover  Disocver tables and columns");
-        System.out.println("   init      Initialize the repository database");
+        System.out.println("   check         Recompare the out of sync rows from previous compare");
+        System.out.println("   compare       Perform database compare");
+        System.out.println("   copy-table    Copy pgCompare metadata for table.  Must specify table alias to copy using --table option");
+        System.out.println("   discover      Disocver tables and columns");
+        System.out.println("   init          Initialize the repository database");
+        System.out.println("   load-project  Load properties file into dc_project table.  Must specify target project id using --project option");
         System.out.println("Options:");
         System.out.println("   -b|--batch <batch nbr>");
         System.out.println("   -p|--project Project ID");

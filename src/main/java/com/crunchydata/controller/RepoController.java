@@ -18,7 +18,6 @@ package com.crunchydata.controller;
 
 import java.sql.Connection;
 import java.util.ArrayList;
-import java.util.Properties;
 import javax.sql.rowset.CachedRowSet;
 
 import com.crunchydata.models.DCTable;
@@ -29,6 +28,7 @@ import com.crunchydata.services.SQLService;
 import com.crunchydata.util.Logging;
 
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Controller class for managing repository operations.
@@ -45,19 +45,16 @@ public class RepoController {
      *
      * @param conn         Database connection
      * @param tid          Table ID
-     * @param actionType   Type of action
      * @param batchNbr     Batch number
      * @param rowCount     Number of rows processed
      * @param actionResult JSON string representing the action result
      */
-    public void completeTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr, Integer rowCount, String actionResult) {
+    public void completeTableHistory (Connection conn, Integer tid, Integer batchNbr, Integer rowCount, String actionResult) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,rowCount);
         binds.add(1,actionResult);
         binds.add(2,tid);
-        binds.add(3,actionType);
-        binds.add(4,"reconcile");
-        binds.add(5,batchNbr);
+        binds.add(3,batchNbr);
 
         SQLService.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_UPDATE, binds, true);
     }
@@ -71,7 +68,7 @@ public class RepoController {
      * @param threadNbr     Thread number
      * @return              The name of the created staging table
      */
-    public String createStagingTable(Properties Props, Connection conn, String location, Integer tid, Integer threadNbr) {
+    public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
         String sql = String.format(REPO_DDL_STAGE_TABLE, Props.getProperty("stage-table-parallel"));
 
         String stagingTable = String.format("dc_%s_%s_%s",location,tid,threadNbr);
@@ -140,7 +137,7 @@ public class RepoController {
         ArrayList<Object> binds = new ArrayList<>();
         binds.addFirst(pid);
 
-        return SQLService.simpleSelectReturnString(conn, "SELECT coalesce(project_config,'{}') project_config FROM dc_project WHERE pid=?", binds);
+        return SQLService.simpleSelectReturnString(conn, SQL_REPO_DCPROJECT_GETBYPID, binds);
     }
 
 
@@ -291,15 +288,12 @@ public class RepoController {
      *
      * @param conn        Database connection
      * @param tid         Table ID
-     * @param actionType  Type of action
      * @param batchNbr    Batch number
      */
-    public void startTableHistory (Connection conn, Integer tid, String actionType, Integer batchNbr) {
+    public void startTableHistory (Connection conn, Integer tid, Integer batchNbr) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,tid);
-        binds.add(1,actionType);
-        binds.add(2,"reconcile");
-        binds.add(3,batchNbr);
+        binds.add(1,batchNbr);
         SQLService.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_INSERT, binds, true);
     }
 

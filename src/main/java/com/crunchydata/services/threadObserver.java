@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Properties;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.models.DCTable;
@@ -30,6 +29,7 @@ import com.crunchydata.util.ThreadSync;
 import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread class that observes the reconciliation process between source and target tables.
@@ -56,7 +56,6 @@ public class threadObserver extends Thread  {
     private final String stagingTableSource;
     private final String stagingTableTarget;
     private ThreadSync ts;
-    private Properties Props;
     private final Boolean useLoaderThreads;
 
 
@@ -71,7 +70,7 @@ public class threadObserver extends Thread  {
      *
      * @author Brian Pace
      */
-    public threadObserver(Properties Props, DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
+    public threadObserver(DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
         this.tid = dct.getTid();
         this.tableAlias = dct.getTableAlias();
         this.cid = cid;
@@ -80,7 +79,6 @@ public class threadObserver extends Thread  {
         this.batchNbr = dct.getBatchNbr();
         this.stagingTableSource = stagingTableSource;
         this.stagingTableTarget = stagingTableTarget;
-        this.Props = Props;
         this.useLoaderThreads =  (Integer.parseInt(Props.getProperty("loader-threads")) > 0);
     }
 

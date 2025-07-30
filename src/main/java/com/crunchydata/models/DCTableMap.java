@@ -30,7 +30,6 @@ public class DCTableMap {
     private String schemaName;
     private String tableName;
     private String modColumn;
-    private Integer parallelDegree = 1;
     private String tableFilter;
     private boolean tablePreserveCase = false;
     private boolean schemaPreserveCase = false;

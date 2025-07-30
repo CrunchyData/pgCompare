@@ -1,10 +1,38 @@
 package com.crunchydata.util;
 
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+
+import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.Settings.validPropertyValues;
 
 public class Preflight {
 
     private static final String THREAD_NAME = "preflight-util";
+
+    public static boolean all (String action) {
+
+        // Properties Preflight
+        if ( !validateProperties()) {
+            Logging.write("severe", THREAD_NAME, "Invalid properties");
+            return false;
+        }
+
+        // Action Preflights
+        if ( action.equals("copy-table") ) {
+            if (Props.getProperty("table").length() > 0) {
+                Logging.write("severe", THREAD_NAME, "Must specify a table alias to copy using --table option");
+                return false;
+            }
+        }
+
+        // Database Preflight
+        Preflight.database(Props,"source");
+        Preflight.database(Props,"target");
+
+        return true;
+    }
 
     /**
      * Preflight method to validate settings
@@ -51,6 +79,21 @@ public class Preflight {
 
         }
 
+    }
+
+    public static boolean validateProperties () {
+        for (Map.Entry<String, Set<String>> entry : validPropertyValues.entrySet() ) {
+            String propertyName = entry.getKey();
+            Set<String> validValues = entry.getValue();
+
+            if (! validValues.contains(Props.getProperty(propertyName))) {
+                Logging.write("severe","Settings", String.format("Property %s has an invalid value.  Valid values are: %s", propertyName, validValues.toString()));
+                return false;
+            }
+
+        }
+
+        return true;
     }
 
 }

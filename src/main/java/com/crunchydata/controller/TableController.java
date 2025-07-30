@@ -104,7 +104,6 @@ public class TableController {
                 result.setDestType(crs.getString("dest_type"));
                 result.setSchemaName(crs.getString("schema_name"));
                 result.setTableName(crs.getString("table_name"));
-                result.setParallelDegree(crs.getInt("parallel_degree"));
                 result.setModColumn(crs.getString("mod_column"));
                 result.setTableFilter(crs.getString("table_filter"));
                 result.setSchemaPreserveCase(crs.getBoolean("schema_preserve_case"));

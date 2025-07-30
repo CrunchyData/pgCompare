@@ -63,49 +63,55 @@ public class ColumnController {
             for (int i = 0; i < columnsArray.length(); i++) {
                 JSONObject columnObject = columnsArray.getJSONObject(i);
 
-                JSONObject joColumn = columnObject.getJSONObject(targetType);
+                if (columnObject.getBoolean("enabled")) {
+                    JSONObject joColumn = columnObject.getJSONObject(targetType);
 
-                String columnName = ShouldQuoteString(
-                        joColumn.getBoolean("preserveCase"),
-                        joColumn.getString("columnName"),
-                        quoteChar
-                );
-
-                String dataType = joColumn.getString("dataType").toLowerCase();
-                String dataClass = joColumn.getString("dataClass");
-                String columnHashMethod = Props.getProperty("column-hash-method");
-
-                // If map_expression is not overridden, generate default expression
-                if ( joColumn.isNull("valueExpression") || joColumn.getString("valueExpression").isEmpty() ) {
-                    joColumn.put("valueExpression",  "raw".equals(columnHashMethod)
-                                                        ? castRaw(dataType, columnName, platform)
-                                                        : cast(dataType, columnName, platform, joColumn)
+                    String columnName = ShouldQuoteString(
+                            joColumn.getBoolean("preserveCase"),
+                            joColumn.getString("columnName"),
+                            quoteChar
                     );
+
+                    String dataType = joColumn.getString("dataType").toLowerCase();
+                    String dataClass = joColumn.getString("dataClass");
+                    String columnHashMethod = Props.getProperty("column-hash-method");
+
+                    // If map_expression is not overridden, generate default expression
+                    if ( joColumn.isNull("valueExpression") || joColumn.getString("valueExpression").isEmpty() ) {
+                        joColumn.put("valueExpression",  "raw".equals(columnHashMethod)
+                                ? castRaw(dataType, columnName, platform)
+                                : cast(dataType, columnName, platform, joColumn)
+                        );
+                    } else {
+                        Logging.write("info", THREAD_NAME, String.format("(%s) Using custom column expression for column %s: %s", targetType, columnObject.getString("columnAlias"),joColumn.getString("valueExpression")));
+                    }
+
+                    Logging.write("debug", THREAD_NAME, String.format("(%s) Mapping expression for column %s: %s", targetType, columnObject.getString("columnAlias"), joColumn.getString("valueExpression")));
+
+                    // Identify if column is primary key and save primary keys to pk string
+                    if (joColumn.getBoolean("primaryKey")) {
+                        String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteChar(platform)) : joColumn.getString("columnName").toLowerCase();
+                        nbrPKColumns++;
+
+                        pkHash.add(joColumn.getString("valueExpression"));
+
+                        pkList.add(pkColumn);
+
+                        pkJSON.add(buildJsonExpression(platform, pkColumn, dataClass, concatOperator));
+
+                    } else {
+                        // Process non-primary key columns
+                        nbrColumns++;
+                        columnList.add(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteChar(platform)));
+                        columnExpressionList.add(useDatabaseHash
+                                ? joColumn.getString("valueExpression")
+                                : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase());
+                    }
+
                 } else {
-                    Logging.write("info", THREAD_NAME, String.format("(%s) Using custom column expression for column %s: %s", targetType, columnObject.getString("columnAlias"),joColumn.getString("valueExpression")));
+                    Logging.write("warning", THREAD_NAME, String.format("Skipping disabled column:  %s", columnObject.getString("columnAlias")));
                 }
 
-                Logging.write("debug", THREAD_NAME, String.format("(%s) Mapping expression for column %s: %s", targetType, columnObject.getString("columnAlias"), joColumn.getString("valueExpression")));
-
-                // Identify if column is primary key and save primary keys to pk string
-                if (joColumn.getBoolean("primaryKey")) {
-                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteChar(platform)) : joColumn.getString("columnName").toLowerCase();
-                    nbrPKColumns++;
-
-                    pkHash.add(joColumn.getString("valueExpression"));
-
-                    pkList.add(pkColumn);
-
-                    pkJSON.add(buildJsonExpression(platform, pkColumn, dataClass, concatOperator));
-
-                } else {
-                    // Process non-primary key columns
-                    nbrColumns++;
-                    columnList.add(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteChar(platform)));
-                    columnExpressionList.add(useDatabaseHash
-                            ? joColumn.getString("valueExpression")
-                            : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase());
-                }
 
             }
 

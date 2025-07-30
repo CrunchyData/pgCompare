@@ -23,7 +23,6 @@ import com.crunchydata.util.ThreadSync;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -48,7 +47,6 @@ public class threadLoader extends Thread  {
     private final String targetType;
     private final Integer threadNumber;
     private final ThreadSync ts;
-    private Properties Props;
 
     /**
      * Constructor for initializing a dbLoader instance.
@@ -60,14 +58,13 @@ public class threadLoader extends Thread  {
      * @param stagingTable The name of the staging table in the repository database.
      * @param ts The ThreadSync object for coordinating thread synchronization.
      */
-    public threadLoader(Properties Props, Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
+    public threadLoader(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
         this.q = q;
         this.instanceNumber = instanceNumber;
         this.stagingTable = stagingTable;
         this.targetType = targetType;
         this.threadNumber = threadNumber;
         this.ts = ts;
-        this.Props = Props;
     }
 
     /**

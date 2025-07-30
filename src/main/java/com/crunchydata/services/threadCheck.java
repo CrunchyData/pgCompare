@@ -21,7 +21,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Properties;
 import javax.sql.RowSetMetaData;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
@@ -40,6 +39,7 @@ import static com.crunchydata.services.DatabaseService.getQuoteChar;
 import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
 import static com.crunchydata.util.ColumnUtility.findColumnAlias;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread to perform reconciliation checks on rows that are out of sync.
@@ -61,7 +61,7 @@ public class threadCheck {
      * @param ciTarget           Column metadata from target database.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static JSONObject checkRows (Properties Props, Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
+    public static JSONObject checkRows (Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
         JSONArray rows = new JSONArray();
