@@ -1,5 +1,11 @@
 create schema pgctest;
 
+DROP TABLE IF EXISTS pgctest.charpk;
+CREATE TABLE pgctest.charpk (tid varchar(40) NOT null,
+                             CONSTRAINT charpk_pkey PRIMARY KEY (tid));
+
+INSERT INTO pgctest.charpk (tid) values ('test');
+
 --
 -- Test using Case sensitive table and column names
 --

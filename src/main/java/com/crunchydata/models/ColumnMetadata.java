@@ -29,8 +29,8 @@ public class ColumnMetadata {
     public String columnList;
     public Integer nbrColumns;
     public Integer nbrPKColumns;
-    public String column;
-    public String pk;
+    public String columnExpressionList;
+    public String pkExpressionList;
     public String pkList;
     public String pkJSON;
 }

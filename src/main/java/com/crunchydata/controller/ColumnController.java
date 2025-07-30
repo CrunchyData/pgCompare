@@ -9,11 +9,18 @@ import org.json.JSONObject;
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
+import static com.crunchydata.services.DatabaseService.getConcatOperator;
+import static com.crunchydata.services.DatabaseService.getQuoteChar;
+import static com.crunchydata.util.CastUtility.cast;
+import static com.crunchydata.util.CastUtility.castRaw;
 import static com.crunchydata.util.ColumnUtility.getColumns;
 import static com.crunchydata.util.DataUtility.*;
+import static com.crunchydata.util.JsonUtility.buildJsonExpression;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * ColumnController class that collects column metadata.
@@ -21,7 +28,7 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
  * @author Brian Pace
  */
 public class ColumnController {
-    private static final String THREAD_NAME = "ColumnController";
+    private static final String THREAD_NAME = "column-ctrl";
 
     /**
      * Retrieves column metadata for a given table.
@@ -37,15 +44,18 @@ public class ColumnController {
     public static ColumnMetadata getColumnInfo(JSONObject columnMap, String targetType, String platform, String schema, String table, Boolean useDatabaseHash) {
         Logging.write("info", THREAD_NAME, String.format("(%s) Building column expressions for %s.%s",targetType, schema,table));
 
-        // Variables
-        StringBuilder column = new StringBuilder();
-        StringBuilder columnList = new StringBuilder();
-        String concatOperator = platform.equals("mssql") ? "+" : "||";
+        String concatOperator = getConcatOperator(platform);
+
         int nbrColumns = 0;
-        Integer nbrPKColumns = 0;
-        StringBuilder pk = new StringBuilder();
-        StringBuilder pkJSON = new StringBuilder();
-        StringBuilder pkList = new StringBuilder();
+        int nbrPKColumns = 0;
+
+        List<String> pkList = new ArrayList<>();
+        List<String> columnList = new ArrayList<>();
+        List<String> columnExpressionList = new ArrayList<>();
+        List<String> pkHash = new ArrayList<>();
+        List<String> pkJSON = new ArrayList<>();
+
+        String quoteChar = getQuoteChar(platform);
 
         // Gather column metadata from the columnMap json and save in the ColumnMetadata class
         try {
@@ -53,61 +63,61 @@ public class ColumnController {
             for (int i = 0; i < columnsArray.length(); i++) {
                 JSONObject columnObject = columnsArray.getJSONObject(i);
 
-                JSONObject joColumn = columnObject.getJSONObject(targetType);
+                if (columnObject.getBoolean("enabled")) {
+                    JSONObject joColumn = columnObject.getJSONObject(targetType);
 
-                // Identify if column is priary key and save primary keys to pk string
-                if (joColumn.getBoolean("primaryKey")) {
-                    String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform)) : joColumn.getString("columnName").toLowerCase();
-                    nbrPKColumns++;
-                    pk.append(joColumn.getString("valueExpression"))
-                            .append(concatOperator)
-                            .append("'.'")
-                            .append(concatOperator);
-                    pkList.append(pkColumn).append(",");
+                    String columnName = ShouldQuoteString(
+                            joColumn.getBoolean("preserveCase"),
+                            joColumn.getString("columnName"),
+                            quoteChar
+                    );
 
-                    if (pkJSON.isEmpty()) {
-                        pkJSON.append("'{'").append(concatOperator);
+                    String dataType = joColumn.getString("dataType").toLowerCase();
+                    String dataClass = joColumn.getString("dataClass");
+                    String columnHashMethod = Props.getProperty("column-hash-method");
+
+                    // If map_expression is not overridden, generate default expression
+                    if ( joColumn.isNull("valueExpression") || joColumn.getString("valueExpression").isEmpty() ) {
+                        joColumn.put("valueExpression",  "raw".equals(columnHashMethod)
+                                ? castRaw(dataType, columnName, platform)
+                                : cast(dataType, columnName, platform, joColumn)
+                        );
                     } else {
-                        pkJSON.append(concatOperator).append(" ',' ").append(concatOperator);
+                        Logging.write("info", THREAD_NAME, String.format("(%s) Using custom column expression for column %s: %s", targetType, columnObject.getString("columnAlias"),joColumn.getString("valueExpression")));
                     }
 
-                    if ( joColumn.getString("dataClass").equals("char") ) {
-                        pkJSON.append("'\"").append(pkColumn.replace("\"","")).append("\": \"' ")
-                                .append(concatOperator).append(" ").append(pkColumn)
-                                .append(" ").append(concatOperator).append(" '\"' ");
+                    Logging.write("debug", THREAD_NAME, String.format("(%s) Mapping expression for column %s: %s", targetType, columnObject.getString("columnAlias"), joColumn.getString("valueExpression")));
+
+                    // Identify if column is primary key and save primary keys to pk string
+                    if (joColumn.getBoolean("primaryKey")) {
+                        String pkColumn = (joColumn.getBoolean("preserveCase")) ? ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteChar(platform)) : joColumn.getString("columnName").toLowerCase();
+                        nbrPKColumns++;
+
+                        pkHash.add(joColumn.getString("valueExpression"));
+
+                        pkList.add(pkColumn);
+
+                        pkJSON.add(buildJsonExpression(platform, pkColumn, dataClass, concatOperator));
+
                     } else {
-                        if (platform.equals("mssql")) {
-                            pkJSON.append("'\"").append(pkColumn.replace("\"","")).append("\": ' ")
-                                    .append(concatOperator).append(" ").append("trim(cast(")
-                                    .append(pkColumn).append(" as varchar))");
-                        } else {
-                            pkJSON.append("'\"").append(pkColumn.replace("\"","")).append("\": ' ")
-                                    .append(concatOperator).append(" ").append(pkColumn);
-                        }
+                        // Process non-primary key columns
+                        nbrColumns++;
+                        columnList.add(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteChar(platform)));
+                        columnExpressionList.add(useDatabaseHash
+                                ? joColumn.getString("valueExpression")
+                                : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase());
                     }
+
                 } else {
-                    // Process non-primary key columns
-                    nbrColumns++;
-                    columnList.append(ShouldQuoteString(joColumn.getBoolean("preserveCase"), joColumn.getString("columnName"), getQuoteString(platform))).append(",");
-                    column.append(useDatabaseHash
-                            ? joColumn.getString("valueExpression") + concatOperator
-                            : joColumn.getString("valueExpression") + " as " + joColumn.getString("columnName").toLowerCase() + ",");
+                    Logging.write("warning", THREAD_NAME, String.format("Skipping disabled column:  %s", columnObject.getString("columnAlias")));
                 }
+
 
             }
 
             if (columnList.isEmpty()) {
-                column = new StringBuilder((useDatabaseHash) ? "'0'" : " '0' c1");
+                columnExpressionList.add((useDatabaseHash) ? "'0'" : " '0' as c1");
                 nbrColumns = 1;
-            } else {
-                columnList.setLength(columnList.length() - 1);
-                column.setLength(column.length() - (column.substring(column.length() - 1).equals("|") ? 2 : 1));
-            }
-
-            if (!pk.isEmpty() && !pkList.isEmpty()) {
-                pk.setLength(pk.length() - (3 + (concatOperator.length() * 2)));
-                pkList.setLength(pkList.length() - 1);
-                pkJSON.append(concatOperator).append("'}'");
             }
 
         } catch (Exception e) {
@@ -115,14 +125,74 @@ public class ColumnController {
             Logging.write("severe", THREAD_NAME, String.format("Error while parsing column list at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
-        // Using the concat operator causes issues for mariadb.  Have to convert from using operator (||)
-        // to using concat function.
-        if ( platform.equals("mariadb")) {
-            pkJSON = new StringBuilder("concat(" + pkJSON.toString().replace("||",",") + ")");
+        String finalPkList = String.join(",", pkList);
+        String finalColumnList = String.join(",", columnList);
+        String finalPkHash = buildFinalPkHash(pkHash, platform, concatOperator);
+        String finalPkJson = buildFinalPkJson(pkJSON, platform, concatOperator);
+        String finalColumnExpressionList = buildFinalColumnExpr(columnExpressionList, concatOperator, useDatabaseHash);
+
+        return new ColumnMetadata(finalColumnList, nbrColumns, nbrPKColumns, finalColumnExpressionList, finalPkHash, finalPkList, finalPkJson);
+
+    }
+
+
+    /**
+     * Create final expression for injection into SQL statement.
+     *
+     * @param columns           Column expressions
+     * @param concatOperator    Operator to use for concatenation
+     * @param useDatabaseHash   Boolean indicating if the hash is performed on the database or not
+     * @return                  Expression for SQL statement
+     */
+    private static String buildFinalColumnExpr(List<String> columns, String concatOperator, boolean useDatabaseHash) {
+        if (columns.isEmpty()) {
+            return useDatabaseHash ? "'0'" : "'0' c1";
         }
 
-        return new ColumnMetadata(columnList.toString(), nbrColumns, nbrPKColumns, column.toString(), pk.toString(), pkList.toString(), pkJSON.toString());
+        return String.join(useDatabaseHash ? concatOperator : ",", columns);
+    }
 
+    /**
+     *
+     * @param pkJson            String to construct JSON object in SQL
+     * @param platform          Database platform
+     * @param concatOperator    Operator to use for concatenation
+     * @return                  Returns string for insertion into SQL
+     */
+    private static String buildFinalPkJson(List<String> pkJson, String platform, String concatOperator) {
+        if (pkJson.isEmpty()) return "";
+
+        String joined = String.join(concatOperator + " ',' " + concatOperator, pkJson);
+        String fullExpr = "'{'" + concatOperator + joined + concatOperator + "'}'";
+
+        // Using the concat operator causes issues for mariadb.  Have to convert from using operator (||)
+        // to using concat function.
+        if (platform.equals("mariadb")) {
+            return "concat(" + fullExpr.replace("||", ",") + ")";
+        }
+
+        return fullExpr;
+    }
+
+    /**
+     *
+     * @param pkHash            Expression to construct hash of primary key columns
+     * @param platform          Database platform
+     * @param concatOperator    Operator to use for concatenation
+     * @return                  Returns string for insertion into SQL
+     */
+    private static String buildFinalPkHash(List<String> pkHash, String platform, String concatOperator) {
+        if (pkHash.isEmpty()) return "";
+
+        String joined = String.join(
+                platform.equals("db2") || platform.equals("oracle") ? concatOperator + "'.'" + concatOperator : ",'.',",
+                pkHash);
+
+        if (platform.equals("postgres") || platform.equals("mariadb") || platform.equals("mssql") || platform.equals("mysql")) {
+            return pkHash.size() > 1 ? "concat(" + joined + ")" : joined;
+        }
+
+        return joined;
     }
 
     /**
@@ -146,7 +216,7 @@ public class ColumnController {
         String sql = (table.isEmpty()) ? SQL_REPO_DCTABLECOLUMN_DELETEBYPID : SQL_REPO_DCTABLECOLUMN_DELETEBYPIDTABLE;
 
         // Clear out Previous Mappings
-        dbCommon.simpleUpdate(connRepo, sql, binds, true);
+        SQLService.simpleUpdate(connRepo, sql, binds, true);
 
         CachedRowSet crs;
 
@@ -161,7 +231,7 @@ public class ColumnController {
                 binds.add(2,table);
             }
 
-            crs = dbCommon.simpleSelect(connRepo, sql, binds);
+            crs = SQLService.simpleSelect(connRepo, sql, binds);
 
             while (crs.next()) {
                 // Repopulate Columns
@@ -184,7 +254,7 @@ public class ColumnController {
                 binds.add(2,table);
             }
 
-            crs = dbCommon.simpleSelect(connRepo, sql, binds);
+            crs = SQLService.simpleSelect(connRepo, sql, binds);
 
             while (crs.next()) {
                 loadColumns(Props, crs.getInt("tid"), crs.getString("schema_name"), crs.getString("table_name"), connRepo, connSource, "source", true);
@@ -228,7 +298,7 @@ public class ColumnController {
             binds.add(0, tid);
             binds.add(1, columnName);
 
-            Integer cid = dbCommon.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
+            Integer cid = SQLService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
 
             DCTableColumn dtc = new DCTableColumn();
             dtc.setTid(tid);
@@ -259,7 +329,6 @@ public class ColumnController {
                 dctcm.setNumberScale(columns.getJSONObject(i).getInt("dataScale"));
                 dctcm.setColumnNullable(columns.getJSONObject(i).getBoolean("nullable"));
                 dctcm.setColumnPrimaryKey(columns.getJSONObject(i).getBoolean("primaryKey"));
-                dctcm.setMapExpression(columns.getJSONObject(i).getString("valueExpression"));
                 dctcm.setSupported(columns.getJSONObject(i).getBoolean("supported"));
                 dctcm.setPreserveCase(columns.getJSONObject(i).getBoolean("preserveCase"));
 

@@ -1,4 +1,4 @@
-package com.crunchydata.services;
+package com.crunchydata.controller;
 
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
@@ -7,8 +7,17 @@ import org.json.JSONObject;
 import java.io.FileWriter;
 import java.text.DecimalFormat;
 
-public class Reporter {
+public class ReportController {
 
+    private static final String THREAD_NAME = "report-ctrl";
+
+    /**
+     *
+     * @param title     Section title
+     * @param data      Report data
+     * @param layout    Layout settings
+     * @return          JSON Object
+     */
     public static JSONObject createSection(String title, Object data, JSONArray layout) {
         return new JSONObject()
                 .put("title", title)
@@ -16,6 +25,13 @@ public class Reporter {
                 .put("layout", layout);
     }
 
+    /**
+     * Generate HTML report.
+     *
+     * @param report        Report content.
+     * @param filePath      HTML file name and location.
+     * @param title         Report title.
+     */
     public static void generateHtmlReport(JSONArray report, String filePath, String title) {
         Logging.write("info","main", String.format("Generating HTML report:  %s...", filePath));
 
@@ -70,7 +86,7 @@ public class Reporter {
             writer.close();
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", "main", String.format("Error generating report at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+            Logging.write("severe", THREAD_NAME, String.format("Error generating report at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
     }
     

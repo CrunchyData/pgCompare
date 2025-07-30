@@ -23,7 +23,9 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Utility class for managing application settings.
@@ -61,8 +63,15 @@ import java.util.Properties;
 public class Settings {
 
     public static Properties Props;
-    public static final String VERSION = "0.3.7.0";
+    public static final String VERSION = "0.4.0.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
+
+    static Map<String, Set<String>> validPropertyValues = Map.of(
+            "column-hash-method", Set.of("database", "hybrid", "raw"),
+            "number-cast", Set.of("notation", "standard"),
+            "source-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql"),
+            "target-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql")
+    );
 
     static {
          Properties configProperties = setDefaults();
@@ -99,13 +108,13 @@ public class Settings {
         defaultProps.setProperty("batch-fetch-size","2000");
         defaultProps.setProperty("batch-commit-size","2000");
         defaultProps.setProperty("batch-progress-report-size","1000000");
+        defaultProps.setProperty("column-hash-method","database");
         defaultProps.setProperty("database-sort","true");
         defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");
         defaultProps.setProperty("message-queue-size","1000");
         defaultProps.setProperty("number-cast","notation");
-        defaultProps.setProperty("float-cast","char");
         defaultProps.setProperty("observer-throttle","true");
         defaultProps.setProperty("observer-throttle-size","2000000");
         defaultProps.setProperty("observer-vacuum","true");
@@ -123,7 +132,6 @@ public class Settings {
         defaultProps.setProperty("repo-user","pgcompare");
 
         // Source
-        defaultProps.setProperty("source-database-hash","true");
         defaultProps.setProperty("source-dbname","postgres");
         defaultProps.setProperty("source-host","localhost");
         defaultProps.setProperty("source-password","welcome1");
@@ -135,7 +143,6 @@ public class Settings {
         defaultProps.setProperty("source-schema",defaultProps.getProperty("source-user"));
 
         // Target
-        defaultProps.setProperty("target-database-hash","true");
         defaultProps.setProperty("target-dbname","postgres");
         defaultProps.setProperty("target-host","localhost");
         defaultProps.setProperty("target-password","welcome1");
@@ -191,5 +198,6 @@ public class Settings {
         }
 
     }
+
 
 }

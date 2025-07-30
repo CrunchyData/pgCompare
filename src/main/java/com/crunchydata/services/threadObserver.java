@@ -20,15 +20,16 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Properties;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.models.DCTable;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
+import static com.crunchydata.services.dbConnection.getConnection;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread class that observes the reconciliation process between source and target tables.
@@ -45,7 +46,7 @@ import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
  *
  * @author Brian Pace
  */
-public class threadReconcileObserver extends Thread  {
+public class threadObserver extends Thread  {
 
     private final Integer tid;
     private final String tableAlias;
@@ -55,7 +56,6 @@ public class threadReconcileObserver extends Thread  {
     private final String stagingTableSource;
     private final String stagingTableTarget;
     private ThreadSync ts;
-    private Properties Props;
     private final Boolean useLoaderThreads;
 
 
@@ -70,7 +70,7 @@ public class threadReconcileObserver extends Thread  {
      *
      * @author Brian Pace
      */
-    public threadReconcileObserver(Properties Props, DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
+    public threadObserver(DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
         this.tid = dct.getTid();
         this.tableAlias = dct.getTableAlias();
         this.cid = cid;
@@ -79,7 +79,6 @@ public class threadReconcileObserver extends Thread  {
         this.batchNbr = dct.getBatchNbr();
         this.stagingTableSource = stagingTableSource;
         this.stagingTableTarget = stagingTableTarget;
-        this.Props = Props;
         this.useLoaderThreads =  (Integer.parseInt(Props.getProperty("loader-threads")) > 0);
     }
 
@@ -89,7 +88,7 @@ public class threadReconcileObserver extends Thread  {
      * and performs cleanup operations on staging tables.
      */
     public void run() {
-        String threadName = String.format("Observer-c%s-t%s", cid, threadNbr);
+        String threadName = String.format("observer-c%s-t%s", cid, threadNbr);
         Logging.write("info", threadName, "Starting reconcile observer");
 
         ArrayList<Object> binds = new ArrayList<>();
@@ -103,7 +102,7 @@ public class threadReconcileObserver extends Thread  {
 
         // Connect to Repository
         Logging.write("info", threadName, "Connecting to repository database");
-        Connection repoConn = dbPostgres.getConnection(Props,"repo", "observer");
+        Connection repoConn = getConnection("postgres", "repo");
 
         if ( repoConn == null) {
             Logging.write("severe", threadName, "Cannot connect to repository database");
@@ -115,9 +114,9 @@ public class threadReconcileObserver extends Thread  {
         }
 
         try {
-            dbCommon.simpleExecute(repoConn,"set enable_nestloop='off'");
-            dbCommon.simpleExecute(repoConn,"set work_mem='512MB'");
-            dbCommon.simpleExecute(repoConn,"set maintenance_work_mem='1024MB'");
+            SQLService.simpleExecute(repoConn,"set enable_nestloop='off'");
+            SQLService.simpleExecute(repoConn,"set work_mem='512MB'");
+            SQLService.simpleExecute(repoConn,"set maintenance_work_mem='1024MB'");
         } catch (Exception e) {
             // do nothing
         }
@@ -155,7 +154,7 @@ public class threadReconcileObserver extends Thread  {
                         if ( Boolean.parseBoolean(Props.getProperty("observer-vacuum")) ) {
                             repoConn.setAutoCommit(true);
                             binds.clear();
-                            dbCommon.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
+                            SQLService.simpleUpdate(repoConn, String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
                             repoConn.setAutoCommit(false);
                         }
                     }

@@ -40,7 +40,7 @@ public class dbRepository {
         ArrayList<Object> binds = new ArrayList<>();
 
         // Create Schema
-        dbCommon.simpleUpdate(conn,String.format(REPO_DDL_SCHEMA,Props.getProperty("repo-schema"),Props.getProperty("repo-user")),binds, true);
+        SQLService.simpleUpdate(conn,String.format(REPO_DDL_SCHEMA,Props.getProperty("repo-schema"),Props.getProperty("repo-user")),binds, true);
 
         // Create Tables
         List<String> ddlConstants = List.of(
@@ -55,7 +55,7 @@ public class dbRepository {
                 REPO_DDL_DC_TARGET
         );
 
-        ddlConstants.forEach(ddl -> dbCommon.simpleUpdate(conn, ddl, binds, true));
+        ddlConstants.forEach(ddl -> SQLService.simpleUpdate(conn, ddl, binds, true));
 
         // Create Indexes and Constraints
         List<String> ddlConstantsIndexConstraint = List.of(
@@ -68,10 +68,13 @@ public class dbRepository {
                 REPO_DDL_DC_TABLE_COLUMN_MAP_FK
         );
 
-        ddlConstantsIndexConstraint.forEach(ddl -> dbCommon.simpleUpdate(conn, ddl, binds, true));
+        ddlConstantsIndexConstraint.forEach(ddl -> SQLService.simpleUpdate(conn, ddl, binds, true));
 
         // Data
-        dbCommon.simpleUpdate(conn,REPO_DDL_DC_PROJECT_DATA, binds, true);
+        SQLService.simpleUpdate(conn,REPO_DDL_DC_PROJECT_DATA, binds, true);
+
+        // Functions
+        SQLService.simpleUpdate(conn,REPO_DDL_DC_COPY_TABLE, binds, true);
 
     }
 }

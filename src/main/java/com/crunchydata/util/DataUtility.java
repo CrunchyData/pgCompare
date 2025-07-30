@@ -16,15 +16,15 @@
 
 package com.crunchydata.util;
 
-import com.crunchydata.services.*;
-
 import javax.sql.rowset.serial.SerialException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Arrays;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 
-import static com.crunchydata.util.ColumnUtility.reservedWords;
+import static com.crunchydata.util.ColumnUtility.RESERVED_WORDS;
 
 /**
  * A utility class for working with CLOB data.
@@ -73,28 +73,6 @@ public class DataUtility {
         return true;
     }
 
-    public static String getNativeCase(String databasePlatform) {
-        return switch (databasePlatform) {
-            case "oracle" -> dbOracle.nativeCase;
-            case "mariadb" -> dbMariaDB.nativeCase;
-            case "mysql" -> dbMySQL.nativeCase;
-            case "mssql" -> dbMSSQL.nativeCase;
-            case "db2" -> dbDB2.nativeCase;
-            default -> dbPostgres.nativeCase;
-        };
-    }
-
-    public static String getQuoteString(String databasePlatform) {
-        return switch (databasePlatform) {
-            case "oracle" -> dbOracle.quoteChar;
-            case "mariadb" -> dbMariaDB.quoteChar;
-            case "mysql" -> dbMySQL.quoteChar;
-            case "mssql" -> dbMSSQL.quoteChar;
-            case "db2" -> dbDB2.quoteChar;
-            default -> dbPostgres.quoteChar;
-        };
-    }
-
     public static boolean isMixedCase(String str) {
         boolean hasUpper = false;
         boolean hasLower = false;
@@ -121,9 +99,43 @@ public class DataUtility {
     }
 
     public static boolean preserveCase(String expectedCase, String str) {
-        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || Arrays.asList(reservedWords).equals(str) || containsSpecialCharacter(str));
+        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || RESERVED_WORDS.contains(str) || containsSpecialCharacter(str));
     }
 
+    /**
+     * Reads the current row in the ResultSet and returns a concatenated string of all column values.
+     * Columns are separated by a delimiter (e.g., comma, tab, etc.).
+     *
+     * @param rs        the ResultSet
+     * @param delimiter the delimiter to separate column values
+     * @return a string representing all rows, one per line
+     * @throws SQLException if an SQL error occurs
+     */
+    public static String resultSetRowToString(ResultSet rs, String delimiter) throws SQLException {
+        StringBuilder rowString = new StringBuilder();
+
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+
+        for (int i = 1; i <= columnCount; i++) {
+            Object value = rs.getObject(i);
+            rowString.append(value != null ? value.toString() : "NULL");
+
+            if (i < columnCount) {
+                rowString.append(delimiter);
+            }
+        }
+
+        return rowString.toString();
+    }
+
+    /**
+     * Analyzes the passed string and based on the preserveCase will return a quoted string or the passed string.
+     *
+     * @param preserveCase      Should the case be preserved (quoted)
+     * @param str               The string to be quoted or not quoted.
+     * @return a string of the passed value either quoted or not quoted.
+     */
     public static String ShouldQuoteString(Boolean preserveCase, String str, String quoteChar) {
         return (preserveCase) ? String.format("%s%s%s", quoteChar, str, quoteChar) :  str;
     }

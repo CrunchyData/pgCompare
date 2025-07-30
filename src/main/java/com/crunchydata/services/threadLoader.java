@@ -23,9 +23,10 @@ import com.crunchydata.util.ThreadSync;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import static com.crunchydata.services.dbConnection.getConnection;
 
 
 /**
@@ -46,7 +47,6 @@ public class threadLoader extends Thread  {
     private final String targetType;
     private final Integer threadNumber;
     private final ThreadSync ts;
-    private Properties Props;
 
     /**
      * Constructor for initializing a dbLoader instance.
@@ -58,14 +58,13 @@ public class threadLoader extends Thread  {
      * @param stagingTable The name of the staging table in the repository database.
      * @param ts The ThreadSync object for coordinating thread synchronization.
      */
-    public threadLoader(Properties Props, Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
+    public threadLoader(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
         this.q = q;
         this.instanceNumber = instanceNumber;
         this.stagingTable = stagingTable;
         this.targetType = targetType;
         this.threadNumber = threadNumber;
         this.ts = ts;
-        this.Props = Props;
     }
 
     /**
@@ -81,28 +80,28 @@ public class threadLoader extends Thread  {
         String threadName = String.format("loader-%s-t%s-i%s", targetType, threadNumber, instanceNumber);
         Logging.write("info", threadName, "Start repository loader thread");
 
-        Connection repoConn = null;
+        Connection connRepo = null;
         PreparedStatement stmtLoad = null;
 
         try {
             // Connect to Repository
             Logging.write("info", threadName, "Connecting to repository database");
-            repoConn = dbPostgres.getConnection(Props, "repo", "reconcile");
+            connRepo = getConnection("postgres", "repo");
 
-            if (repoConn == null) {
+            if (connRepo == null) {
                 Logging.write("severe", threadName, "Cannot connect to repository database");
                 System.exit(1);
             }
 
-            dbCommon.simpleExecute(repoConn,"set synchronous_commit='off'");
-            dbCommon.simpleExecute(repoConn,"set work_mem='256MB'");
+            SQLService.simpleExecute(connRepo,"set synchronous_commit='off'");
+            SQLService.simpleExecute(connRepo,"set work_mem='256MB'");
 
-            repoConn.setAutoCommit(false);
+            connRepo.setAutoCommit(false);
 
             // Prepare INSERT statement for the staging table
             String sqlLoad = String.format("INSERT INTO %s (tid, pk_hash, column_hash, pk) VALUES (?, ?,?,(?)::jsonb)",stagingTable);
-            repoConn.setAutoCommit(false);
-            stmtLoad = repoConn.prepareStatement(sqlLoad);
+            connRepo.setAutoCommit(false);
+            stmtLoad = connRepo.prepareStatement(sqlLoad);
 
             boolean stillLoading = true;
 
@@ -131,7 +130,7 @@ public class threadLoader extends Thread  {
                     // Execute batch insert and commit transaction
                     stmtLoad.executeBatch();
                     stmtLoad.clearBatch();
-                    repoConn.commit();
+                    connRepo.commit();
                 }
 
                 // Check if both source and target are complete
@@ -143,10 +142,10 @@ public class threadLoader extends Thread  {
             Logging.write("info", threadName, "Loader thread complete.");
 
             stmtLoad.close();
-            repoConn.close();
+            connRepo.close();
 
             stmtLoad = null;
-            repoConn = null;
+            connRepo = null;
 
             ts.incrementLoaderThreadComplete();
 
@@ -163,8 +162,8 @@ public class threadLoader extends Thread  {
                     stmtLoad.close();
                 }
 
-                if (repoConn != null) {
-                    repoConn.close();
+                if (connRepo != null) {
+                    connRepo.close();
                 }
             } catch (Exception e) {
                 StackTraceElement[] stackTrace = e.getStackTrace();

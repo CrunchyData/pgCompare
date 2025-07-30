@@ -1,4 +1,13 @@
 --
+-- Test Char PK
+--
+DROP TABLE IF EXISTS pgctest.charpk;
+CREATE TABLE pgctest.charpk (tid text NOT NULL,
+                             CONSTRAINT charpk_pkey PRIMARY KEY (tid));
+
+INSERT INTO pgctest.charpk (tid) values ('test');
+
+--
 -- Test using Case sensitive table and column names
 --
 DROP TABLE IF EXISTS pgctest."Test_Case";

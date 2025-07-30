@@ -103,9 +103,6 @@ repo-sslmode=disable
 #       Database user to use for authentication.
 #  source|target-password:
 #       Database password.
-#  source|target-database-hash:
-#       Determines whether to generate the hash on the database (true) or by the application (false).
-#       Default: true
 #  source|target-sslmode:
 #       SSL mode to use when connecting to the database (disable|prefer|require).
 #       Default: disable
@@ -121,7 +118,6 @@ source-port=1521
 source-dbname=hr
 source-user=appuser
 source-password=welcome1
-source-database-hash=false
 source-sslmode=disable
 source-schema=appuser
 source-schema=appuser
@@ -132,7 +128,6 @@ source-schema=appuser
 #source-dbname=hr
 #source-user=postgres
 #source-password=welcome1
-#source-database-hash=true
 #source-sslmode=disable
 #source-schema=appuser
 
@@ -146,7 +141,6 @@ target-port=5432
 target-dbname=hr
 target-user=postgres
 target-password=welcome1
-target-database-hash=true
 target-sslmode=disable
 target-schema=public
 # Oracle Example
@@ -156,7 +150,6 @@ target-schema=public
 #target-dbname=hr
 #target-user=appuser
 #target-password=welcome1
-#target-database-hash=true
 #target-sslmode=disable
 #target-schema=appuser
 

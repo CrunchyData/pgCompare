@@ -21,7 +21,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Properties;
 import javax.sql.RowSetMetaData;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
@@ -36,19 +35,20 @@ import com.crunchydata.util.Logging;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import static com.crunchydata.services.DatabaseService.getQuoteChar;
 import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
 import static com.crunchydata.util.ColumnUtility.findColumnAlias;
-import static com.crunchydata.util.DataUtility.getQuoteString;
 import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.Settings.Props;
 
 /**
  * Thread to perform reconciliation checks on rows that are out of sync.
  *
  * @author Brian Pace
  */
-public class threadReconcileCheck {
+public class threadCheck {
 
-    private static final String THREAD_NAME = "ReconcileCheck";
+    private static final String THREAD_NAME = "check";
 
     /**
      * Pulls a list of out-of-sync rows from the repository dc_source and dc_target tables.
@@ -61,12 +61,10 @@ public class threadReconcileCheck {
      * @param ciTarget           Column metadata from target database.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static JSONObject checkRows (Properties Props, Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
+    public static JSONObject checkRows (Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
         JSONArray rows = new JSONArray();
-
-        StringBuilder tableFilter;
 
         result.put("status","success");
 
@@ -78,6 +76,7 @@ public class threadReconcileCheck {
 
             while (rs.next()) {
                 DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, dct.getBatchNbr());
+
                 dcRow.setTid(dct.getTid());
                 dcRow.setTableName(dct.getTableAlias());
                 dcRow.setPkHash(rs.getString("pk_hash"));
@@ -87,13 +86,13 @@ public class threadReconcileCheck {
                 // Get Column Info and Mapping
                 binds.clear();
                 binds.addFirst(dct.getTid());
-                JSONObject columnMapping = new JSONObject(dbCommon.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
+                JSONObject columnMapping = new JSONObject(SQLService.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
 
                 int pkColumnCount = 0;
                 binds.clear();
                 dctmSource.setTableFilter(" ");
                 dctmTarget.setTableFilter(" ");
-                //tableFilter = new StringBuilder(" AND ");
+
                 JSONObject pk = new JSONObject(dcRow.getPk());
                 Iterator<String> keys = pk.keys();
                 while (keys.hasNext()) {
@@ -106,10 +105,11 @@ public class threadReconcileCheck {
                         Integer value = pk.getInt(key);
                         binds.add(pkColumnCount,value);
                     }
-                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteString(Props.getProperty("source-type"))));
-                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteString(Props.getProperty("target-type"))));
+                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteChar(Props.getProperty("source-type"))));
+                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteChar(Props.getProperty("target-type"))));
                     pkColumnCount++;
                 }
+
                 Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter()));
 
                 JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
@@ -155,8 +155,8 @@ public class threadReconcileCheck {
         rowResult.put("missingSource",0);
         rowResult.put("missingTarget",0);
 
-        CachedRowSet sourceRow = dbCommon.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
-        CachedRowSet targetRow = dbCommon.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
+        CachedRowSet sourceRow = SQLService.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
+        CachedRowSet targetRow = SQLService.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
 
         try {
             rowResult.put("pk", dcRow.getPk());
@@ -215,8 +215,8 @@ public class threadReconcileCheck {
                 binds.add(0,dcRow.getTid());
                 binds.add(1,dcRow.getPkHash());
                 binds.add(2, dcRow.getBatchNbr());
-                dbCommon.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
-                dbCommon.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
+                SQLService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
+                SQLService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
             } else {
                 Logging.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
             }
@@ -226,7 +226,7 @@ public class threadReconcileCheck {
             binds.add(1,sourceRow.size());
             binds.add(2,targetRow.size());
             binds.add(3,cid);
-            dbCommon.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
+            SQLService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
 
 
         } catch (Exception e) {

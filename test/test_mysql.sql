@@ -2,6 +2,12 @@ create database pgctest;
 
 SET time_zone = '+00:00';
 
+DROP TABLE IF EXISTS pgctest.charpk;
+CREATE TABLE pgctest.charpk (tid varchar(40) NOT null,
+                             CONSTRAINT charpk_pkey PRIMARY KEY (tid));
+
+INSERT INTO pgctest.charpk (tid) values ('test');
+
 --
 -- Test using Case sensitive table and column names
 --
@@ -52,7 +58,7 @@ CREATE TABLE pgctest.test_nbr
 ,   col_dec_20      decimal(20)
 ,   col_dec_38      decimal(38)
 ,   col_dec_10_2    decimal(10,2)
-,   col_float32     real
+,   col_float32     float
 ,   col_float64     double precision
 ,   col_dec_38_9    DECIMAL(38,9)
 ,   col_dec_38_30   DECIMAL(38,30)

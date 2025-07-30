@@ -5,6 +5,13 @@ CREATE SCHEMA pgctest;
 GRANT USE OF TABLESPACE USERSPACE1 TO USER pgctest;
 GRANT CONNECT ON DATABASE TO USER pgctest;
 
+-- Char PK
+DROP TABLE IF EXISTS pgctest.charpk;
+CREATE TABLE pgctest.charpk (tid varchar(40) NOT NULL,
+                             CONSTRAINT charpk_pkey PRIMARY KEY (tid));
+
+INSERT INTO pgctest.charpk (tid) values ('test');
+
 -- Creating the Emp table in DB2
 DROP TABLE IF EXISTS pgctest."Test_Case";
 CREATE TABLE pgctest."Test_Case"

@@ -22,6 +22,7 @@ public interface SQLConstantsRepo {
     //
     String REPO_DDL_SCHEMA="CREATE SCHEMA IF NOT EXISTS  %s AUTHORIZATION %s";
 
+
     // DC_PROJECT
     String REPO_DDL_DC_PROJECT = """
             CREATE TABLE dc_project (
@@ -80,7 +81,7 @@ public interface SQLConstantsRepo {
             	pid int8 DEFAULT 1 NOT NULL,
             	tid int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
             	table_alias text NULL,
-            	status varchar(10) DEFAULT 'disabled'::character varying NULL,
+            	enabled boolean DEFAULT true,
             	batch_nbr int4 DEFAULT 1 NULL,
             	parallel_degree int4 DEFAULT 1 NULL,
             	CONSTRAINT dc_table_pk PRIMARY KEY (tid)
@@ -98,7 +99,7 @@ public interface SQLConstantsRepo {
             	tid int8 NOT NULL,
             	column_id int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
             	column_alias text NOT NULL,
-            	status varchar(15) DEFAULT 'compare'::character varying NULL,
+            	enabled boolean DEFAULT true,
             	CONSTRAINT dc_table_column_pk PRIMARY KEY (column_id)
             )
             """;
@@ -142,12 +143,10 @@ public interface SQLConstantsRepo {
     String REPO_DDL_DC_TABLE_HISTORY = """
             CREATE TABLE dc_table_history (
             	tid int8 NOT NULL,
-            	load_id varchar(100) NULL,
             	batch_nbr int4 NOT NULL,
             	start_dt timestamptz NOT NULL,
             	end_dt timestamptz NULL,
             	action_result jsonb NULL,
-            	action_type varchar(20) NOT NULL,
             	row_count int8 NULL
             )
             """;
@@ -163,7 +162,6 @@ public interface SQLConstantsRepo {
             	dest_type varchar(20) DEFAULT 'target'::character varying NOT NULL,
             	schema_name text NOT NULL,
             	table_name text NOT NULL,
-            	parallel_degree int4 DEFAULT 1 NULL,
             	mod_column varchar(200) NULL,
             	table_filter varchar(200) NULL,
             	schema_preserve_case bool DEFAULT false NULL,
@@ -190,6 +188,75 @@ public interface SQLConstantsRepo {
             )
             """;
 
+    String REPO_DDL_STAGE_TABLE = """
+            CREATE UNLOGGED TABLE dc_source (
+                    tid int8 NOT NULL,
+                	pk_hash text NULL,
+                	column_hash text NULL,
+                	pk jsonb NULL,
+                	compare_result bpchar(1) NULL
+                ) with (autovacuum_enabled=false, parallel_workers=%s)
+            """;
+
+    String REPO_DDL_DROP_TABLE = "DROP TABLE IF EXISTS %s";
+
+    //
+    // Functions
+    //
+
+    // DC_COPY_TABLE
+    String REPO_DDL_DC_COPY_TABLE = """
+            CREATE OR REPLACE FUNCTION pgcompare.dc_copy_table(p_pid integer, p_tid integer)
+             RETURNS bigint
+             LANGUAGE plpgsql
+            AS $function$
+            DECLARE
+            v_new_tid bigint;
+                v_new_cid bigint;
+                r_column record;
+            BEGIN
+                -- Duplicate dc_table
+            INSERT INTO dc_table (pid, tid, table_alias, enabled, batch_nbr, parallel_degree)
+            SELECT pid, tid, table_alias, enabled, batch_nbr, parallel_degree
+            FROM dc_table
+            WHERE pid = p_pid AND tid = p_tid
+                RETURNING tid INTO v_new_tid;
+            
+            -- Duplicate dc_table_map
+            INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name, mod_column, table_filter, schema_preserve_case, table_preserve_case)
+            SELECT v_new_tid, dest_type, schema_name, table_name, mod_column, table_filter, schema_preserve_case, table_preserve_case
+            FROM dc_table_map
+            WHERE tid = p_tid;
+            
+            -- Duplicate dc_table_column and dc_table_column_map
+            FOR r_column IN
+            SELECT tid, column_id, column_alias, enabled
+            FROM dc_table_column
+            WHERE tid = p_tid
+                LOOP
+            -- Insert into dc_table_column with new tid and potentially new cid
+            INSERT INTO dc_table_column (tid, column_id, column_alias, enabled)
+            SELECT v_new_tid, cid, tid, column_id, column_alias, enabled
+            FROM dc_table_column
+            WHERE tid = p_tid
+              AND column_id = r_column.column_id
+                RETURNING cid INTO v_new_cid;
+            
+            -- Duplicate dc_table_column_map
+            INSERT INTO dc_table_column_map (tid, column_id, column_origin, column_name, data_type, data_class, data_length, number_precision,
+                                             number_scale, column_nullable, column_primarykey, map_expression, supported, preserve_case, map_type)
+            SELECT v_new_tid, v_new_cid, column_origin, column_name, data_type, data_class, data_length, number_precision,
+                   number_scale, column_nullable, column_primarykey, map_expression, supported, preserve_case, map_type
+            FROM dc_table_column_map
+            WHERE tid = p_tid
+              AND column_id = r_column.column_id;
+            END LOOP;
+            
+            RETURN v_new_tid;
+            END;
+            $function$
+            ;
+            """;
 
     //
     // Repository SQL - Compare Task SQL
@@ -273,15 +340,11 @@ public interface SQLConstantsRepo {
             DELETE FROM dc_result WHERE tid NOT IN (SELECT tid FROM dc_table)
             """;
 
-    String SQL_REPO_DCRESULT_REPORT = """
-            SELECT table_name as "Table", status as "Status", compare_start as "Compare Start", compare_end as "Compare End",
-                   EXTRACT(EPOCH FROM (compare_end-compare_start)) as "Run Time (s)",
-                   source_cnt as "Source Count", target_cnt as "Target Count", 
-                   equal_cnt as "Equal", not_equal_cnt as "Not Equal", 
-                   missing_source_cnt as "Missing Source", missing_target_cnt as "Missing Target"
-            FROM dc_result
-            WHERE rid=?
-            ORDER BY compare_start
+    //
+    // Repository SQL - DC_PROJECT
+    //
+    String SQL_REPO_DCPROJECT_GETBYPID = """
+            SELECT coalesce(project_config,'{}') project_config FROM dc_project WHERE pid=?
             """;
 
     //
@@ -297,6 +360,12 @@ public interface SQLConstantsRepo {
     String SQL_REPO_DCSOURCE_CLEAN = """
             DELETE FROM dc_source WHERE tid NOT IN (SELECT tid FROM dc_table)
             """;
+
+    //
+    // Staging Table
+    //
+    String SQL_REPO_STAGETABLE_INSERT = "INSERT INTO %s (tid, pk_hash, column_hash, pk) VALUES (?,?,?,(?)::jsonb)";
+
     //
     // Repository SQL - DC_TARGET
     //
@@ -326,16 +395,17 @@ public interface SQLConstantsRepo {
                 GROUP BY t.tid
                 HAVING count(1) < 2
                 """;
-    String SQL_REPO_DCTABLE_INSERT = "INSERT INTO dc_table (pid, table_alias, batch_nbr, status) VALUES (?, lower(?), 1, 'enabled') RETURNING tid";
+    String SQL_REPO_DCTABLE_INSERT = "INSERT INTO dc_table (pid, table_alias, batch_nbr, enabled) VALUES (?, lower(?), 1, true) RETURNING tid";
 
     String SQL_REPO_DCTABLE_SELECTBYPID = """
-                     SELECT pid, tid, table_alias, status, batch_nbr, parallel_degree
+                     SELECT pid, tid, table_alias, enabled, batch_nbr, parallel_degree
                      FROM dc_table
                      WHERE pid=?
                      """;
 
     String SQL_REPO_DCTABLE_SELECT_BYNAME = "SELECT tid FROM dc_table WHERE table_alias = lower(?) AND pid=?";
 
+    String SQL_REPO_DC_COPY_TABLE = "SELECT dc_copy_table(?, ?, ?)";
 
     //
     // Repository SQL - DC_TABLE_COLUMN
@@ -345,22 +415,9 @@ public interface SQLConstantsRepo {
 
     String SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS = "SELECT column_id FROM dc_table_column WHERE tid=? AND column_alias=lower(?)";
 
-    String SQL_REPO_DCTABLECOLUMN_DELETEBYCOLUMNID = "DELETE FROM dc_table_column WHERE column_id=?";
-
     String SQL_REPO_DCTABLECOLUMN_DELETEBYPID = "DELETE FROM dc_table_column WHERE tid IN (SELECT tid FROM dc_table WHERE pid=?)";
 
     String SQL_REPO_DCTABLECOLUMN_DELETEBYPIDTABLE = "DELETE FROM dc_table_column WHERE tid IN (SELECT tid FROM dc_table WHERE pid=? AND table_alias=?)";
-
-    String SQL_REPO_DCTABLECOLUMN_DELETEBYTID = "DELETE FROM dc_table_column WHERE tid=?";
-
-    String SQL_REPO_DCTABLECOLUMN_INCOMPLETEMAP = """
-                SELECT t.tid, t.column_id, t.column_alias, count(1) cnt
-                FROM dc_table_column t
-                     LEFT OUTER JOIN dc_table_column_map m ON (t.column_id = m.column_id)
-                WHERE t.tid = ?
-                GROUP BY t.tid, t.column_id, t.column_alias
-                HAVING count(1) < 2
-                """;
 
     //
     // Repository SQL - DC_TABLE_COLUMN_MAP
@@ -405,6 +462,7 @@ public interface SQLConstantsRepo {
                         jsonb_build_object(
                             'columnID', tc.column_id,
                             'columnAlias', tc.column_alias,
+                            'enabled', tc.enabled,
                             'source', tcms.columnInfo,
                             'target', tcmt.columnInfo
                         )
@@ -435,14 +493,14 @@ public interface SQLConstantsRepo {
     //
     // Repository SQL - DC_TABLE_HISTORY
     //
-    String SQL_REPO_DCTABLEHISTORY_INSERT = "INSERT INTO dc_table_history (tid, action_type, start_dt, load_id, batch_nbr, row_count) VALUES (?, ?, current_timestamp, ?, ?, 0)";
+    String SQL_REPO_DCTABLEHISTORY_INSERT = "INSERT INTO dc_table_history (tid, start_dt, batch_nbr, row_count) VALUES (?, current_timestamp, ?, 0)";
 
-    String SQL_REPO_DCTABLEHISTORY_UPDATE = "UPDATE dc_table_history set end_dt=current_timestamp, row_count=?, action_result=?::jsonb WHERE tid=? AND action_type=? and load_id=? and batch_nbr=?";
+    String SQL_REPO_DCTABLEHISTORY_UPDATE = "UPDATE dc_table_history set end_dt=current_timestamp, row_count=?, action_result=?::jsonb WHERE tid=? and batch_nbr=?";
 
     //
     // Repository SQL - DC_TABLE_MAP
     //
-    String SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN = "SELECT tid, dest_type, schema_name, table_name, parallel_degree, mod_column, table_filter, schema_preserve_case, table_preserve_case FROM dc_table_map WHERE tid=? and dest_type=?";
+    String SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN = "SELECT tid, dest_type, schema_name, table_name, mod_column, table_filter, schema_preserve_case, table_preserve_case FROM dc_table_map WHERE tid=? and dest_type=?";
     String SQL_REPO_DCTABLEMAP_INSERT = "INSERT INTO dc_table_map (tid, dest_type, schema_name, table_name, schema_preserve_case, table_preserve_case) VALUES (?, ?, ?, ?, ?, ?)";
 
     String SQL_REPO_DCTABLEMAP_SELECTBYPIDORIGIN = """
@@ -461,4 +519,5 @@ public interface SQLConstantsRepo {
                   AND m.dest_type = ?
                   AND t.table_alias = ?
     """;
+
 }

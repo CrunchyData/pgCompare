@@ -16,8 +16,6 @@
 package com.crunchydata.services;
 
 import com.crunchydata.util.Logging;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetProvider;
@@ -32,71 +30,8 @@ import java.util.ArrayList;
  *
  * @author Brian Pace
  */
-public class dbCommon {
-    private static final String THREAD_NAME = "dbCommon";
-
-    /**
-     * Utility method to execute a provided SQL query and retrieve a list of tables.
-     *
-     * @param conn The database Connection object to use for executing the query.
-     * @param schema The schema owner of the tables.
-     * @param sql The SQL query to retrieve database version.
-     * @return A JSONArray of table lists.
-     */
-    public static JSONArray getTables (Connection conn, String schema, String tableFilter, String sql) {
-        JSONArray tableInfo = new JSONArray();
-
-        try {
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setObject(1, schema);
-            if (! tableFilter.isEmpty()) {
-                stmt.setObject(2, tableFilter);
-            }
-
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                JSONObject table = new JSONObject();
-                table.put("schemaName",rs.getString("owner"));
-                table.put("tableName",rs.getString("table_name"));
-
-                tableInfo.put(table);
-            }
-            rs.close();
-            stmt.close();
-        } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error retrieving tables for %s:  %s",schema,e.getMessage()));
-        }
-
-        return tableInfo;
-    }
-
-    /**
-     * Utility method to execute a provided SQL query and return the database version.
-     *
-     * @param conn The database Connection object to use for executing the query.
-     * @param sql The SQL query to retrieve database version.
-     * @return A String containing the results of the query column version.
-     */
-    public static String getVersion (Connection conn, String sql) {
-        String dbVersion = null;
-        ArrayList<Object> binds = new ArrayList<>();
-
-        try {
-            CachedRowSet crsVersion = dbCommon.simpleSelect(conn, sql, binds);
-
-            if (crsVersion.next()) {
-                dbVersion = crsVersion.getString("version");
-            }
-
-            crsVersion.close();
-
-        } catch (Exception e) {
-            Logging.write("info", THREAD_NAME, String.format("Could not retrieve version:  %s", e.getMessage()));
-        }
-
-        return dbVersion;
-    }
+public class SQLService {
+    private static final String THREAD_NAME = "common";
 
     /**
      * Utility method to execute a parameterized SQL query and return the results as a CachedRowSet.
