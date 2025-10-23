@@ -5,14 +5,14 @@
 #  done
 
 export TEST_PLATFORM=$1
-export OUTPUT_BASE=/app/temp/pgcompare
+export OUTPUT_BASE=~/app/temp/pgcompare
 echo "====================================="
 echo Test ${TEST_PLATFORM} to Postgres
 echo "====================================="
 cd target
 rm ${OUTPUT_BASE}/${TEST_PLATFORM}*
 
-export PGCOMPARE_CONFIG=/Users/bpace/app/gitecto/db-projects/pgCompare-Test/pgcompare.${TEST_PLATFORM}.properties
+export PGCOMPARE_CONFIG=~/app/gitecto/work/pgCompare-Test/pgcompare.${TEST_PLATFORM}.properties
 
 echo "  Discovery:"
 export PGCOMPARE_LOG_DESTINATION=${OUTPUT_BASE}/${TEST_PLATFORM}-full-a-discover.log
