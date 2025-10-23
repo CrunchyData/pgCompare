@@ -1,13 +1,16 @@
 package com.crunchydata.controller;
 
+import com.crunchydata.ApplicationContext;
 import com.crunchydata.models.DCTable;
 import com.crunchydata.models.DCTableMap;
 import com.crunchydata.services.*;
 import com.crunchydata.util.Logging;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
 
@@ -190,5 +193,224 @@ public class TableController {
 
         Logging.write("info", THREAD_NAME, String.format("(%s) Discovered %d tables on %s for for schema %s", destRole, tableCount, platform, schema));
 
+    }
+    
+    // Constants for table processing
+    private static final String STATUS_SKIPPED = "skipped";
+    private static final String STATUS_DISABLED = "disabled";
+    private static final String CONN_TYPE_SOURCE = "source";
+    private static final String CONN_TYPE_TARGET = "target";
+    
+    /**
+     * Perform copy table operation.
+     * 
+     * @param context Application context
+     * @return New table ID
+     */
+    public static int performCopyTable(ApplicationContext context) {
+        int newTID = 0;
+        String tableName = context.getCmd().getOptionValue("table");
+        String newTableName = tableName + "_copy";
+
+        Logging.write("info", THREAD_NAME, String.format("Copying table and column map for %s to %s", tableName, newTableName));
+
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, tableName);
+
+        Integer tid = SQLService.simpleSelectReturnInteger(context.getConnRepo(), SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
+
+        binds.clear();
+        binds.add(0, context.getPid());
+        binds.add(1, tid);
+        binds.add(2, newTableName);
+
+        newTID = SQLService.simpleUpdateReturningInteger(context.getConnRepo(), SQL_REPO_DC_COPY_TABLE, binds);
+
+        return newTID;
+    }
+    
+    /**
+     * Process all tables in the result set.
+     * 
+     * @param tablesResultSet Result set containing tables to process
+     * @param isCheck Whether this is a recheck operation
+     * @param repoController Repository controller instance
+     * @return ComparisonResults containing processed tables and results
+     * @throws SQLException if database operations fail
+     */
+    public static ComparisonResults processTables(CachedRowSet tablesResultSet, boolean isCheck, RepoController repoController, ApplicationContext context) throws SQLException {
+        JSONArray runResults = new JSONArray();
+        int tablesProcessed = 0;
+        
+        while (tablesResultSet.next()) {
+            tablesProcessed++;
+            
+            // Create DCTable object from result set
+            DCTable table = createDCTableFromResultSet(tablesResultSet, context.getPid());
+            
+            // Process the table and get results
+            JSONObject actionResult = processTable(table, isCheck, repoController, context);
+            runResults.put(actionResult);
+        }
+        
+        return new ComparisonResults(tablesProcessed, runResults);
+    }
+    
+    /**
+     * Create a DCTable object from the result set.
+     * 
+     * @param resultSet The result set containing table data
+     * @param pid Project ID
+     * @return DCTable object
+     * @throws SQLException if database operations fail
+     */
+    public static DCTable createDCTableFromResultSet(CachedRowSet resultSet, Integer pid) throws SQLException {
+        DCTable dct = new DCTable();
+        dct.setPid(pid);
+        dct.setTid(resultSet.getInt("tid"));
+        dct.setEnabled(resultSet.getBoolean("enabled"));
+        dct.setBatchNbr(resultSet.getInt("batch_nbr"));
+        dct.setParallelDegree(resultSet.getInt("parallel_degree"));
+        dct.setTableAlias(resultSet.getString("table_alias"));
+        return dct;
+    }
+    
+    /**
+     * Process a single table for comparison.
+     * 
+     * @param table The table to process
+     * @param isCheck Whether this is a recheck operation
+     * @param repoController Repository controller instance
+     * @param context Application context
+     * @return JSONObject containing the result of processing this table
+     */
+    public static JSONObject processTable(DCTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
+        if (table.getEnabled()) {
+            return processEnabledTable(table, isCheck, repoController, context);
+        } else {
+            return createSkippedTableResult(table);
+        }
+    }
+    
+    /**
+     * Process an enabled table for comparison.
+     * 
+     * @param table The table to process
+     * @param isCheck Whether this is a recheck operation
+     * @param repoController Repository controller instance
+     * @param context Application context
+     * @return JSONObject containing the result of processing this table
+     */
+    public static JSONObject processEnabledTable(DCTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
+        Logging.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE: %s ---", 
+            table.getTableAlias().toUpperCase()));
+
+        try {
+            // Create table maps for source and target
+            DCTableMap sourceTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_SOURCE);
+            DCTableMap targetTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_TARGET);
+            
+            // Set batch number and project ID
+            sourceTableMap.setBatchNbr(table.getBatchNbr());
+            sourceTableMap.setPid(context.getPid());
+            sourceTableMap.setTableAlias(table.getTableAlias());
+            
+            targetTableMap.setBatchNbr(table.getBatchNbr());
+            targetTableMap.setPid(context.getPid());
+            targetTableMap.setTableAlias(table.getTableAlias());
+
+            // Start table history tracking
+            repoController.startTableHistory(context.getConnRepo(), table.getTid(), table.getBatchNbr());
+
+            // Clear previous results if not a recheck
+            if (!isCheck) {
+                Logging.write("info", THREAD_NAME, "Clearing data compare findings");
+                repoController.deleteDataCompare(context.getConnRepo(), table.getTid(), table.getBatchNbr());
+            }
+
+            // Perform the actual comparison
+            JSONObject actionResult = CompareController.reconcileData(
+                context.getConnRepo(), context.getConnSource(), context.getConnTarget(), 
+                context.getStartStopWatch(), isCheck, table, sourceTableMap, targetTableMap);
+
+            // Complete table history
+            repoController.completeTableHistory(context.getConnRepo(), table.getTid(), table.getBatchNbr(), 0, actionResult.toString());
+            
+            return actionResult;
+            
+        } catch (Exception e) {
+            Logging.write("severe", THREAD_NAME, String.format("Error processing table %s: %s", 
+                table.getTableAlias(), e.getMessage()));
+            return createErrorTableResult(table, e.getMessage());
+        }
+    }
+    
+    /**
+     * Create a result object for a skipped (disabled) table.
+     * 
+     * @param table The table that was skipped
+     * @return JSONObject containing skip result
+     */
+    public static JSONObject createSkippedTableResult(DCTable table) {
+        Logging.write("warning", THREAD_NAME, String.format("Skipping disabled table: %s", 
+            table.getTableAlias().toUpperCase()));
+        
+        JSONObject result = new JSONObject();
+        result.put("tableName", table.getTableAlias());
+        result.put("status", STATUS_SKIPPED);
+        result.put("compareStatus", STATUS_DISABLED);
+        result.put("missingSource", 0);
+        result.put("missingTarget", 0);
+        result.put("notEqual", 0);
+        result.put("equal", 0);
+        return result;
+    }
+    
+    /**
+     * Create a result object for a table that encountered an error.
+     * 
+     * @param table The table that encountered an error
+     * @param errorMessage The error message
+     * @return JSONObject containing error result
+     */
+    public static JSONObject createErrorTableResult(DCTable table, String errorMessage) {
+        JSONObject result = new JSONObject();
+        result.put("tableName", table.getTableAlias());
+        result.put("status", "error");
+        result.put("compareStatus", "failed");
+        result.put("error", errorMessage);
+        result.put("missingSource", 0);
+        result.put("missingTarget", 0);
+        result.put("notEqual", 0);
+        result.put("equal", 0);
+        return result;
+    }
+    
+    /**
+     * Inner class to hold comparison results.
+     */
+    public static class ComparisonResults {
+        private final int tablesProcessed;
+        private final JSONArray runResults;
+        
+        public ComparisonResults(int tablesProcessed, JSONArray runResults) {
+            this.tablesProcessed = tablesProcessed;
+            this.runResults = runResults;
+        }
+        
+        public int getTablesProcessed() { return tablesProcessed; }
+        public JSONArray getRunResults() { return runResults; }
+    }
+    
+    /**
+     * Create a table map for the specified connection type.
+     * 
+     * @param connRepo Repository connection
+     * @param tid Table ID
+     * @param tableOrigin Connection type (source/target)
+     * @return DCTableMap object
+     */
+    public static DCTableMap createTableMap(Connection connRepo, Integer tid, String tableOrigin) {
+        return getTableMap(connRepo, tid, tableOrigin);
     }
 }

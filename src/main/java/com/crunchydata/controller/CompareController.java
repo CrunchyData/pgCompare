@@ -25,6 +25,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import javax.sql.rowset.CachedRowSet;
 
+import com.crunchydata.ApplicationContext;
 import com.crunchydata.models.ColumnMetadata;
 import com.crunchydata.models.DCTable;
 import com.crunchydata.models.DCTableMap;
@@ -32,6 +33,8 @@ import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 import com.crunchydata.services.*;
+import com.crunchydata.controller.ReportController;
+import com.crunchydata.controller.TableController;
 
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
 import static com.crunchydata.services.DatabaseService.buildLoadSQL;
@@ -300,6 +303,40 @@ public class CompareController {
         }
 
         return true;
+    }
+    
+    /**
+     * Perform database comparison operation.
+     * This method handles both regular comparison and recheck operations.
+     * 
+     * @param context Application context
+     */
+    public static void performCompare(ApplicationContext context) {
+        boolean isCheck = Props.getProperty("isCheck").equals("true");
+        String tableFilter = context.getCmd().hasOption("table") ? context.getCmd().getOptionValue("table").toLowerCase() : "";
+        
+        Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s", isCheck));
+
+        try {
+            // Get tables to process
+            RepoController repoController = new RepoController();
+            CachedRowSet tablesResultSet = repoController.getTables(context.getPid(), context.getConnRepo(), context.getBatchParameter(), tableFilter, isCheck);
+            
+            // Process tables and collect results
+            TableController.ComparisonResults results = TableController.processTables(tablesResultSet, isCheck, repoController, context);
+            
+            // Close result set
+            if (tablesResultSet != null) {
+                tablesResultSet.close();
+            }
+            
+            // Generate summary and reports
+            ReportController.createSummary(context, results.getTablesProcessed(), results.getRunResults(), isCheck);
+            
+        } catch (Exception e) {
+            Logging.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s", e.getMessage()));
+            throw new RuntimeException("Comparison operation failed", e);
+        }
     }
 
 }

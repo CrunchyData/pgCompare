@@ -63,7 +63,7 @@ import java.util.Set;
 public class Settings {
 
     public static Properties Props;
-    public static final String VERSION = "0.4.0.0";
+    public static final String VERSION = "0.5.0.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
     static Map<String, Set<String>> validPropertyValues = Map.of(
