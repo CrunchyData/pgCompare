@@ -1,3 +1,19 @@
+/*
+ * Copyright 2012-2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.crunchydata.controller;
 
 import com.crunchydata.ApplicationContext;
@@ -34,15 +50,42 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
 public class TableController {
 
     private static final String THREAD_NAME = "table-ctrl";
+    
+    // Connection type constants
+    private static final String CONN_TYPE_SOURCE = "source";
+    private static final String CONN_TYPE_TARGET = "target";
+    
+    // Status constants
+    private static final String STATUS_SKIPPED = "skipped";
+    private static final String STATUS_DISABLED = "disabled";
+    private static final String STATUS_ERROR = "error";
+    private static final String STATUS_FAILED = "failed";
+    
+    // Default values
+    private static final int DEFAULT_BATCH_NBR = 1;
+    private static final int DEFAULT_PARALLEL_DEGREE = 1;
 
     /**
      * Discover Tables in Specified Schema.
      *
+     * @param Props           Properties configuration
+     * @param pid             Project ID
+     * @param table           Table name filter
      * @param connRepo        Repository database connection
      * @param connSource      Source database connection
      * @param connTarget      Target database connection
      */
-    public static void discoverTables (Properties Props, Integer pid, String table, Connection connRepo, Connection connSource, Connection connTarget) {
+    public static void discoverTables(Properties Props, Integer pid, String table, Connection connRepo, Connection connSource, Connection connTarget) {
+        // Basic input validation
+        if (Props == null) {
+            throw new IllegalArgumentException("Properties cannot be null");
+        }
+        if (pid == null || pid <= 0) {
+            throw new IllegalArgumentException("Project ID must be positive");
+        }
+        if (connRepo == null || connSource == null || connTarget == null) {
+            throw new IllegalArgumentException("Database connections cannot be null");
+        }
 
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,pid);
@@ -54,15 +97,7 @@ public class TableController {
         String sql = (table.isEmpty()) ? SQL_REPO_DCTABLE_DELETEBYPROJECT : SQL_REPO_DCTABLE_DELETEBYPROJECTTABLE;
 
         // Clean previous Discovery
-        Logging.write("info", THREAD_NAME, "Clearing previous discovery");
-        SQLService.simpleUpdate(connRepo, sql, binds, true);
-
-        // Clean up orphaned tables
-        binds.clear();
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_CLEAN, binds, true);
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_CLEAN, binds, true);
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCRESULT_CLEAN, binds, true);
-        RepoController.vacuumRepo(connRepo);
+        cleanupPreviousDiscovery(connRepo, sql, binds);
 
         // Target Table Discovery
         loadTables(Props, pid, table, connRepo, connTarget, "target",true);
@@ -71,24 +106,7 @@ public class TableController {
         loadTables(Props, pid, table, connRepo, connSource, "source",false);
 
         // Clear Incomplete Map
-        binds.clear();
-        binds.addFirst(pid);
-        CachedRowSet crs = SQLService.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
-
-        try {
-            while (crs.next()) {
-                binds.clear();
-                binds.addFirst(crs.getInt("tid"));
-
-                Logging.write("warning",THREAD_NAME,String.format("Skipping table %s due to incomplete mapping (missing source or target)",crs.getString("table_alias")));
-
-                SQLService.simpleUpdate(connRepo,SQL_REPO_DCTABLE_DELETEBYTID, binds,true);
-            }
-
-            crs.close();
-        } catch (Exception e) {
-            Logging.write("warning",THREAD_NAME,String.format("Error clearing incomplete map: %s",e.getMessage()));
-        }
+        clearIncompleteMappings(connRepo, pid);
     }
 
     public static DCTableMap getTableMap (Connection conn, Integer tid, String tableOrigin) {
@@ -195,12 +213,6 @@ public class TableController {
 
     }
     
-    // Constants for table processing
-    private static final String STATUS_SKIPPED = "skipped";
-    private static final String STATUS_DISABLED = "disabled";
-    private static final String CONN_TYPE_SOURCE = "source";
-    private static final String CONN_TYPE_TARGET = "target";
-    
     /**
      * Perform copy table operation.
      * 
@@ -239,6 +251,17 @@ public class TableController {
      * @throws SQLException if database operations fail
      */
     public static ComparisonResults processTables(CachedRowSet tablesResultSet, boolean isCheck, RepoController repoController, ApplicationContext context) throws SQLException {
+        // Basic input validation
+        if (tablesResultSet == null) {
+            throw new IllegalArgumentException("Tables result set cannot be null");
+        }
+        if (repoController == null) {
+            throw new IllegalArgumentException("Repository controller cannot be null");
+        }
+        if (context == null) {
+            throw new IllegalArgumentException("Application context cannot be null");
+        }
+        
         JSONArray runResults = new JSONArray();
         int tablesProcessed = 0;
         
@@ -285,6 +308,17 @@ public class TableController {
      * @return JSONObject containing the result of processing this table
      */
     public static JSONObject processTable(DCTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
+        // Basic input validation
+        if (table == null) {
+            throw new IllegalArgumentException("Table cannot be null");
+        }
+        if (repoController == null) {
+            throw new IllegalArgumentException("Repository controller cannot be null");
+        }
+        if (context == null) {
+            throw new IllegalArgumentException("Application context cannot be null");
+        }
+        
         if (table.getEnabled()) {
             return processEnabledTable(table, isCheck, repoController, context);
         } else {
@@ -306,6 +340,9 @@ public class TableController {
             table.getTableAlias().toUpperCase()));
 
         try {
+            // Validate table object
+            validateTableForProcessing(table);
+            
             // Create table maps for source and target
             DCTableMap sourceTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_SOURCE);
             DCTableMap targetTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_TARGET);
@@ -376,14 +413,77 @@ public class TableController {
     public static JSONObject createErrorTableResult(DCTable table, String errorMessage) {
         JSONObject result = new JSONObject();
         result.put("tableName", table.getTableAlias());
-        result.put("status", "error");
-        result.put("compareStatus", "failed");
+        result.put("status", STATUS_ERROR);
+        result.put("compareStatus", STATUS_FAILED);
         result.put("error", errorMessage);
         result.put("missingSource", 0);
         result.put("missingTarget", 0);
         result.put("notEqual", 0);
         result.put("equal", 0);
         return result;
+    }
+    
+    /**
+     * Clean up previous discovery data and orphaned tables.
+     * 
+     * @param connRepo Repository connection
+     * @param sql SQL statement for cleanup
+     * @param binds Bind parameters
+     */
+    private static void cleanupPreviousDiscovery(Connection connRepo, String sql, ArrayList<Object> binds) {
+        Logging.write("info", THREAD_NAME, "Clearing previous discovery");
+        SQLService.simpleUpdate(connRepo, sql, binds, true);
+
+        // Clean up orphaned tables
+        binds.clear();
+        SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_CLEAN, binds, true);
+        SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_CLEAN, binds, true);
+        SQLService.simpleUpdate(connRepo, SQL_REPO_DCRESULT_CLEAN, binds, true);
+        RepoController.vacuumRepo(connRepo);
+    }
+    
+    /**
+     * Clear incomplete table mappings.
+     * 
+     * @param connRepo Repository connection
+     * @param pid Project ID
+     */
+    private static void clearIncompleteMappings(Connection connRepo, Integer pid) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.addFirst(pid);
+        CachedRowSet crs = SQLService.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
+
+        try {
+            while (crs.next()) {
+                binds.clear();
+                binds.addFirst(crs.getInt("tid"));
+
+                Logging.write("warning", THREAD_NAME, String.format("Skipping table %s due to incomplete mapping (missing source or target)", crs.getString("table_alias")));
+
+                SQLService.simpleUpdate(connRepo, SQL_REPO_DCTABLE_DELETEBYTID, binds, true);
+            }
+
+            crs.close();
+        } catch (Exception e) {
+            Logging.write("warning", THREAD_NAME, String.format("Error clearing incomplete map: %s", e.getMessage()));
+        }
+    }
+    
+    /**
+     * Validate table object for processing.
+     * 
+     * @param table Table object to validate
+     */
+    private static void validateTableForProcessing(DCTable table) {
+        if (table == null) {
+            throw new IllegalArgumentException("Table cannot be null");
+        }
+        if (table.getTid() == null || table.getTid() <= 0) {
+            throw new IllegalArgumentException("Invalid table ID");
+        }
+        if (table.getTableAlias() == null || table.getTableAlias().trim().isEmpty()) {
+            throw new IllegalArgumentException("Table alias cannot be null or empty");
+        }
     }
     
     /**
