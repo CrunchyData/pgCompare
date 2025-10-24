@@ -27,11 +27,19 @@ import java.sql.SQLException;
 import static com.crunchydata.util.ColumnUtility.RESERVED_WORDS;
 
 /**
- * A utility class for working with CLOB data.
+ * Utility class for data processing operations.
+ * Provides methods for working with CLOB data, string analysis, and ResultSet processing.
+ *
+ * <p>This class handles data type validation, case analysis, and string manipulation
+ * operations used throughout the application.</p>
  *
  * @author Brian Pace
  */
 public class DataUtility {
+    
+    // Constants for better maintainability
+    private static final String NULL_STRING = "NULL";
+    private static final String SPECIAL_CHAR_PATTERN = ".*[^a-zA-Z0-9_].*";
 
     /**
      * Converts a CLOB to a string.
@@ -53,26 +61,42 @@ public class DataUtility {
         }
     }
 
+    /**
+     * Checks if a string contains only lowercase alphabetic characters.
+     *
+     * @param str The string to check
+     * @return true if all alphabetic characters are lowercase, false otherwise
+     */
     public static boolean allLower(String str) {
         for (char c : str.toCharArray()) {
-            if (! Character.isLowerCase(c) && Character.isAlphabetic(c) ) {
+            if (!Character.isLowerCase(c) && Character.isAlphabetic(c)) {
                 return false;
             }
         }
-
         return true;
     }
 
+    /**
+     * Checks if a string contains only uppercase alphabetic characters.
+     *
+     * @param str The string to check
+     * @return true if all alphabetic characters are uppercase, false otherwise
+     */
     public static boolean allUpper(String str) {
         for (char c : str.toCharArray()) {
-            if (! Character.isUpperCase(c) && Character.isAlphabetic(c) ) {
+            if (!Character.isUpperCase(c) && Character.isAlphabetic(c)) {
                 return false;
             }
         }
-
         return true;
     }
 
+    /**
+     * Checks if a string contains both uppercase and lowercase alphabetic characters.
+     *
+     * @param str The string to check
+     * @return true if the string contains both uppercase and lowercase characters, false otherwise
+     */
     public static boolean isMixedCase(String str) {
         boolean hasUpper = false;
         boolean hasLower = false;
@@ -94,12 +118,26 @@ public class DataUtility {
         return false;
     }
 
+    /**
+     * Checks if a string contains special characters (non-alphanumeric, non-underscore).
+     *
+     * @param str The string to check
+     * @return true if the string contains special characters, false otherwise
+     */
     public static boolean containsSpecialCharacter(String str) {
-        return str.matches(".*[^a-zA-Z0-9_].*");
+        return str.matches(SPECIAL_CHAR_PATTERN);
     }
 
+    /**
+     * Determines if a string should preserve its case based on expected case and special conditions.
+     *
+     * @param expectedCase The expected case format ("lower" or "upper")
+     * @param str The string to analyze
+     * @return true if the string should preserve its case, false otherwise
+     */
     public static boolean preserveCase(String expectedCase, String str) {
-        return (((expectedCase.equals("lower") ) ? ! allLower(str) : ! allUpper(str)) || RESERVED_WORDS.contains(str) || containsSpecialCharacter(str));
+        boolean caseMismatch = expectedCase.equals("lower") ? !allLower(str) : !allUpper(str);
+        return caseMismatch || RESERVED_WORDS.contains(str) || containsSpecialCharacter(str);
     }
 
     /**
@@ -119,7 +157,7 @@ public class DataUtility {
 
         for (int i = 1; i <= columnCount; i++) {
             Object value = rs.getObject(i);
-            rowString.append(value != null ? value.toString() : "NULL");
+            rowString.append(value != null ? value.toString() : NULL_STRING);
 
             if (i < columnCount) {
                 rowString.append(delimiter);
@@ -132,11 +170,12 @@ public class DataUtility {
     /**
      * Analyzes the passed string and based on the preserveCase will return a quoted string or the passed string.
      *
-     * @param preserveCase      Should the case be preserved (quoted)
-     * @param str               The string to be quoted or not quoted.
-     * @return a string of the passed value either quoted or not quoted.
+     * @param preserveCase Should the case be preserved (quoted)
+     * @param str The string to be quoted or not quoted
+     * @param quoteChar The quote character to use
+     * @return a string of the passed value either quoted or not quoted
      */
     public static String ShouldQuoteString(Boolean preserveCase, String str, String quoteChar) {
-        return (preserveCase) ? String.format("%s%s%s", quoteChar, str, quoteChar) :  str;
+        return preserveCase ? String.format("%s%s%s", quoteChar, str, quoteChar) : str;
     }
 }

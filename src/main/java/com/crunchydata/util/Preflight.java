@@ -7,90 +7,138 @@ import java.util.Set;
 import static com.crunchydata.util.Settings.Props;
 import static com.crunchydata.util.Settings.validPropertyValues;
 
+/**
+ * Utility class for preflight validation operations.
+ * Provides methods to validate application settings and database configurations before execution.
+ *
+ * <p>This class handles validation of properties, database settings, and action-specific
+ * requirements to ensure the application can run successfully.</p>
+ *
+ * @author Brian Pace
+ */
 public class Preflight {
 
     private static final String THREAD_NAME = "preflight-util";
+    
+    // Constants for better maintainability
+    private static final String COPY_TABLE_ACTION = "copy-table";
+    private static final String TABLE_PROPERTY = "table";
+    private static final String IS_CHECK_PROPERTY = "isCheck";
+    private static final String TRUE_VALUE = "true";
+    private static final String COLUMN_HASH_METHOD_PROPERTY = "column-hash-method";
+    private static final String DATABASE_HASH_METHOD = "database";
+    private static final String HYBRID_HASH_METHOD = "hybrid";
+    private static final String NUMBER_CAST_PROPERTY = "number-cast";
+    private static final String NOTATION_CAST = "notation";
+    private static final String STANDARD_CAST = "standard";
+    private static final String STANDARD_NUMBER_FORMAT_PROPERTY = "standard-number-format";
+    private static final String DB2_PRECISION_FORMAT = "0000000000000000000000000000000.0000000000000000000000000000000";
 
-    public static boolean all (String action) {
-
+    /**
+     * Performs all preflight validation checks.
+     *
+     * @param action The action being performed
+     * @return true if all validations pass, false otherwise
+     */
+    public static boolean all(String action) {
         // Properties Preflight
-        if ( !validateProperties()) {
+        if (!validateProperties()) {
             Logging.write("severe", THREAD_NAME, "Invalid properties");
             return false;
         }
 
         // Action Preflights
-        if ( action.equals("copy-table") ) {
-            if (Props.getProperty("table").length() > 0) {
+        if (COPY_TABLE_ACTION.equals(action)) {
+            if (Props.getProperty(TABLE_PROPERTY).length() > 0) {
                 Logging.write("severe", THREAD_NAME, "Must specify a table alias to copy using --table option");
                 return false;
             }
         }
 
         // Database Preflight
-        Preflight.database(Props,"source");
-        Preflight.database(Props,"target");
+        Preflight.database(Props, "source");
+        Preflight.database(Props, "target");
 
         return true;
     }
 
     /**
-     * Preflight method to validate settings
+     * Performs database-specific preflight validation and configuration adjustments.
      *
+     * @param Props Properties object containing configuration
+     * @param targetType The target type (source/target)
      */
-    public static void database (Properties Props, String targetType) {
-        Logging.write("info",THREAD_NAME,String.format("Performing Preflight checks for %s",targetType));
+    public static void database(Properties Props, String targetType) {
+        Logging.write("info", THREAD_NAME, String.format("Performing Preflight checks for %s", targetType));
 
         String databaseType = Props.getProperty(targetType + "-type");
 
-        if (Props.getProperty("isCheck").equals("true") && Props.getProperty("column-hash-method").equals("database")) {
-            Logging.write("info",THREAD_NAME,"Switching column hash method to hybrid for check");
-            Props.setProperty("column-hash-method","hybrid");
+        // Handle check mode hash method adjustment
+        if (TRUE_VALUE.equals(Props.getProperty(IS_CHECK_PROPERTY)) && DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
+            Logging.write("info", THREAD_NAME, "Switching column hash method to hybrid for check");
+            Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
         }
 
         switch (databaseType) {
             case "db2":
-                // Number Cast must be standard
-                if (Props.getProperty("number-cast").equals("notation")) {
-                    Logging.write("warning",THREAD_NAME,"Switching number-cast to standard and standard-number-format to precision of 31 as required for DB2");
-                    Props.setProperty("number-cast","standard");
-                    Props.setProperty("standard-number-format","0000000000000000000000000000000.0000000000000000000000000000000");
-                }
-
-                // Database side hash is not supported for DB2
-                if ("database".equals(Props.getProperty("column-hash-method")) ) {
-                    Logging.write("warning",THREAD_NAME,"Switching column hash method to hybrid as required for DB2");
-                    Props.setProperty("column-hash-method","hybrid");
-                }
-
+                handleDB2Configuration(Props);
                 break;
-
             case "mariadb", "mysql", "oracle", "postgres":
-                // No restrictions
+                // No restrictions for these databases
                 break;
-
             case "mssql":
-                // Database side hash is not supported for MSSQL
-                if ("database".equals(Props.getProperty("column-hash-method"))) {
-                    Logging.write("warning",THREAD_NAME,"Switching column hash method to hybrid as required for MSSQL");
-                    Props.setProperty("column-hash-method","hybrid");
-                }
+                handleMSSQLConfiguration(Props);
                 break;
-
+        }
+    }
+    
+    /**
+     * Handles DB2-specific configuration adjustments.
+     *
+     * @param Props Properties object to modify
+     */
+    private static void handleDB2Configuration(Properties Props) {
+        // Number Cast must be standard for DB2
+        if (NOTATION_CAST.equals(Props.getProperty(NUMBER_CAST_PROPERTY))) {
+            Logging.write("warning", THREAD_NAME, "Switching number-cast to standard and standard-number-format to precision of 31 as required for DB2");
+            Props.setProperty(NUMBER_CAST_PROPERTY, STANDARD_CAST);
+            Props.setProperty(STANDARD_NUMBER_FORMAT_PROPERTY, DB2_PRECISION_FORMAT);
         }
 
+        // Database side hash is not supported for DB2
+        if (DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
+            Logging.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for DB2");
+            Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
+        }
+    }
+    
+    /**
+     * Handles MSSQL-specific configuration adjustments.
+     *
+     * @param Props Properties object to modify
+     */
+    private static void handleMSSQLConfiguration(Properties Props) {
+        // Database side hash is not supported for MSSQL
+        if (DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
+            Logging.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for MSSQL");
+            Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
+        }
     }
 
-    public static boolean validateProperties () {
-        for (Map.Entry<String, Set<String>> entry : validPropertyValues.entrySet() ) {
+    /**
+     * Validates all properties against their valid values.
+     *
+     * @return true if all properties are valid, false otherwise
+     */
+    public static boolean validateProperties() {
+        for (Map.Entry<String, Set<String>> entry : validPropertyValues.entrySet()) {
             String propertyName = entry.getKey();
             Set<String> validValues = entry.getValue();
 
-            if (! validValues.contains(Props.getProperty(propertyName))) {
-                Logging.write("severe","Settings", String.format("Property %s has an invalid value.  Valid values are: %s", propertyName, validValues.toString()));
+            if (!validValues.contains(Props.getProperty(propertyName))) {
+                Logging.write("severe", "Settings", String.format("Property %s has an invalid value. Valid values are: %s", propertyName, validValues.toString()));
                 return false;
             }
-
         }
 
         return true;

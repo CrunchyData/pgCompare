@@ -35,6 +35,12 @@ public class HashUtility {
         throw new UnsupportedOperationException("HashUtility is a utility class and cannot be instantiated.");
     }
 
+    // Constants for better maintainability
+    private static final String MD5_ALGORITHM = "MD5";
+    private static final String HEX_RADIX = "16";
+    private static final String ZERO_PADDING = "0";
+    private static final int MD5_HASH_LENGTH = 32;
+
     /**
      * Generates an MD5 hash for the given input string.
      *
@@ -42,12 +48,14 @@ public class HashUtility {
      * @return the MD5 hash as a hexadecimal string
      * @throws RuntimeException if the MD5 algorithm is not available
      */
-    public static String getMd5(String input)
-    {
+    public static String getMd5(String input) {
+        if (input == null) {
+            throw new IllegalArgumentException("Input cannot be null");
+        }
+        
         try {
-
             // Static getInstance method is called with hashing MD5
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance(MD5_ALGORITHM);
 
             // digest() method is called to calculate message digest
             // of an input digest() return array of byte
@@ -57,17 +65,14 @@ public class HashUtility {
             BigInteger no = new BigInteger(1, messageDigest);
 
             // Convert message digest into hex value
-            StringBuilder hashText = new StringBuilder(no.toString(16));
+            StringBuilder hashText = new StringBuilder(no.toString(Integer.parseInt(HEX_RADIX)));
 
             // Pad with leading zeros to ensure 32-character length
-            while (hashText.length() < 32) {
-                hashText.insert(0, "0");
+            while (hashText.length() < MD5_HASH_LENGTH) {
+                hashText.insert(0, ZERO_PADDING);
             }
             return hashText.toString();
-        }
-
-        // For specifying wrong message digest algorithms
-        catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("MD5 algorithm not found", e);
         }
     }

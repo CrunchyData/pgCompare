@@ -34,22 +34,32 @@ public class JsonUtility {
         throw new UnsupportedOperationException("JsonUtility is a utility class and cannot be instantiated.");
     }
 
+    // Constants for better maintainability
+    private static final String CHAR_DATA_CLASS = "char";
+    private static final String MSSQL_PLATFORM = "mssql";
+    private static final String QUOTE_REPLACEMENT = "";
+    private static final String JSON_KEY_FORMAT = "'\"%s\": \"' %s %s %s '\"' ";
+    private static final String JSON_KEY_FORMAT_MSSQL = "'\"%s\": ' %s trim(cast(%s as varchar))";
+    private static final String JSON_KEY_FORMAT_DEFAULT = "'\"%s\": ' %s %s";
+
     /**
      * Build an expression that can be used in a SQL statement to construct a JSON object
      *
-     * @param platform          Database platform.
-     * @param column            Column name.
-     * @param dataClass         Class of the data type.
+     * @param platform          Database platform
+     * @param column            Column name
+     * @param dataClass         Class of the data type
      * @param concatOperator    Operator to use for concatenation
-     * @return                  Expression for SQL statement.
+     * @return                  Expression for SQL statement
      */
     public static String buildJsonExpression(String platform, String column, String dataClass, String concatOperator) {
-        if ("char".equals(dataClass)) {
-            return String.format("'\"%s\": \"' %s %s %s '\"' ", column.replace("\"",""), concatOperator, column, concatOperator);
-        } else if ("mssql".equals(platform)) {
-            return  String.format("'\"%s\": ' %s trim(cast(%s as varchar))",column.replace("\"",""), concatOperator, column);
+        String cleanColumn = column.replace("\"", QUOTE_REPLACEMENT);
+        
+        if (CHAR_DATA_CLASS.equals(dataClass)) {
+            return String.format(JSON_KEY_FORMAT, cleanColumn, concatOperator, column, concatOperator);
+        } else if (MSSQL_PLATFORM.equals(platform)) {
+            return String.format(JSON_KEY_FORMAT_MSSQL, cleanColumn, concatOperator, column);
         } else {
-            return  String.format("'\"%s\": ' %s %s",column.replace("\"",""), concatOperator, column);
+            return String.format(JSON_KEY_FORMAT_DEFAULT, cleanColumn, concatOperator, column);
         }
     }
 

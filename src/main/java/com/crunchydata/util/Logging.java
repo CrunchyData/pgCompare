@@ -19,10 +19,13 @@ public final class Logging {
 
     private static final Logger LOGGER = Logger.getLogger(Logging.class.getName());
     private static final String STDOUT = "stdout";
+    private static final String LOG_FORMAT_PROPERTY = "java.util.logging.SimpleFormatter.format";
+    private static final String DEFAULT_LOG_FORMAT = "[%1$tF %1$tT] [%4$-7s] %5$s %n";
+    private static final String MODULE_FORMAT = "[%-24s] %s";
 
     static {
         // Set default format for log messages
-        System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] [%4$-7s] %5$s %n");
+        System.setProperty(LOG_FORMAT_PROPERTY, DEFAULT_LOG_FORMAT);
     }
 
     // Private constructor to prevent instantiation
@@ -95,7 +98,7 @@ public final class Logging {
      */
     public static void write(String severity, String module, String message) {
         Level level = mapLogLevel(severity);
-        String formattedMessage = String.format("[%-24s] %s", module, message);
+        String formattedMessage = String.format(MODULE_FORMAT, module, message);
         LOGGER.log(level, formattedMessage);
     }
 }
