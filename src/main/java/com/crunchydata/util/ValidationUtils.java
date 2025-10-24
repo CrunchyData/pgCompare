@@ -43,14 +43,14 @@ public class Preflight {
     public static boolean all(String action) {
         // Properties Preflight
         if (!validateProperties()) {
-            Logging.write("severe", THREAD_NAME, "Invalid properties");
+            LoggingUtils.write("severe", THREAD_NAME, "Invalid properties");
             return false;
         }
 
         // Action Preflights
         if (COPY_TABLE_ACTION.equals(action)) {
             if (Props.getProperty(TABLE_PROPERTY).length() > 0) {
-                Logging.write("severe", THREAD_NAME, "Must specify a table alias to copy using --table option");
+                LoggingUtils.write("severe", THREAD_NAME, "Must specify a table alias to copy using --table option");
                 return false;
             }
         }
@@ -69,13 +69,13 @@ public class Preflight {
      * @param targetType The target type (source/target)
      */
     public static void database(Properties Props, String targetType) {
-        Logging.write("info", THREAD_NAME, String.format("Performing Preflight checks for %s", targetType));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Performing Preflight checks for %s", targetType));
 
         String databaseType = Props.getProperty(targetType + "-type");
 
         // Handle check mode hash method adjustment
         if (TRUE_VALUE.equals(Props.getProperty(IS_CHECK_PROPERTY)) && DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
-            Logging.write("info", THREAD_NAME, "Switching column hash method to hybrid for check");
+            LoggingUtils.write("info", THREAD_NAME, "Switching column hash method to hybrid for check");
             Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
         }
 
@@ -100,14 +100,14 @@ public class Preflight {
     private static void handleDB2Configuration(Properties Props) {
         // Number Cast must be standard for DB2
         if (NOTATION_CAST.equals(Props.getProperty(NUMBER_CAST_PROPERTY))) {
-            Logging.write("warning", THREAD_NAME, "Switching number-cast to standard and standard-number-format to precision of 31 as required for DB2");
+            LoggingUtils.write("warning", THREAD_NAME, "Switching number-cast to standard and standard-number-format to precision of 31 as required for DB2");
             Props.setProperty(NUMBER_CAST_PROPERTY, STANDARD_CAST);
             Props.setProperty(STANDARD_NUMBER_FORMAT_PROPERTY, DB2_PRECISION_FORMAT);
         }
 
         // Database side hash is not supported for DB2
         if (DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
-            Logging.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for DB2");
+            LoggingUtils.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for DB2");
             Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
         }
     }
@@ -120,7 +120,7 @@ public class Preflight {
     private static void handleMSSQLConfiguration(Properties Props) {
         // Database side hash is not supported for MSSQL
         if (DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
-            Logging.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for MSSQL");
+            LoggingUtils.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for MSSQL");
             Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
         }
     }
@@ -136,7 +136,7 @@ public class Preflight {
             Set<String> validValues = entry.getValue();
 
             if (!validValues.contains(Props.getProperty(propertyName))) {
-                Logging.write("severe", "Settings", String.format("Property %s has an invalid value. Valid values are: %s", propertyName, validValues.toString()));
+                LoggingUtils.write("severe", "Settings", String.format("Property %s has an invalid value. Valid values are: %s", propertyName, validValues.toString()));
                 return false;
             }
         }

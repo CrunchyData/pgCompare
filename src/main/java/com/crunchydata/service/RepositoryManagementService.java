@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.services;
+package com.crunchydata.service;
 
 import com.crunchydata.util.Logging;
 
@@ -67,7 +67,7 @@ public class dbRepository {
         Objects.requireNonNull(props, "Properties cannot be null");
         Objects.requireNonNull(conn, "Connection cannot be null");
         
-        if (!dbConnection.isConnectionValid(conn)) {
+        if (!DatabaseConnectionService.isConnectionValid(conn)) {
             throw new IllegalArgumentException("Invalid database connection");
         }
         
@@ -215,7 +215,7 @@ public class dbRepository {
      * @return true if repository is valid, false otherwise
      */
     public static boolean validateRepository(Connection conn) {
-        if (!dbConnection.isConnectionValid(conn)) {
+        if (!DatabaseConnectionService.isConnectionValid(conn)) {
             Logging.write("warning", THREAD_NAME, "Invalid database connection");
             return false;
         }
@@ -304,7 +304,7 @@ public class dbRepository {
         Objects.requireNonNull(conn, "Connection cannot be null");
         Objects.requireNonNull(schemaName, "Schema name cannot be null");
         
-        if (!dbConnection.isConnectionValid(conn)) {
+        if (!DatabaseConnectionService.isConnectionValid(conn)) {
             throw new IllegalArgumentException("Invalid database connection");
         }
         
@@ -343,7 +343,7 @@ public class dbRepository {
      * @return String containing repository statistics
      */
     public static String getRepositoryStats(Connection conn) {
-        if (!dbConnection.isConnectionValid(conn)) {
+        if (!DatabaseConnectionService.isConnectionValid(conn)) {
             return "Invalid database connection";
         }
         
@@ -385,7 +385,7 @@ public class dbRepository {
         Objects.requireNonNull(conn, "Connection cannot be null");
         Objects.requireNonNull(backupSuffix, "Backup suffix cannot be null");
         
-        if (!dbConnection.isConnectionValid(conn)) {
+        if (!DatabaseConnectionService.isConnectionValid(conn)) {
             throw new IllegalArgumentException("Invalid database connection");
         }
         

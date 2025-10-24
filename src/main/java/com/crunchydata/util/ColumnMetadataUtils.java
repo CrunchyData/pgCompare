@@ -16,7 +16,7 @@
 
 package com.crunchydata.util;
 
-import com.crunchydata.services.*;
+import com.crunchydata.service.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -28,10 +28,10 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Set;
 
-import static com.crunchydata.services.DatabaseService.getNativeCase;
-import static com.crunchydata.services.DatabaseService.getQuoteChar;
-import static com.crunchydata.util.CastUtility.cast;
-import static com.crunchydata.util.CastUtility.castRaw;
+import static com.crunchydata.service.DatabaseMetadataService.getNativeCase;
+import static com.crunchydata.service.DatabaseMetadataService.getQuoteChar;
+import static com.crunchydata.util.DataTypeCastingUtils.cast;
+import static com.crunchydata.util.DataTypeCastingUtils.castRaw;
 import static com.crunchydata.util.DataUtility.*;
 import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
 import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
@@ -146,7 +146,7 @@ public class ColumnUtility {
         binds.add(1, columnAlias);
         binds.add(2, destRole);
 
-        CachedRowSet crs = SQLService.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
+        CachedRowSet crs = SQLExecutionService.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
 
         try {
             while (crs.next()) {

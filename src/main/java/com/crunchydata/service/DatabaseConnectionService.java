@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.services;
+package com.crunchydata.service;
 
 import com.crunchydata.util.Logging;
 

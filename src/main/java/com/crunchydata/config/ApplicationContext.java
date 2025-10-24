@@ -17,15 +17,14 @@
 package com.crunchydata;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 
-import static com.crunchydata.services.dbConnection.closeDatabaseConnection;
-import static com.crunchydata.services.dbConnection.getConnection;
+import static com.crunchydata.service.DatabaseConnectionService.closeDatabaseConnection;
+import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 import static com.crunchydata.util.Settings.*;
 
-import com.crunchydata.services.dbRepository;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.Preflight;
+import com.crunchydata.service.RepositoryManagementService;
+import com.crunchydata.util.LoggingUtils;
+import com.crunchydata.util.ValidationUtils;
 import com.crunchydata.util.Settings;
 
 import org.apache.commons.cli.CommandLine;
@@ -88,11 +87,11 @@ public class ApplicationContext {
         Props.setProperty("isCheck", Boolean.toString(ACTION_CHECK.equals(action)));
 
         // Initialize logging
-        Logging.initialize();
+        LoggingUtils.initialize();
 
         // Setup shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> 
-            Logging.write("info", THREAD_NAME, "Shutting down")));
+            LoggingUtils.write("info", THREAD_NAME, "Shutting down")));
 
         // Log startup information
         logStartupInfo();
@@ -106,7 +105,7 @@ public class ApplicationContext {
         }
 
         // Run preflight checks
-        if (!Preflight.all(action)) {
+        if (!ValidationUtils.all(action)) {
             throw new RuntimeException("Preflight checks failed");
         }
 
@@ -156,7 +155,7 @@ public class ApplicationContext {
                 closeDatabaseConnection(connRepo);
             }
         } catch (Exception e) {
-            Logging.write("warning", THREAD_NAME, "Error closing repository connection: " + e.getMessage());
+            LoggingUtils.write("warning", THREAD_NAME, "Error closing repository connection: " + e.getMessage());
         }
         
         try {
@@ -164,7 +163,7 @@ public class ApplicationContext {
                 closeDatabaseConnection(connTarget);
             }
         } catch (Exception e) {
-            Logging.write("warning", THREAD_NAME, "Error closing target connection: " + e.getMessage());
+            LoggingUtils.write("warning", THREAD_NAME, "Error closing target connection: " + e.getMessage());
         }
         
         try {
@@ -172,7 +171,7 @@ public class ApplicationContext {
                 closeDatabaseConnection(connSource);
             }
         } catch (Exception e) {
-            Logging.write("warning", THREAD_NAME, "Error closing source connection: " + e.getMessage());
+            LoggingUtils.write("warning", THREAD_NAME, "Error closing source connection: " + e.getMessage());
         }
     }
     
@@ -192,9 +191,9 @@ public class ApplicationContext {
      * Log startup information including run ID, version, and batch number.
      */
     private void logStartupInfo() {
-        Logging.write("info", THREAD_NAME, String.format("Starting - rid: %s", startStopWatch));
-        Logging.write("info", THREAD_NAME, String.format("Version: %s", Settings.VERSION));
-        Logging.write("info", THREAD_NAME, String.format("Batch Number: %s", batchParameter));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Starting - rid: %s", startStopWatch));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Version: %s", Settings.VERSION));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Batch Number: %s", batchParameter));
     }
     
     /**
@@ -203,7 +202,7 @@ public class ApplicationContext {
      * @throws Exception if connection fails
      */
     private void connectToRepository() throws Exception {
-        Logging.write("info", THREAD_NAME, "Connecting to repository database");
+        LoggingUtils.write("info", THREAD_NAME, "Connecting to repository database");
         connRepo = getConnection(CONN_TYPE_POSTGRES, CONN_TYPE_REPO);
         if (connRepo == null) {
             throw new RuntimeException("Cannot connect to repository database");
@@ -216,7 +215,7 @@ public class ApplicationContext {
      * @throws Exception if connections fail
      */
     private void connectToSourceAndTarget() throws Exception {
-        Logging.write("info", THREAD_NAME, "Connecting to source and target databases");
+        LoggingUtils.write("info", THREAD_NAME, "Connecting to source and target databases");
         connSource = getConnection(Props.getProperty("source-type"), CONN_TYPE_SOURCE);
         connTarget = getConnection(Props.getProperty("target-type"), CONN_TYPE_TARGET);
     }
@@ -227,9 +226,9 @@ public class ApplicationContext {
      * @throws Exception if initialization fails
      */
     private void handleInitialization() throws Exception {
-        Logging.write("info", THREAD_NAME, "Initializing pgCompare repository");
-        dbRepository.createRepository(Props, connRepo);
-        Logging.write("info", THREAD_NAME, "Repository initialization completed successfully");
+        LoggingUtils.write("info", THREAD_NAME, "Initializing pgCompare repository");
+        RepositoryManagementService.createRepository(Props, connRepo);
+        LoggingUtils.write("info", THREAD_NAME, "Repository initialization completed successfully");
         System.exit(0);
     }
     
@@ -237,18 +236,18 @@ public class ApplicationContext {
      * Log configuration parameters (excluding passwords).
      */
     private void logConfigurationParameters() {
-        Logging.write("info", THREAD_NAME, "Parameters: ");
+        LoggingUtils.write("info", THREAD_NAME, "Parameters: ");
         Props.entrySet().stream()
                 .filter(e -> !e.getKey().toString().contains("password"))
                 .sorted((e1, e2) -> e1.getKey().toString().compareTo(e2.getKey().toString()))
-                .forEach(e -> Logging.write("info", THREAD_NAME, String.format("  %s", e)));
+                .forEach(e -> LoggingUtils.write("info", THREAD_NAME, String.format("  %s", e)));
     }
     
     /**
      * Perform discovery operation.
      */
     private void performDiscovery() {
-        Logging.write("info", THREAD_NAME, "Performing table discovery");
+        LoggingUtils.write("info", THREAD_NAME, "Performing table discovery");
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
 
         // Discover Tables

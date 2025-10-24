@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-package com.crunchydata.models;
+package com.crunchydata.model;
+
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,21 +24,13 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DCTableColumnMap {
-        private Integer tid;
-        private Integer columnID;
-        private String mapType;
-        private String columnOrigin;
-        private String columnName;
-        private String dataType;
-        private String dataClass;
-        private Integer dataLength;
-        private Integer numberPrecision;
-        private Integer numberScale;
-        private Boolean columnNullable;
-        private Boolean columnPrimaryKey;
-        private String mapExpression;
-        private Boolean supported;
-        private Boolean preserveCase;
+public class DataCompare {
+    private Integer tid;
+    private String tableName;
+    private String pkHash;
+    private String columnHash;
+    private String pk;
+    private String compareResult;
+    private Integer threadNbr;
+    private Integer batchNbr;
 }
-

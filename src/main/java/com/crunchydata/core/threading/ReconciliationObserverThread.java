@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.services;
+package com.crunchydata.service;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -22,11 +22,11 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import com.crunchydata.controller.RepoController;
-import com.crunchydata.models.DCTable;
+import com.crunchydata.model.DCTable;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
-import static com.crunchydata.services.dbConnection.getConnection;
+import static com.crunchydata.service.dbConnection.getConnection;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
 import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
 import static com.crunchydata.util.Settings.Props;

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.crunchydata.services;
+package com.crunchydata.service;
 
-import com.crunchydata.models.DataCompare;
+import com.crunchydata.model.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
 
@@ -26,7 +26,7 @@ import java.sql.SQLException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static com.crunchydata.services.dbConnection.getConnection;
+import static com.crunchydata.service.dbConnection.getConnection;
 
 
 /**
@@ -40,7 +40,7 @@ import static com.crunchydata.services.dbConnection.getConnection;
  *
  * @author Brian Pace
  */
-public class threadLoader extends Thread  {
+public class DataLoaderThread extends Thread  {
     private final BlockingQueue<DataCompare[]> q;
     private final Integer instanceNumber;
     private final String stagingTable;
@@ -64,7 +64,7 @@ public class threadLoader extends Thread  {
      * @param stagingTable The name of the staging table in the repository database.
      * @param ts The ThreadSync object for coordinating thread synchronization.
      */
-    public threadLoader(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
+    public DataLoaderThread(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
         this.q = q;
         this.instanceNumber = instanceNumber;
         this.stagingTable = stagingTable;

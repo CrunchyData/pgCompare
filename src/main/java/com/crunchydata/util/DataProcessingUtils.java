@@ -24,7 +24,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
-import static com.crunchydata.util.ColumnUtility.RESERVED_WORDS;
+import static com.crunchydata.util.ColumnMetadataUtils.RESERVED_WORDS;
 
 /**
  * Utility class for data processing operations.

@@ -76,11 +76,11 @@ public class Settings {
     static {
          Properties configProperties = setDefaults();
 
-         if ( FileUtility.FileExistsCheck(paramFile)) {
+         if ( FileSystemUtils.FileExistsCheck(paramFile)) {
             try (InputStream stream = new FileInputStream(paramFile)) {
                 configProperties.load(stream);
             } catch (Exception e) {
-                Logging.write("warning","Settings", "Configuration file not found, using defaults, project, and environment variables");
+                LoggingUtils.write("warning","Settings", "Configuration file not found, using defaults, project, and environment variables");
             }
          }
 

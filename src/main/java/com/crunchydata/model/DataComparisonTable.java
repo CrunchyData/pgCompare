@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.models;
-
+package com.crunchydata.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,13 +23,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DataCompare {
+public class DCTable {
+    private Integer pid;
     private Integer tid;
-    private String tableName;
-    private String pkHash;
-    private String columnHash;
-    private String pk;
-    private String compareResult;
-    private Integer threadNbr;
-    private Integer batchNbr;
+    private String tableAlias;
+    private Integer batchNbr = 1;
+    //private String status = "enabled";
+    private Integer parallelDegree = 1;
+    private Boolean enabled = true;
 }
