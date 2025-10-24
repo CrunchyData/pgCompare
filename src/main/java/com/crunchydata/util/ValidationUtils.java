@@ -4,8 +4,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import static com.crunchydata.util.Settings.Props;
-import static com.crunchydata.util.Settings.validPropertyValues;
+import static com.crunchydata.config.Settings.Props;
+import static com.crunchydata.config.Settings.validPropertyValues;
 
 /**
  * Utility class for preflight validation operations.
@@ -16,7 +16,7 @@ import static com.crunchydata.util.Settings.validPropertyValues;
  *
  * @author Brian Pace
  */
-public class Preflight {
+public class ValidationUtils {
 
     private static final String THREAD_NAME = "preflight-util";
     
@@ -56,8 +56,8 @@ public class Preflight {
         }
 
         // Database Preflight
-        Preflight.database(Props, "source");
-        Preflight.database(Props, "target");
+        ValidationUtils.database(Props, "source");
+        ValidationUtils.database(Props, "target");
 
         return true;
     }

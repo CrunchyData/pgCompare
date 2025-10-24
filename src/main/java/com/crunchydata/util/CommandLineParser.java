@@ -16,13 +16,14 @@
 
 package com.crunchydata.util;
 
+import com.crunchydata.config.Settings;
 import org.apache.commons.cli.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import static com.crunchydata.util.Settings.*;
+import static com.crunchydata.config.Settings.*;
 
 /**
  * Utility class for parsing command line arguments and handling help/version display.

@@ -16,12 +16,12 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.services.SQLService;
-import com.crunchydata.services.threadCheck;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.core.threading.DataValidationThread;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
 
 import java.sql.Connection;
@@ -29,9 +29,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 import static com.crunchydata.controller.ColumnController.getColumnInfo;
-import static com.crunchydata.services.DatabaseService.buildLoadSQL;
-import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.service.DatabaseMetadataService.buildLoadSQL;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Service class for handling data reconciliation operations.
@@ -61,7 +61,7 @@ public class DataReconciliationService {
      * @throws SQLException if database operations fail
      */
     public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget,
-                                         long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) 
+                                           long rid, Boolean check, DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget)
                                          throws SQLException {
         
         long startTime = System.currentTimeMillis();
@@ -102,11 +102,11 @@ public class DataReconciliationService {
             result.put("status", "success");
             
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, String.format("Database error during reconciliation: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Database error during reconciliation: %s", e.getMessage()));
             result.put("status", "failed");
             result.put("compareStatus", "failed");
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Unexpected error during reconciliation: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Unexpected error during reconciliation: %s", e.getMessage()));
             result.put("status", "failed");
             result.put("compareStatus", "failed");
         }
@@ -125,7 +125,7 @@ public class DataReconciliationService {
     private static String getColumnMapping(Connection connRepo, Integer tid) throws SQLException {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(tid);
-        return SQLService.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
+        return SQLExecutionService.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
     }
     
     /**
@@ -137,10 +137,10 @@ public class DataReconciliationService {
      * @param columnMapping Column mapping string
      * @return true if checks pass, false otherwise
      */
-    private static boolean performPreflightChecks(DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, String columnMapping) {
+    private static boolean performPreflightChecks(DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget, String columnMapping) {
         // Check parallel degree and mod column
         if (dct.getParallelDegree() > 1 && dctmSource.getModColumn().isEmpty() && dctmTarget.getModColumn().isEmpty()) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Parallel degree is greater than 1 for table %s, but no value specified for mod_column on source and/or target.", 
                     dct.getTableAlias()));
             return false;
@@ -148,7 +148,7 @@ public class DataReconciliationService {
         
         // Verify column mapping exists
         if (columnMapping == null) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("No column map found for table %s. Consider running with maponly option to create mappings.", 
                     dct.getTableAlias()));
             return false;
@@ -164,7 +164,7 @@ public class DataReconciliationService {
      * @param dctmSource Source table map
      * @return Column metadata for source
      */
-    private static ColumnMetadata getSourceColumnMetadata(JSONObject columnMap, DCTableMap dctmSource) {
+    private static ColumnMetadata getSourceColumnMetadata(JSONObject columnMap, DataComparisonTableMap dctmSource) {
         return getColumnInfo(columnMap, "source", Props.getProperty("source-type"), 
             dctmSource.getSchemaName(), dctmSource.getTableName(), 
             "database".equals(Props.getProperty("column-hash-method")));
@@ -178,7 +178,7 @@ public class DataReconciliationService {
      * @param check Whether this is a check operation
      * @return Column metadata for target
      */
-    private static ColumnMetadata getTargetColumnMetadata(JSONObject columnMap, DCTableMap dctmTarget, Boolean check) {
+    private static ColumnMetadata getTargetColumnMetadata(JSONObject columnMap, DataComparisonTableMap dctmTarget, Boolean check) {
         return getColumnInfo(columnMap, "target", Props.getProperty("target-type"), 
             dctmTarget.getSchemaName(), dctmTarget.getTableName(), 
             !check && "database".equals(Props.getProperty("column-hash-method")));
@@ -193,7 +193,7 @@ public class DataReconciliationService {
      * @return Compare ID
      * @throws SQLException if database operations fail
      */
-    private static Integer createCompareId(Connection connRepo, DCTableMap dctmTarget, long rid) throws SQLException {
+    private static Integer createCompareId(Connection connRepo, DataComparisonTableMap dctmTarget, long rid) throws SQLException {
         RepoController rpc = new RepoController();
         return rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
     }
@@ -206,14 +206,14 @@ public class DataReconciliationService {
      * @param ciSource Source column metadata
      * @param ciTarget Target column metadata
      */
-    private static void generateCompareSQL(DCTableMap dctmSource, DCTableMap dctmTarget,
-                                         ColumnMetadata ciSource, ColumnMetadata ciTarget) {
+    private static void generateCompareSQL(DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                           ColumnMetadata ciSource, ColumnMetadata ciTarget) {
         String method = Props.getProperty("column-hash-method");
         dctmSource.setCompareSQL(buildLoadSQL(method, dctmSource, ciSource));
         dctmTarget.setCompareSQL(buildLoadSQL(method, dctmTarget, ciTarget));
         
-        Logging.write("info", THREAD_NAME, "(source) Compare SQL: " + dctmSource.getCompareSQL());
-        Logging.write("info", THREAD_NAME, "(target) Compare SQL: " + dctmTarget.getCompareSQL());
+        LoggingUtils.write("info", THREAD_NAME, "(source) Compare SQL: " + dctmSource.getCompareSQL());
+        LoggingUtils.write("info", THREAD_NAME, "(target) Compare SQL: " + dctmTarget.getCompareSQL());
     }
     
     /**
@@ -232,10 +232,10 @@ public class DataReconciliationService {
      * @throws SQLException if database operations fail
      */
     private static void executeRecheck(Connection connRepo, Connection connSource, Connection connTarget,
-                                     DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget,
-                                     ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid, JSONObject result) 
+                                       DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                       ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid, JSONObject result)
                                      throws SQLException {
-        JSONObject checkResult = threadCheck.checkRows(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+        JSONObject checkResult = DataValidationThread.checkRows(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
         result.put("checkResult", checkResult);
     }
     
@@ -252,9 +252,9 @@ public class DataReconciliationService {
      * @param result Result object to update
      * @throws SQLException if database operations fail
      */
-    private static void executeReconciliation(Connection connRepo, DCTable dct, Integer cid,
-                                            DCTableMap dctmSource, DCTableMap dctmTarget,
-                                            ColumnMetadata ciSource, ColumnMetadata ciTarget, JSONObject result) 
+    private static void executeReconciliation(Connection connRepo, DataComparisonTable dct, Integer cid,
+                                              DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                              ColumnMetadata ciSource, ColumnMetadata ciTarget, JSONObject result)
                                             throws SQLException {
         if (hasNoPrimaryKeys(ciSource, ciTarget)) {
             skipReconciliation(connRepo, result, dctmTarget.getTableName(), cid);
@@ -263,7 +263,7 @@ public class DataReconciliationService {
                 // Use ThreadManager for complex thread coordination
                 ThreadManager.executeReconciliation(dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, connRepo);
             } catch (InterruptedException e) {
-                Logging.write("severe", THREAD_NAME, String.format("Thread execution interrupted: %s", e.getMessage()));
+                LoggingUtils.write("severe", THREAD_NAME, String.format("Thread execution interrupted: %s", e.getMessage()));
                 Thread.currentThread().interrupt();
                 throw new SQLException("Thread execution interrupted", e);
             }
@@ -293,14 +293,14 @@ public class DataReconciliationService {
      */
     private static void skipReconciliation(Connection connRepo, JSONObject result, String tableName, Integer cid) 
             throws SQLException {
-        Logging.write("warning", THREAD_NAME, 
+        LoggingUtils.write("warning", THREAD_NAME,
             String.format("Table %s has no Primary Key, skipping reconciliation", tableName));
         result.put("status", "skipped");
         result.put("compareStatus", "skipped");
         
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(cid);
-        SQLService.simpleUpdate(connRepo, 
+        SQLExecutionService.simpleUpdate(connRepo,
             "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?", 
             binds, true);
     }
@@ -332,7 +332,7 @@ public class DataReconciliationService {
      * @param dct Table information
      * @return Initialized result object
      */
-    private static JSONObject initializeResult(DCTable dct) {
+    private static JSONObject initializeResult(DataComparisonTable dct) {
         JSONObject result = new JSONObject();
         result.put("tableName", dct.getTableAlias());
         result.put("status", "processing");
@@ -363,10 +363,10 @@ public class DataReconciliationService {
      * @param target Target column metadata
      */
     private static void logColumnMetadata(ColumnMetadata source, ColumnMetadata target) {
-        Logging.write("info", THREAD_NAME, "(source) Columns: " + source.columnList);
-        Logging.write("info", THREAD_NAME, "(target) Columns: " + target.columnList);
-        Logging.write("info", THREAD_NAME, "(source) PK Columns: " + source.pkList);
-        Logging.write("info", THREAD_NAME, "(target) PK Columns: " + target.pkList);
+        LoggingUtils.write("info", THREAD_NAME, "(source) Columns: " + source.columnList);
+        LoggingUtils.write("info", THREAD_NAME, "(target) Columns: " + target.columnList);
+        LoggingUtils.write("info", THREAD_NAME, "(source) PK Columns: " + source.pkList);
+        LoggingUtils.write("info", THREAD_NAME, "(target) PK Columns: " + target.pkList);
     }
     
     /**
@@ -377,7 +377,7 @@ public class DataReconciliationService {
      */
     private static void logFinalResult(JSONObject result, String tableAlias) {
         java.text.DecimalFormat formatter = new java.text.DecimalFormat("#,###");
-        Logging.write("info", THREAD_NAME, String.format(
+        LoggingUtils.write("info", THREAD_NAME, String.format(
             "Reconciliation Complete: Table = %s; Status = %s; Equal = %s; Not Equal = %s; Missing Source = %s; Missing Target = %s",
             tableAlias, result.getString("compareStatus"),
             formatter.format(result.getInt("equal")),

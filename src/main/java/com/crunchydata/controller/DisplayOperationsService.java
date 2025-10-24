@@ -16,7 +16,7 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.util.Logging;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -83,7 +83,7 @@ public class DisplayOperationsService {
         String message = isCheck ? 
             "No out of sync records found" : 
             "No tables were processed. Need to do discovery? Used correct batch nbr?";
-        Logging.write("warning", THREAD_NAME, message);
+        LoggingUtils.write("warning", THREAD_NAME, message);
     }
     
     /**
@@ -125,7 +125,7 @@ public class DisplayOperationsService {
      */
     public static void printSummary(String message, int indent) {
         validatePrintSummaryInputs(message, indent);
-        Logging.write("info", THREAD_NAME, " ".repeat(indent) + message);
+        LoggingUtils.write("info", THREAD_NAME, " ".repeat(indent) + message);
     }
     
     /**
@@ -208,7 +208,7 @@ public class DisplayOperationsService {
     public static void displaySeparator(int length, char character) {
         validateDisplaySeparatorInputs(length, character);
         String separator = String.valueOf(character).repeat(length);
-        Logging.write("info", THREAD_NAME, separator);
+        LoggingUtils.write("info", THREAD_NAME, separator);
     }
     
     /**

@@ -16,10 +16,10 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.DCTableColumn;
-import com.crunchydata.models.DCTableColumnMap;
-import com.crunchydata.services.SQLService;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.DataComparisonTableColumn;
+import com.crunchydata.model.DataComparisonTableColumnMap;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -27,11 +27,10 @@ import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
-import static com.crunchydata.util.ColumnUtility.getColumns;
-import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.util.ColumnMetadataUtils.getColumns;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 /**
  * Service class for handling column discovery operations.
@@ -91,7 +90,7 @@ public class ColumnDiscoveryService {
             ? SQL_REPO_DCTABLECOLUMN_DELETEBYPID 
             : SQL_REPO_DCTABLECOLUMN_DELETEBYPIDTABLE;
             
-        SQLService.simpleUpdate(connRepo, sql, binds, true);
+        SQLExecutionService.simpleUpdate(connRepo, sql, binds, true);
     }
     
     /**
@@ -120,7 +119,7 @@ public class ColumnDiscoveryService {
             binds.add(table);
         }
         
-        try (CachedRowSet crs = SQLService.simpleSelect(connRepo, sql, binds)) {
+        try (CachedRowSet crs = SQLExecutionService.simpleSelect(connRepo, sql, binds)) {
             while (crs.next()) {
                 loadColumns(props, crs.getInt("tid"), 
                     crs.getString("schema_name"), crs.getString("table_name"), 
@@ -149,7 +148,7 @@ public class ColumnDiscoveryService {
         String destType = props.getProperty(destRole + "-type");
         int columnCount = 0;
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("(%s) Performing column discovery on %s for table %s", 
                 destRole, destType, tableName));
         
@@ -165,17 +164,17 @@ public class ColumnDiscoveryService {
             Integer cid = findExistingColumn(connRepo, tid, columnName);
             
             // Create or update column record
-            DCTableColumn dtc = createOrUpdateColumn(tid, columnName, cid, populateDCTableColumn, connRepo);
+            DataComparisonTableColumn dtc = createOrUpdateColumn(tid, columnName, cid, populateDCTableColumn, connRepo);
             
             if (dtc.getColumnID() != null) {
                 columnCount++;
                 createColumnMapping(connRepo, tid, dtc.getColumnID(), destRole, columnInfo);
-                Logging.write("info", THREAD_NAME, 
+                LoggingUtils.write("info", THREAD_NAME,
                     String.format("(%s) Discovered Column: %s", destRole, columnName));
             }
         }
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("(%s) Discovered %d columns for table %s", destRole, columnCount, tableName));
     }
     
@@ -194,7 +193,7 @@ public class ColumnDiscoveryService {
         binds.add(tid);
         binds.add(columnName);
         
-        return SQLService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
+        return SQLExecutionService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
     }
     
     /**
@@ -208,10 +207,10 @@ public class ColumnDiscoveryService {
      * @return DCTableColumn object
      * @throws SQLException if database operations fail
      */
-    private static DCTableColumn createOrUpdateColumn(Integer tid, String columnName, Integer cid,
-                                                    Boolean populateDCTableColumn, Connection connRepo) 
+    private static DataComparisonTableColumn createOrUpdateColumn(Integer tid, String columnName, Integer cid,
+                                                                  Boolean populateDCTableColumn, Connection connRepo)
                                                     throws SQLException {
-        DCTableColumn dtc = new DCTableColumn();
+        DataComparisonTableColumn dtc = new DataComparisonTableColumn();
         dtc.setTid(tid);
         dtc.setColumnAlias(columnName.toLowerCase());
         
@@ -219,7 +218,7 @@ public class ColumnDiscoveryService {
             if (populateDCTableColumn) {
                 dtc = com.crunchydata.controller.RepoController.saveTableColumn(connRepo, dtc);
             } else {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Skipping column since no column alias found for %s", columnName));
             }
         } else {
@@ -241,7 +240,7 @@ public class ColumnDiscoveryService {
      */
     private static void createColumnMapping(Connection connRepo, Integer tid, Integer columnID,
                                          String destRole, JSONObject columnInfo) throws SQLException {
-        DCTableColumnMap dctcm = new DCTableColumnMap();
+        DataComparisonTableColumnMap dctcm = new DataComparisonTableColumnMap();
         
         dctcm.setTid(tid);
         dctcm.setColumnID(columnID);

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.models;
+package com.crunchydata.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

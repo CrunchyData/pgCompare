@@ -10,10 +10,10 @@ import java.io.File;
  *
  * @author Brian Pace
  */
-public class FileUtility {
+public class FileSystemUtils {
 
     // Private constructor to prevent instantiation
-    private FileUtility() {
+    private FileSystemUtils() {
         throw new UnsupportedOperationException("FileUtility is a utility class and cannot be instantiated.");
     }
 

@@ -16,18 +16,17 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.services.SQLService;
-import com.crunchydata.util.Logging;
-import org.json.JSONObject;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 /**
  * Service class for managing table-related operations in the repository.
@@ -45,47 +44,47 @@ public class TableManagementService {
      * Save table information to the database.
      * 
      * @param conn Database connection
-     * @param dcTable Table model to save
+     * @param dataComparisonTable Table model to save
      * @return Updated table model with generated ID
      * @throws SQLException if database operations fail
      */
-    public static DCTable saveTable(Connection conn, DCTable dcTable) throws SQLException {
-        validateTableInputs(conn, dcTable);
+    public static DataComparisonTable saveTable(Connection conn, DataComparisonTable dataComparisonTable) throws SQLException {
+        validateTableInputs(conn, dataComparisonTable);
         
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(dcTable.getPid());
-        binds.add(dcTable.getTableAlias());
+        binds.add(dataComparisonTable.getPid());
+        binds.add(dataComparisonTable.getTableAlias());
         
-        Integer tid = SQLService.simpleUpdateReturningInteger(conn, SQL_REPO_DCTABLE_INSERT, binds);
-        dcTable.setTid(tid);
+        Integer tid = SQLExecutionService.simpleUpdateReturningInteger(conn, SQL_REPO_DCTABLE_INSERT, binds);
+        dataComparisonTable.setTid(tid);
         
-        Logging.write("info", THREAD_NAME, String.format("Table saved with ID: %d", tid));
-        return dcTable;
+        LoggingUtils.write("info", THREAD_NAME, String.format("Table saved with ID: %d", tid));
+        return dataComparisonTable;
     }
     
     /**
      * Save table map information to the database.
      * 
      * @param conn Database connection
-     * @param dcTableMap Table map model to save
+     * @param dataComparisonTableMap Table map model to save
      * @throws SQLException if database operations fail
      */
-    public static void saveTableMap(Connection conn, DCTableMap dcTableMap) throws SQLException {
-        validateTableMapInputs(conn, dcTableMap);
+    public static void saveTableMap(Connection conn, DataComparisonTableMap dataComparisonTableMap) throws SQLException {
+        validateTableMapInputs(conn, dataComparisonTableMap);
         
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(dcTableMap.getTid());
-        binds.add(dcTableMap.getDestType());
-        binds.add(dcTableMap.getSchemaName());
-        binds.add(dcTableMap.getTableName());
-        binds.add(dcTableMap.isSchemaPreserveCase());
-        binds.add(dcTableMap.isTablePreserveCase());
+        binds.add(dataComparisonTableMap.getTid());
+        binds.add(dataComparisonTableMap.getDestType());
+        binds.add(dataComparisonTableMap.getSchemaName());
+        binds.add(dataComparisonTableMap.getTableName());
+        binds.add(dataComparisonTableMap.isSchemaPreserveCase());
+        binds.add(dataComparisonTableMap.isTablePreserveCase());
         
-        SQLService.simpleUpdate(conn, SQL_REPO_DCTABLEMAP_INSERT, binds, true);
+        SQLExecutionService.simpleUpdate(conn, SQL_REPO_DCTABLEMAP_INSERT, binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Table map saved for table ID: %d, type: %s", 
-                dcTableMap.getTid(), dcTableMap.getDestType()));
+                dataComparisonTableMap.getTid(), dataComparisonTableMap.getDestType()));
     }
     
     /**
@@ -106,11 +105,11 @@ public class TableManagementService {
         String sql = buildGetTablesSQL(batchNbr, table, check);
         ArrayList<Object> binds = buildGetTablesBinds(pid, batchNbr, table);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Retrieving tables for project %d, batch %d, table filter: %s", 
                 pid, batchNbr, table));
         
-        return SQLService.simpleSelect(conn, sql, binds);
+        return SQLExecutionService.simpleSelect(conn, sql, binds);
     }
     
     /**
@@ -133,9 +132,9 @@ public class TableManagementService {
         binds.add(tid);
         binds.add(batchNbr);
         
-        SQLService.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_UPDATE, binds, true);
+        SQLExecutionService.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_UPDATE, binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Table history completed for table %d, batch %d, rows: %d", 
                 tid, batchNbr, rowCount));
     }
@@ -155,10 +154,10 @@ public class TableManagementService {
         binds.add(tid);
         binds.add(batchNbr);
         
-        SQLService.simpleUpdate(conn, "DELETE FROM dc_source WHERE tid=? AND batch_nbr=?", binds, true);
-        SQLService.simpleUpdate(conn, "DELETE FROM dc_target WHERE tid=? AND batch_nbr=?", binds, true);
+        SQLExecutionService.simpleUpdate(conn, "DELETE FROM dc_source WHERE tid=? AND batch_nbr=?", binds, true);
+        SQLExecutionService.simpleUpdate(conn, "DELETE FROM dc_target WHERE tid=? AND batch_nbr=?", binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Data comparison results deleted for table %d, batch %d", tid, batchNbr));
     }
     
@@ -219,19 +218,19 @@ public class TableManagementService {
      * Validate inputs for saveTable method.
      * 
      * @param conn Database connection
-     * @param dcTable Table model
+     * @param dataComparisonTable Table model
      */
-    private static void validateTableInputs(Connection conn, DCTable dcTable) {
+    private static void validateTableInputs(Connection conn, DataComparisonTable dataComparisonTable) {
         if (conn == null) {
             throw new IllegalArgumentException("Database connection cannot be null");
         }
-        if (dcTable == null) {
+        if (dataComparisonTable == null) {
             throw new IllegalArgumentException("Table model cannot be null");
         }
-        if (dcTable.getPid() == null || dcTable.getPid() <= 0) {
+        if (dataComparisonTable.getPid() == null || dataComparisonTable.getPid() <= 0) {
             throw new IllegalArgumentException("Project ID must be a positive integer");
         }
-        if (dcTable.getTableAlias() == null || dcTable.getTableAlias().trim().isEmpty()) {
+        if (dataComparisonTable.getTableAlias() == null || dataComparisonTable.getTableAlias().trim().isEmpty()) {
             throw new IllegalArgumentException("Table alias cannot be null or empty");
         }
     }
@@ -240,25 +239,25 @@ public class TableManagementService {
      * Validate inputs for saveTableMap method.
      * 
      * @param conn Database connection
-     * @param dcTableMap Table map model
+     * @param dataComparisonTableMap Table map model
      */
-    private static void validateTableMapInputs(Connection conn, DCTableMap dcTableMap) {
+    private static void validateTableMapInputs(Connection conn, DataComparisonTableMap dataComparisonTableMap) {
         if (conn == null) {
             throw new IllegalArgumentException("Database connection cannot be null");
         }
-        if (dcTableMap == null) {
+        if (dataComparisonTableMap == null) {
             throw new IllegalArgumentException("Table map model cannot be null");
         }
-        if (dcTableMap.getTid() == null || dcTableMap.getTid() <= 0) {
+        if (dataComparisonTableMap.getTid() == null || dataComparisonTableMap.getTid() <= 0) {
             throw new IllegalArgumentException("Table ID must be a positive integer");
         }
-        if (dcTableMap.getDestType() == null || dcTableMap.getDestType().trim().isEmpty()) {
+        if (dataComparisonTableMap.getDestType() == null || dataComparisonTableMap.getDestType().trim().isEmpty()) {
             throw new IllegalArgumentException("Destination type cannot be null or empty");
         }
-        if (dcTableMap.getSchemaName() == null || dcTableMap.getSchemaName().trim().isEmpty()) {
+        if (dataComparisonTableMap.getSchemaName() == null || dataComparisonTableMap.getSchemaName().trim().isEmpty()) {
             throw new IllegalArgumentException("Schema name cannot be null or empty");
         }
-        if (dcTableMap.getTableName() == null || dcTableMap.getTableName().trim().isEmpty()) {
+        if (dataComparisonTableMap.getTableName() == null || dataComparisonTableMap.getTableName().trim().isEmpty()) {
             throw new IllegalArgumentException("Table name cannot be null or empty");
         }
     }

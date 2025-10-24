@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package com.crunchydata.util;
+package com.crunchydata.config;
 
 import com.crunchydata.controller.RepoController;
+import com.crunchydata.util.FileSystemUtils;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
 
 import java.io.FileInputStream;
@@ -66,7 +68,7 @@ public class Settings {
     public static final String VERSION = "0.5.0.0";
     private static final String paramFile = (System.getenv("PGCOMPARE_CONFIG") == null) ? "pgcompare.properties" : System.getenv("PGCOMPARE_CONFIG");
 
-    static Map<String, Set<String>> validPropertyValues = Map.of(
+    public static Map<String, Set<String>> validPropertyValues = Map.of(
             "column-hash-method", Set.of("database", "hybrid", "raw"),
             "number-cast", Set.of("notation", "standard"),
             "source-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql"),

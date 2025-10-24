@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.crunchydata.service;
+package com.crunchydata.core.threading;
 
-import com.crunchydata.model.DataCompare;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.ThreadSync;
+import com.crunchydata.model.DataComparisonResult;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,7 +26,7 @@ import java.sql.SQLException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static com.crunchydata.service.dbConnection.getConnection;
+import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 
 
 /**
@@ -41,7 +41,7 @@ import static com.crunchydata.service.dbConnection.getConnection;
  * @author Brian Pace
  */
 public class DataLoaderThread extends Thread  {
-    private final BlockingQueue<DataCompare[]> q;
+    private final BlockingQueue<DataComparisonResult[]> q;
     private final Integer instanceNumber;
     private final String stagingTable;
     private final String targetType;
@@ -64,7 +64,7 @@ public class DataLoaderThread extends Thread  {
      * @param stagingTable The name of the staging table in the repository database.
      * @param ts The ThreadSync object for coordinating thread synchronization.
      */
-    public DataLoaderThread(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataCompare[]> q, String stagingTable, ThreadSync ts) {
+    public DataLoaderThread(Integer threadNumber, Integer instanceNumber, String targetType, BlockingQueue<DataComparisonResult[]> q, String stagingTable, ThreadSync ts) {
         this.q = q;
         this.instanceNumber = instanceNumber;
         this.stagingTable = stagingTable;
@@ -84,7 +84,7 @@ public class DataLoaderThread extends Thread  {
     @Override
     public void run() {
         String threadName = String.format("loader-%s-t%s-i%s", targetType, threadNumber, instanceNumber);
-        Logging.write("info", threadName, "Start repository loader thread");
+        LoggingUtils.write("info", threadName, "Start repository loader thread");
 
         Connection connRepo = null;
         PreparedStatement stmtLoad = null;
@@ -99,12 +99,12 @@ public class DataLoaderThread extends Thread  {
             // Main data loading loop
             executeDataLoading(threadName, stmtLoad, connRepo);
 
-            Logging.write("info", threadName, "Loader thread complete.");
+            LoggingUtils.write("info", threadName, "Loader thread complete.");
 
         } catch (SQLException e) {
-            Logging.write("severe", threadName, String.format("Database error: %s", e.getMessage()));
+            LoggingUtils.write("severe", threadName, String.format("Database error: %s", e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", threadName, String.format("Error in loader thread: %s", e.getMessage()));
+            LoggingUtils.write("severe", threadName, String.format("Error in loader thread: %s", e.getMessage()));
         } finally {
             // Clean up resources and signal completion
             cleanupResources(threadName, stmtLoad, connRepo);
@@ -116,7 +116,7 @@ public class DataLoaderThread extends Thread  {
      * Initializes repository connection with proper error handling.
      */
     private Connection initializeRepositoryConnection(String threadName) throws SQLException {
-        Logging.write("info", threadName, "Connecting to repository database");
+        LoggingUtils.write("info", threadName, "Connecting to repository database");
         Connection connRepo = getConnection("postgres", "repo");
 
         if (connRepo == null) {
@@ -124,8 +124,8 @@ public class DataLoaderThread extends Thread  {
         }
 
         // Apply PostgreSQL optimizations
-        SQLService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_SYNC_COMMIT);
-        SQLService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_WORK_MEM);
+        SQLExecutionService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_SYNC_COMMIT);
+        SQLExecutionService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_WORK_MEM);
         connRepo.setAutoCommit(false);
         
         return connRepo;
@@ -148,7 +148,7 @@ public class DataLoaderThread extends Thread  {
         // Main loop to load data into the repository
         while (stillLoading) {
             // Poll for DataCompare array from the blocking queue
-            DataCompare[] dc = q.poll(DEFAULT_QUEUE_POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            DataComparisonResult[] dc = q.poll(DEFAULT_QUEUE_POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
             if (dc != null && dc.length > 0) {
                 processDataCompareArray(dc, stmtLoad, connRepo);
@@ -164,13 +164,13 @@ public class DataLoaderThread extends Thread  {
     /**
      * Processes a DataCompare array and inserts into database.
      */
-    private void processDataCompareArray(DataCompare[] dc, PreparedStatement stmtLoad, Connection connRepo) throws SQLException {
-        for (DataCompare dataCompare : dc) {
-            if (dataCompare != null && dataCompare.getPk() != null) {
-                stmtLoad.setInt(1, dataCompare.getTid());
-                stmtLoad.setString(2, dataCompare.getPkHash());
-                stmtLoad.setString(3, dataCompare.getColumnHash());
-                stmtLoad.setString(4, dataCompare.getPk());
+    private void processDataCompareArray(DataComparisonResult[] dc, PreparedStatement stmtLoad, Connection connRepo) throws SQLException {
+        for (DataComparisonResult dataComparisonResult : dc) {
+            if (dataComparisonResult != null && dataComparisonResult.getPk() != null) {
+                stmtLoad.setInt(1, dataComparisonResult.getTid());
+                stmtLoad.setString(2, dataComparisonResult.getPkHash());
+                stmtLoad.setString(3, dataComparisonResult.getColumnHash());
+                stmtLoad.setString(4, dataComparisonResult.getPk());
                 stmtLoad.addBatch();
                 stmtLoad.clearParameters();
             } else {
@@ -197,7 +197,7 @@ public class DataLoaderThread extends Thread  {
                 connRepo.close();
             }
         } catch (Exception e) {
-            Logging.write("warning", threadName, String.format("Error closing connections: %s", e.getMessage()));
+            LoggingUtils.write("warning", threadName, String.format("Error closing connections: %s", e.getMessage()));
         }
     }
     

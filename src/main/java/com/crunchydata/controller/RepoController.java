@@ -16,20 +16,19 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableColumn;
-import com.crunchydata.models.DCTableColumnMap;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.services.SQLService;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableColumn;
+import com.crunchydata.model.DataComparisonTableColumnMap;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 /**
  * Controller class that provides a simplified interface for repository operations.
@@ -57,7 +56,7 @@ public class RepoController {
         try {
             TableManagementService.completeTableHistory(conn, tid, batchNbr, rowCount, actionResult);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error completing table history: %s", e.getMessage()));
             throw new RuntimeException("Failed to complete table history", e);
         }
@@ -76,7 +75,7 @@ public class RepoController {
         try {
             return StagingOperationsService.createStagingTable(conn, location, tid, threadNbr);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error creating staging table: %s", e.getMessage()));
             throw new RuntimeException("Failed to create staging table", e);
         }
@@ -93,7 +92,7 @@ public class RepoController {
         try {
             TableManagementService.deleteDataCompare(conn, tid, batchNbr);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error deleting data comparison results: %s", e.getMessage()));
             throw new RuntimeException("Failed to delete data comparison results", e);
         }
@@ -109,7 +108,7 @@ public class RepoController {
         try {
             StagingOperationsService.dropStagingTable(conn, stagingTable);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error dropping staging table: %s", e.getMessage()));
             throw new RuntimeException("Failed to drop staging table", e);
         }
@@ -125,7 +124,7 @@ public class RepoController {
     public static String getProjectConfig(Connection conn, Integer pid) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(pid);
-        return SQLService.simpleSelectReturnString(conn, SQL_REPO_DCPROJECT_GETBYPID, binds);
+        return SQLExecutionService.simpleSelectReturnString(conn, SQL_REPO_DCPROJECT_GETBYPID, binds);
     }
 
 
@@ -143,7 +142,7 @@ public class RepoController {
         try {
             return TableManagementService.getTables(pid, conn, batchNbr, table, check);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error getting tables: %s", e.getMessage()));
             throw new RuntimeException("Failed to get tables", e);
         }
@@ -164,7 +163,7 @@ public class RepoController {
         try {
             StagingOperationsService.loadFindings(conn, location, tid, stagingTable, batchNbr, threadNbr, tableAlias);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error loading findings: %s", e.getMessage()));
             throw new RuntimeException("Failed to load findings", e);
         }
@@ -174,14 +173,14 @@ public class RepoController {
      * Saves the table information to the database using the optimized TableManagementService.
      *
      * @param conn      Database connection
-     * @param dcTable   Table model
+     * @param dataComparisonTable   Table model
      * @return Updated table model with generated ID
      */
-    public static DCTable saveTable(Connection conn, DCTable dcTable) {
+    public static DataComparisonTable saveTable(Connection conn, DataComparisonTable dataComparisonTable) {
         try {
-            return TableManagementService.saveTable(conn, dcTable);
+            return TableManagementService.saveTable(conn, dataComparisonTable);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error saving table: %s", e.getMessage()));
             throw new RuntimeException("Failed to save table", e);
         }
@@ -191,13 +190,13 @@ public class RepoController {
      * Saves table map information to the database using the optimized TableManagementService.
      *
      * @param conn        Database connection
-     * @param dcTableMap  Table Map record
+     * @param dataComparisonTableMap  Table Map record
      */
-    public static void saveTableMap(Connection conn, DCTableMap dcTableMap) {
+    public static void saveTableMap(Connection conn, DataComparisonTableMap dataComparisonTableMap) {
         try {
-            TableManagementService.saveTableMap(conn, dcTableMap);
+            TableManagementService.saveTableMap(conn, dataComparisonTableMap);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error saving table map: %s", e.getMessage()));
             throw new RuntimeException("Failed to save table map", e);
         }
@@ -210,11 +209,11 @@ public class RepoController {
      * @param dctc      Table Column record
      * @return Updated table column model with generated ID
      */
-    public static DCTableColumn saveTableColumn(Connection conn, DCTableColumn dctc) {
+    public static DataComparisonTableColumn saveTableColumn(Connection conn, DataComparisonTableColumn dctc) {
         try {
             return ColumnManagementService.saveTableColumn(conn, dctc);
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error saving table column: %s", e.getMessage()));
             throw new RuntimeException("Failed to save table column", e);
         }
@@ -226,7 +225,7 @@ public class RepoController {
      * @param conn               Database connection
      * @param dctcm             Table Column Map record.
      */
-    public static void saveTableColumnMap (Connection conn, DCTableColumnMap dctcm) {
+    public static void saveTableColumnMap (Connection conn, DataComparisonTableColumnMap dctcm) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0, dctcm.getTid());
         binds.add(1, dctcm.getColumnID());
@@ -243,7 +242,7 @@ public class RepoController {
         binds.add(12,dctcm.getSupported());
         binds.add(13,dctcm.getPreserveCase());
 
-        SQLService.simpleUpdate(conn,SQL_REPO_DCTABLECOLUMNMAP_INSERT,binds,true);
+        SQLExecutionService.simpleUpdate(conn,SQL_REPO_DCTABLECOLUMNMAP_INSERT,binds,true);
     }
 
 
@@ -258,7 +257,7 @@ public class RepoController {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,tid);
         binds.add(1,batchNbr);
-        SQLService.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_INSERT, binds, true);
+        SQLExecutionService.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_INSERT, binds, true);
     }
 
     /**
@@ -275,7 +274,7 @@ public class RepoController {
         binds.add(1, tableName);
         binds.add(2, rid);
 
-        CachedRowSet crs = SQLService.simpleUpdateReturning(conn, SQL_REPO_DCRESULT_INSERT, binds);
+        CachedRowSet crs = SQLExecutionService.simpleUpdateReturning(conn, SQL_REPO_DCRESULT_INSERT, binds);
         int cid = -1;
         try {
             while (crs.next()) {
@@ -286,7 +285,7 @@ public class RepoController {
 
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", THREAD_NAME, String.format("Error retrieving cid at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error retrieving cid at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         return cid;
@@ -314,7 +313,7 @@ public class RepoController {
         binds.add(0,rowCount);
         binds.add(1,cid);
 
-        SQLService.simpleUpdate(conn,sql,binds, true);
+        SQLExecutionService.simpleUpdate(conn,sql,binds, true);
     }
 
     /**
@@ -329,10 +328,10 @@ public class RepoController {
 
             conn.setAutoCommit(true);
 
-            SQLService.simpleExecute(conn, "VACUUM dc_table");
-            SQLService.simpleExecute(conn, "VACUUM dc_table_map");
-            SQLService.simpleExecute(conn, "VACUUM dc_table_column");
-            SQLService.simpleExecute(conn, "VACUUM dc_table_column_map");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table_map");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table_column");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table_column_map");
 
             conn.setAutoCommit(autoCommit);
 

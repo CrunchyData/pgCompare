@@ -16,19 +16,19 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.crunchydata.util.CastUtility.cast;
-import static com.crunchydata.util.CastUtility.castRaw;
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.JsonUtility.buildJsonExpression;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.DataTypeCastingUtils.cast;
+import static com.crunchydata.util.DataTypeCastingUtils.castRaw;
+import static com.crunchydata.util.DataProcessingUtils.ShouldQuoteString;
+import static com.crunchydata.util.JsonProcessingUtils.buildJsonExpression;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Builder class for constructing ColumnMetadata objects from JSON column mappings.
@@ -91,14 +91,14 @@ public class ColumnMetadataBuilder {
      * @return ColumnMetadata object
      */
     public ColumnMetadata build(JSONObject columnMap) {
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("(%s) Building column expressions for %s.%s", targetType, schema, table));
         
         try {
             processColumns(columnMap);
             return createColumnMetadata();
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error building column metadata: %s", e.getMessage()));
             throw new RuntimeException("Failed to build column metadata", e);
         }
@@ -142,7 +142,7 @@ public class ColumnMetadataBuilder {
         String valueExpression = generateValueExpression(joColumn, columnName, dataType);
         joColumn.put("valueExpression", valueExpression);
         
-        Logging.write("debug", THREAD_NAME, 
+        LoggingUtils.write("debug", THREAD_NAME,
             String.format("(%s) Mapping expression for column %s: %s", 
                 targetType, columnObject.getString("columnAlias"), valueExpression));
         
@@ -211,7 +211,7 @@ public class ColumnMetadataBuilder {
     private String generateValueExpression(JSONObject joColumn, String columnName, String dataType) {
         // Check if custom expression is provided
         if (!joColumn.isNull("valueExpression") && !joColumn.getString("valueExpression").isEmpty()) {
-            Logging.write("info", THREAD_NAME, 
+            LoggingUtils.write("info", THREAD_NAME,
                 String.format("(%s) Using custom column expression for column %s: %s", 
                     targetType, joColumn.getString("columnName"), joColumn.getString("valueExpression")));
             return joColumn.getString("valueExpression");
@@ -230,7 +230,7 @@ public class ColumnMetadataBuilder {
      * @param columnObject Column JSON object
      */
     private void logSkippedColumn(JSONObject columnObject) {
-        Logging.write("warning", THREAD_NAME, 
+        LoggingUtils.write("warning", THREAD_NAME,
             String.format("Skipping disabled column: %s", columnObject.getString("columnAlias")));
     }
     

@@ -16,7 +16,7 @@
 
 package com.crunchydata.service;
 
-import com.crunchydata.util.Logging;
+import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
-import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 /**
  * Utility class for creating repository schema, tables, indexes, and constraints.
@@ -34,7 +34,7 @@ import static com.crunchydata.util.SQLConstantsRepo.*;
  *
  * @author Brian Pace
  */
-public class dbRepository {
+public class RepositoryManagementService {
 
     private static final String THREAD_NAME = "db-repository";
     
@@ -71,7 +71,7 @@ public class dbRepository {
             throw new IllegalArgumentException("Invalid database connection");
         }
         
-        Logging.write("info", THREAD_NAME, "Starting repository creation process");
+        LoggingUtils.write("info", THREAD_NAME, "Starting repository creation process");
         
         try {
             // Disable auto-commit for transaction management
@@ -88,12 +88,12 @@ public class dbRepository {
                 
                 // Commit all changes
                 conn.commit();
-                Logging.write("info", THREAD_NAME, "Repository creation completed successfully");
+                LoggingUtils.write("info", THREAD_NAME, "Repository creation completed successfully");
                 
             } catch (SQLException e) {
                 // Rollback on error
                 conn.rollback();
-                Logging.write("severe", THREAD_NAME, 
+                LoggingUtils.write("severe", THREAD_NAME,
                     String.format("Repository creation failed, rolling back: %s", e.getMessage()));
                 throw e;
             } finally {
@@ -102,7 +102,7 @@ public class dbRepository {
             }
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error during repository creation: %s", e.getMessage()));
             throw new SQLException("Repository creation failed", e);
         }
@@ -117,7 +117,7 @@ public class dbRepository {
         
         String schemaDDL = String.format(REPO_DDL_SCHEMA, schemaName, userName);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Creating schema: %s with owner: %s", schemaName, userName));
         
         executeDDL(conn, schemaDDL, DDLPhase.SCHEMA_CREATION);
@@ -139,7 +139,7 @@ public class dbRepository {
             REPO_DDL_DC_TARGET
         );
         
-        Logging.write("info", THREAD_NAME, "Creating repository tables");
+        LoggingUtils.write("info", THREAD_NAME, "Creating repository tables");
         
         for (String ddl : tableDDLs) {
             executeDDL(conn, ddl, DDLPhase.TABLE_CREATION);
@@ -160,7 +160,7 @@ public class dbRepository {
             REPO_DDL_DC_TABLE_COLUMN_MAP_FK
         );
         
-        Logging.write("info", THREAD_NAME, "Creating indexes and constraints");
+        LoggingUtils.write("info", THREAD_NAME, "Creating indexes and constraints");
         
         for (String ddl : indexConstraintDDLs) {
             executeDDL(conn, ddl, DDLPhase.INDEX_CREATION);
@@ -171,7 +171,7 @@ public class dbRepository {
      * Inserts initial data into the repository.
      */
     private static void insertInitialData(Connection conn) throws SQLException {
-        Logging.write("info", THREAD_NAME, "Inserting initial data");
+        LoggingUtils.write("info", THREAD_NAME, "Inserting initial data");
         executeDDL(conn, REPO_DDL_DC_PROJECT_DATA, DDLPhase.DATA_INSERTION);
     }
     
@@ -179,7 +179,7 @@ public class dbRepository {
      * Creates repository functions.
      */
     private static void createFunctions(Connection conn) throws SQLException {
-        Logging.write("info", THREAD_NAME, "Creating repository functions");
+        LoggingUtils.write("info", THREAD_NAME, "Creating repository functions");
         executeDDL(conn, REPO_DDL_DC_COPY_TABLE, DDLPhase.FUNCTION_CREATION);
     }
     
@@ -188,15 +188,15 @@ public class dbRepository {
      */
     private static void executeDDL(Connection conn, String ddl, DDLPhase phase) throws SQLException {
         ArrayList<Object> binds = new ArrayList<>();
-        int result = SQLService.simpleUpdate(conn, ddl, binds, true);
+        int result = SQLExecutionService.simpleUpdate(conn, ddl, binds, true);
         
         if (result < 0) {
             String errorMsg = String.format("DDL execution failed in phase %s", phase);
-            Logging.write("severe", THREAD_NAME, errorMsg);
+            LoggingUtils.write("severe", THREAD_NAME, errorMsg);
             throw new SQLException(errorMsg);
         }
         
-        Logging.write("debug", THREAD_NAME, 
+        LoggingUtils.write("debug", THREAD_NAME,
             String.format("DDL executed successfully in phase %s, affected rows: %d", phase, result));
     }
     
@@ -216,28 +216,28 @@ public class dbRepository {
      */
     public static boolean validateRepository(Connection conn) {
         if (!DatabaseConnectionService.isConnectionValid(conn)) {
-            Logging.write("warning", THREAD_NAME, "Invalid database connection");
+            LoggingUtils.write("warning", THREAD_NAME, "Invalid database connection");
             return false;
         }
         
         try {
             // Check if schema exists
             if (!schemaExists(conn)) {
-                Logging.write("warning", THREAD_NAME, "Repository schema does not exist");
+                LoggingUtils.write("warning", THREAD_NAME, "Repository schema does not exist");
                 return false;
             }
             
             // Check if required tables exist
             if (!requiredTablesExist(conn)) {
-                Logging.write("warning", THREAD_NAME, "Required repository tables are missing");
+                LoggingUtils.write("warning", THREAD_NAME, "Required repository tables are missing");
                 return false;
             }
             
-            Logging.write("info", THREAD_NAME, "Repository validation successful");
+            LoggingUtils.write("info", THREAD_NAME, "Repository validation successful");
             return true;
             
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Repository validation failed: %s", e.getMessage()));
             return false;
         }
@@ -250,7 +250,7 @@ public class dbRepository {
         String query = "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'pgcompare'";
         ArrayList<Object> binds = new ArrayList<>();
         
-        var crs = SQLService.simpleSelect(conn, query, binds);
+        var crs = SQLExecutionService.simpleSelect(conn, query, binds);
         return crs != null && crs.next();
     }
     
@@ -266,7 +266,7 @@ public class dbRepository {
         
         for (String tableName : requiredTables) {
             if (!tableExists(conn, tableName)) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Required table '%s' does not exist", tableName));
                 return false;
             }
@@ -288,7 +288,7 @@ public class dbRepository {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(tableName);
         
-        var crs = SQLService.simpleSelect(conn, query, binds);
+        var crs = SQLExecutionService.simpleSelect(conn, query, binds);
         return crs != null && crs.next();
     }
     
@@ -308,7 +308,7 @@ public class dbRepository {
             throw new IllegalArgumentException("Invalid database connection");
         }
         
-        Logging.write("warning", THREAD_NAME, 
+        LoggingUtils.write("warning", THREAD_NAME,
             String.format("Dropping repository schema: %s", schemaName));
         
         try {
@@ -320,7 +320,7 @@ public class dbRepository {
                 executeDDL(conn, dropSchemaDDL, DDLPhase.SCHEMA_CREATION);
                 
                 conn.commit();
-                Logging.write("info", THREAD_NAME, "Repository dropped successfully");
+                LoggingUtils.write("info", THREAD_NAME, "Repository dropped successfully");
                 
             } catch (SQLException e) {
                 conn.rollback();
@@ -330,7 +330,7 @@ public class dbRepository {
             }
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Failed to drop repository: %s", e.getMessage()));
             throw new SQLException("Repository drop failed", e);
         }
@@ -360,7 +360,7 @@ public class dbRepository {
                 String countQuery = String.format("SELECT COUNT(*) FROM pgcompare.%s", table);
                 ArrayList<Object> binds = new ArrayList<>();
                 
-                var crs = SQLService.simpleSelect(conn, countQuery, binds);
+                var crs = SQLExecutionService.simpleSelect(conn, countQuery, binds);
                 if (crs != null && crs.next()) {
                     int count = crs.getInt(1);
                     stats.append(String.format("  %s: %d rows\n", table, count));
@@ -389,7 +389,7 @@ public class dbRepository {
             throw new IllegalArgumentException("Invalid database connection");
         }
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Creating repository backup with suffix: %s", backupSuffix));
         
         try {
@@ -410,7 +410,7 @@ public class dbRepository {
                 }
                 
                 conn.commit();
-                Logging.write("info", THREAD_NAME, "Repository backup completed successfully");
+                LoggingUtils.write("info", THREAD_NAME, "Repository backup completed successfully");
                 
             } catch (SQLException e) {
                 conn.rollback();
@@ -420,7 +420,7 @@ public class dbRepository {
             }
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Repository backup failed: %s", e.getMessage()));
             throw new SQLException("Repository backup failed", e);
         }

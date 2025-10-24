@@ -16,15 +16,15 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.models.DataCompare;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.ThreadSync;
-import com.crunchydata.services.threadCompare;
-import com.crunchydata.services.threadLoader;
-import com.crunchydata.services.threadObserver;
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.model.DataComparisonResult;
+import com.crunchydata.util.LoggingUtils;
+import com.crunchydata.core.threading.ThreadSync;
+import com.crunchydata.core.threading.DataComparisonThread;
+import com.crunchydata.core.threading.DataLoaderThread;
+import com.crunchydata.core.threading.ReconciliationObserverThread;
 
 import java.sql.Connection;
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Manager class for coordinating thread operations during data reconciliation.
@@ -48,9 +48,9 @@ public class ThreadManager {
     private static final int THREAD_SLEEP_MS = 2000;
     
     // Thread collections
-    private static final List<threadCompare> compareList = new ArrayList<>();
-    private static final List<threadLoader> loaderList = new ArrayList<>();
-    private static final List<threadObserver> observerList = new ArrayList<>();
+    private static final List<DataComparisonThread> compareList = new ArrayList<>();
+    private static final List<DataLoaderThread> loaderList = new ArrayList<>();
+    private static final List<ReconciliationObserverThread> observerList = new ArrayList<>();
     
     /**
      * Execute reconciliation using coordinated thread management.
@@ -64,8 +64,8 @@ public class ThreadManager {
      * @param connRepo Repository connection
      * @throws InterruptedException if thread operations are interrupted
      */
-    public static void executeReconciliation(DCTable dct, Integer cid, DCTableMap dctmSource, DCTableMap dctmTarget,
-                                           ColumnMetadata ciSource, ColumnMetadata ciTarget, Connection connRepo) 
+    public static void executeReconciliation(DataComparisonTable dct, Integer cid, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                             ColumnMetadata ciSource, ColumnMetadata ciTarget, Connection connRepo)
                                            throws InterruptedException {
         
         // Clear previous thread lists
@@ -76,10 +76,10 @@ public class ThreadManager {
         int messageQueueSize = Integer.parseInt(Props.getProperty("message-queue-size"));
         
         // Create blocking queues for thread communication
-        BlockingQueue<DataCompare[]> qs = useLoaderThreads ? new ArrayBlockingQueue<>(messageQueueSize) : null;
-        BlockingQueue<DataCompare[]> qt = useLoaderThreads ? new ArrayBlockingQueue<>(messageQueueSize) : null;
+        BlockingQueue<DataComparisonResult[]> qs = useLoaderThreads ? new ArrayBlockingQueue<>(messageQueueSize) : null;
+        BlockingQueue<DataComparisonResult[]> qt = useLoaderThreads ? new ArrayBlockingQueue<>(messageQueueSize) : null;
         
-        Logging.write("info", THREAD_NAME, "Starting compare hash threads");
+        LoggingUtils.write("info", THREAD_NAME, "Starting compare hash threads");
         
         // Start reconciliation threads
         startReconcileThreads(dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, qs, qt, useLoaderThreads, connRepo);
@@ -112,10 +112,10 @@ public class ThreadManager {
      * @param connRepo Repository connection
      * @throws InterruptedException if thread operations are interrupted
      */
-    private static void startReconcileThreads(DCTable dct, Integer cid, DCTableMap dctmSource, DCTableMap dctmTarget,
-                                             ColumnMetadata ciSource, ColumnMetadata ciTarget,
-                                             BlockingQueue<DataCompare[]> qs, BlockingQueue<DataCompare[]> qt,
-                                             boolean useLoaderThreads, Connection connRepo) 
+    private static void startReconcileThreads(DataComparisonTable dct, Integer cid, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                              ColumnMetadata ciSource, ColumnMetadata ciTarget,
+                                              BlockingQueue<DataComparisonResult[]> qs, BlockingQueue<DataComparisonResult[]> qt,
+                                              boolean useLoaderThreads, Connection connRepo)
                                              throws InterruptedException {
         
         RepoController rpc = new RepoController();
@@ -131,13 +131,13 @@ public class ThreadManager {
             String stagingTarget = rpc.createStagingTable(connRepo, "target", dct.getTid(), i);
             
             // Create and start observer thread
-            threadObserver observer = new threadObserver(dct, cid, ts, i, stagingSource, stagingTarget);
+            ReconciliationObserverThread observer = new ReconciliationObserverThread(dct, cid, ts, i, stagingSource, stagingTarget);
             observer.start();
             observerList.add(observer);
             
             // Create and start compare threads
-            threadCompare srcThread = new threadCompare(i, dct, dctmSource, ciSource, cid, ts, useDatabaseHash, stagingSource, qs);
-            threadCompare tgtThread = new threadCompare(i, dct, dctmTarget, ciTarget, cid, ts, useDatabaseHash, stagingTarget, qt);
+            DataComparisonThread srcThread = new DataComparisonThread(i, dct, dctmSource, ciSource, cid, ts, useDatabaseHash, stagingSource, qs);
+            DataComparisonThread tgtThread = new DataComparisonThread(i, dct, dctmTarget, ciTarget, cid, ts, useDatabaseHash, stagingTarget, qt);
             
             srcThread.start();
             compareList.add(srcThread);
@@ -165,13 +165,13 @@ public class ThreadManager {
      * @param stagingTarget Target staging table
      * @param ts Thread synchronization object
      */
-    private static void startLoaderThreads(int threadIndex, BlockingQueue<DataCompare[]> qs, BlockingQueue<DataCompare[]> qt,
-                                         String stagingSource, String stagingTarget, ThreadSync ts) {
+    private static void startLoaderThreads(int threadIndex, BlockingQueue<DataComparisonResult[]> qs, BlockingQueue<DataComparisonResult[]> qt,
+                                           String stagingSource, String stagingTarget, ThreadSync ts) {
         int loaderThreads = Integer.parseInt(Props.getProperty("loader-threads"));
         
         for (int li = 1; li <= loaderThreads; li++) {
-            threadLoader loaderSrc = new threadLoader(threadIndex, li, "source", qs, stagingSource, ts);
-            threadLoader loaderTgt = new threadLoader(threadIndex, li, "target", qt, stagingTarget, ts);
+            DataLoaderThread loaderSrc = new DataLoaderThread(threadIndex, li, "source", qs, stagingSource, ts);
+            DataLoaderThread loaderTgt = new DataLoaderThread(threadIndex, li, "target", qt, stagingTarget, ts);
             
             loaderSrc.start();
             loaderList.add(loaderSrc);
@@ -187,13 +187,13 @@ public class ThreadManager {
      * @throws InterruptedException if thread operations are interrupted
      */
     private static void waitForThreadCompletion() throws InterruptedException {
-        Logging.write("info", THREAD_NAME, "Waiting for compare threads to complete");
+        LoggingUtils.write("info", THREAD_NAME, "Waiting for compare threads to complete");
         joinThreads(compareList);
         
-        Logging.write("info", THREAD_NAME, "Waiting for reconcile threads to complete");
+        LoggingUtils.write("info", THREAD_NAME, "Waiting for reconcile threads to complete");
         joinThreads(observerList);
         
-        Logging.write("info", THREAD_NAME, "All reconciliation threads completed");
+        LoggingUtils.write("info", THREAD_NAME, "All reconciliation threads completed");
     }
     
     /**
@@ -259,7 +259,7 @@ public class ThreadManager {
      * Interrupt all active threads.
      */
     public static void interruptAllThreads() {
-        Logging.write("warning", THREAD_NAME, "Interrupting all active threads");
+        LoggingUtils.write("warning", THREAD_NAME, "Interrupting all active threads");
         
         compareList.forEach(Thread::interrupt);
         loaderList.forEach(Thread::interrupt);

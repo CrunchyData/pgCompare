@@ -16,7 +16,7 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.util.Logging;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -65,7 +65,7 @@ public class SummaryProcessingService {
             }
         }
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Summary calculated: %d total rows, %d out of sync rows, %d seconds elapsed", 
                 totalRows, outOfSyncRows, elapsedTime));
         
@@ -80,7 +80,7 @@ public class SummaryProcessingService {
     public static void displayTableSummaries(JSONArray runResult) {
         validateDisplayTableSummariesInputs(runResult);
         
-        Logging.write("info", THREAD_NAME, "Table Summaries:");
+        LoggingUtils.write("info", THREAD_NAME, "Table Summaries:");
         
         for (int i = 0; i < runResult.length(); i++) {
             JSONObject tableResult = runResult.getJSONObject(i);
@@ -97,16 +97,16 @@ public class SummaryProcessingService {
     public static void displayJobSummary(int tablesProcessed, ReportGenerationService.SummaryStatistics stats) {
         validateDisplayJobSummaryInputs(tablesProcessed, stats);
         
-        Logging.write("info", THREAD_NAME, "Job Summary:");
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME, "Job Summary:");
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("  Tables Processed: %s", NUMBER_FORMATTER.format(tablesProcessed)));
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("  Total Rows: %s", NUMBER_FORMATTER.format(stats.getTotalRows())));
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("  Out of Sync Rows: %s", NUMBER_FORMATTER.format(stats.getOutOfSyncRows())));
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("  Elapsed Time: %s seconds", NUMBER_FORMATTER.format(stats.getElapsedTime())));
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("  Throughput: %s rows/second", NUMBER_FORMATTER.format(stats.getThroughput())));
     }
     
@@ -119,7 +119,7 @@ public class SummaryProcessingService {
         String message = isCheck ? 
             "No out of sync records found" : 
             "No tables were processed. Need to do discovery? Used correct batch nbr?";
-        Logging.write("warning", THREAD_NAME, message);
+        LoggingUtils.write("warning", THREAD_NAME, message);
     }
     
     /**
@@ -130,7 +130,7 @@ public class SummaryProcessingService {
      */
     public static void printSummary(String message, int indent) {
         validatePrintSummaryInputs(message, indent);
-        Logging.write("info", THREAD_NAME, " ".repeat(indent) + message);
+        LoggingUtils.write("info", THREAD_NAME, " ".repeat(indent) + message);
     }
     
     /**
@@ -150,7 +150,7 @@ public class SummaryProcessingService {
         
         long throughput = elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("  Table: %s, Status: %s, Time: %ds, Rows: %s, Equal: %s, Not Equal: %s, Missing Source: %s, Missing Target: %s, Throughput: %s rows/sec",
                 tableName, status, elapsedTime, 
                 NUMBER_FORMATTER.format(totalRows),

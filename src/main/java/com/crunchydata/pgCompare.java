@@ -16,8 +16,9 @@
 
 package com.crunchydata;
 
+import com.crunchydata.config.ApplicationContext;
 import com.crunchydata.util.CommandLineParser;
-import com.crunchydata.util.Logging;
+import com.crunchydata.util.LoggingUtils;
 import org.apache.commons.cli.CommandLine;
 
 /**
@@ -53,7 +54,7 @@ public class pgCompare {
             context.executeAction();
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Fatal error: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Fatal error: %s", e.getMessage()));
             System.exit(1);
         } finally {
             // Cleanup is handled by ApplicationContext

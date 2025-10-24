@@ -16,8 +16,8 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.services.SQLService;
-import com.crunchydata.util.Logging;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
 
 import java.sql.Connection;
@@ -25,7 +25,7 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 /**
  * Processor class for handling reconciliation result summarization and processing.
@@ -49,7 +49,7 @@ public class ResultProcessor {
      * @throws SQLException if database operations fail
      */
     public static void summarizeResults(Connection connRepo, long tid, JSONObject result, int cid) throws SQLException {
-        Logging.write("info", THREAD_NAME, "Starting result summarization");
+        LoggingUtils.write("info", THREAD_NAME, "Starting result summarization");
         
         try {
             // Optimize database for result processing
@@ -64,10 +64,10 @@ public class ResultProcessor {
             // Update database with final results
             updateDatabaseResults(connRepo, result, cid);
             
-            Logging.write("info", THREAD_NAME, "Result summarization completed successfully");
+            LoggingUtils.write("info", THREAD_NAME, "Result summarization completed successfully");
             
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error during result summarization: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error during result summarization: %s", e.getMessage()));
             throw e;
         }
     }
@@ -79,7 +79,7 @@ public class ResultProcessor {
      * @throws SQLException if database operations fail
      */
     private static void optimizeDatabaseForResults(Connection connRepo) throws SQLException {
-        SQLService.simpleExecute(connRepo, "set enable_nestloop='off'");
+        SQLExecutionService.simpleExecute(connRepo, "set enable_nestloop='off'");
     }
     
     /**
@@ -96,14 +96,14 @@ public class ResultProcessor {
         binds.add(tid);
         
         // Calculate missing source records
-        int missingSource = SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
+        int missingSource = SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
         
         // Calculate missing target records
-        int missingTarget = SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
+        int missingTarget = SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
         
         // Calculate not equal records
-        int notEqual = SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
+        int notEqual = SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
+        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
         
         return new ReconciliationStats(missingSource, missingTarget, notEqual);
     }
@@ -142,7 +142,7 @@ public class ResultProcessor {
         binds.add(result.getString("compareStatus"));
         binds.add(cid);
         
-        try (var crs = SQLService.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds)) {
+        try (var crs = SQLExecutionService.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds)) {
             if (crs.next()) {
                 int equal = crs.getInt(1);
                 result.put("equal", equal);
@@ -221,7 +221,7 @@ public class ResultProcessor {
      */
     public static void logResults(JSONObject result, String tableAlias) {
         String summary = createSummaryReport(result, tableAlias);
-        Logging.write("info", THREAD_NAME, summary);
+        LoggingUtils.write("info", THREAD_NAME, summary);
     }
     
     /**

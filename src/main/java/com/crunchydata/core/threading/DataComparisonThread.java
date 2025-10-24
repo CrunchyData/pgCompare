@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.service;
+package com.crunchydata.core.threading;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -25,26 +25,26 @@ import java.util.concurrent.BlockingQueue;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableMap;
-import com.crunchydata.model.DataCompare;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.util.*;
 
-import static com.crunchydata.service.dbConnection.getConnection;
-import static com.crunchydata.util.HashUtility.getMd5;
-import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_STAGETABLE_INSERT;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.service.DatabaseConnectionService.getConnection;
+import static com.crunchydata.util.HashingUtils.getMd5;
+import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_STAGETABLE_INSERT;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Thread to pull data from source or target and load into the repository database.
  *
  * @author Brian Pace
  */
-public class threadCompare extends Thread {
+public class DataComparisonThread extends Thread {
     private final Integer tid, batchNbr, cid, nbrColumns, parallelDegree, threadNumber;
     private final String modColumn, pkList, stagingTable, targetType;
     private String sql;
-    private BlockingQueue<DataCompare[]> q;
+    private BlockingQueue<DataComparisonResult[]> q;
     private final ThreadSync ts;
     private final Boolean useDatabaseHash;
     
@@ -56,7 +56,7 @@ public class threadCompare extends Thread {
     private static final int PROGRESS_REPORT_INTERVAL = 10000;
     private static final String SOURCE_TYPE = "source";
 
-    public threadCompare(Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
+    public DataComparisonThread(Integer threadNumber, DataComparisonTable dct, DataComparisonTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataComparisonResult[]> q) {
         this.q = q;
         this.modColumn = dctm.getModColumn();
         this.parallelDegree = dct.getParallelDegree();
@@ -75,7 +75,7 @@ public class threadCompare extends Thread {
 
     public void run() {
         String threadName = String.format("compare-%s-%s-t%s", targetType, tid, threadNumber);
-        Logging.write("info", threadName, String.format("(%s) Start database reconcile thread", targetType));
+        LoggingUtils.write("info", threadName, String.format("(%s) Start database reconcile thread", targetType));
 
         // Configuration variables
         int totalRows = 0;
@@ -131,7 +131,7 @@ public class threadCompare extends Thread {
                 stmtLoad = connRepo.prepareStatement(sqlLoad);
             }
 
-            DataCompare[] dc = new DataCompare[batchCommitSize];
+            DataComparisonResult[] dc = new DataComparisonResult[batchCommitSize];
 
             while (rs.next()) {
                 columnValue.setLength(0);
@@ -148,7 +148,7 @@ public class threadCompare extends Thread {
                 String columnHash = useDatabaseHash ? columnValue.toString() : getMd5(columnValue.toString());
 
                 if (useLoaderThreads) {
-                    dc[cntRecord] = new DataCompare(tid,null, pkHash, columnHash, rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
+                    dc[cntRecord] = new DataComparisonResult(tid,null, pkHash, columnHash, rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
                 } else {
                     stmtLoad.setInt(1, tid);
                     stmtLoad.setString(2, pkHash);
@@ -171,7 +171,7 @@ public class threadCompare extends Thread {
 
                 // Handle progress reporting
                 if (totalRows % ((firstPass) ? PROGRESS_REPORT_INTERVAL : loadRowCount) == 0) {
-                    Logging.write("info", threadName, String.format("(%s) Loaded %s rows", targetType, formatter.format(totalRows)));
+                    LoggingUtils.write("info", threadName, String.format("(%s) Loaded %s rows", targetType, formatter.format(totalRows)));
                 }
 
                 // Handle observer coordination
@@ -189,7 +189,7 @@ public class threadCompare extends Thread {
                 processRemainingRecords(useLoaderThreads, dc, stmtLoad, rpc, connRepo, cntRecord);
             }
 
-            Logging.write("info", threadName, String.format("(%s) Complete. Total rows loaded: %s", targetType, formatter.format(totalRows)));
+            LoggingUtils.write("info", threadName, String.format("(%s) Complete. Total rows loaded: %s", targetType, formatter.format(totalRows)));
 
             // Wait for queues to empty if using loader threads
             if (useLoaderThreads) {
@@ -197,9 +197,9 @@ public class threadCompare extends Thread {
             }
 
         } catch (SQLException e) {
-            Logging.write("severe", threadName, String.format("(%s) Database error: %s", targetType, e.getMessage()));
+            LoggingUtils.write("severe", threadName, String.format("(%s) Database error: %s", targetType, e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread: %s", targetType, e.getMessage()));
+            LoggingUtils.write("severe", threadName, String.format("(%s) Error in reconciliation thread: %s", targetType, e.getMessage()));
         } finally {
             // Signal completion
             signalThreadCompletion();
@@ -213,7 +213,7 @@ public class threadCompare extends Thread {
      * Initializes repository connection with proper error handling.
      */
     private Connection initializeRepositoryConnection(String threadName) throws SQLException {
-        Logging.write("info", threadName, String.format("(%s) Connecting to repository database", targetType));
+        LoggingUtils.write("info", threadName, String.format("(%s) Connecting to repository database", targetType));
         Connection connRepo = getConnection("postgres", "repo");
         
         if (connRepo == null) {
@@ -227,7 +227,7 @@ public class threadCompare extends Thread {
      * Initializes source/target connection with proper error handling.
      */
     private Connection initializeSourceTargetConnection(String threadName) throws SQLException {
-        Logging.write("info", threadName, String.format("(%s) Connecting to database", targetType));
+        LoggingUtils.write("info", threadName, String.format("(%s) Connecting to database", targetType));
         Connection conn = getConnection(Props.getProperty(targetType + "-type"), targetType);
         
         if (conn == null) {
@@ -239,9 +239,9 @@ public class threadCompare extends Thread {
     /**
      * Handles batch processing for loader threads.
      */
-    private void handleLoaderThreadBatch(String threadName, DataCompare[] dc, int batchCommitSize) throws InterruptedException {
+    private void handleLoaderThreadBatch(String threadName, DataComparisonResult[] dc, int batchCommitSize) throws InterruptedException {
         if (q != null && q.size() == QUEUE_WAIT_THRESHOLD) {
-            Logging.write("info", threadName, String.format("(%s) Waiting for Queue space", targetType));
+            LoggingUtils.write("info", threadName, String.format("(%s) Waiting for Queue space", targetType));
             while (q.size() > QUEUE_WAIT_TARGET) {
                 Thread.sleep(QUEUE_WAIT_SLEEP_MS);
             }
@@ -250,7 +250,7 @@ public class threadCompare extends Thread {
             q.put(dc);
         }
         dc = null;
-        dc = new DataCompare[batchCommitSize];
+        dc = new DataComparisonResult[batchCommitSize];
     }
     
     /**
@@ -270,7 +270,7 @@ public class threadCompare extends Thread {
     private void handleObserverCoordination(String threadName, boolean firstPass, boolean observerThrottle, 
                                          RepoController rpc, Connection connRepo, int cntRecord) throws Exception {
         if (firstPass || observerThrottle) {
-            Logging.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
+            LoggingUtils.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
             
             rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
             connRepo.commit();
@@ -291,9 +291,9 @@ public class threadCompare extends Thread {
                 ts.targetWaiting = false;
             }
             
-            Logging.write("info", threadName, String.format("(%s) Cleared by Observer", targetType));
+            LoggingUtils.write("info", threadName, String.format("(%s) Cleared by Observer", targetType));
         } else {
-            Logging.write("info", threadName, String.format("(%s) Pause for Observer", targetType));
+            LoggingUtils.write("info", threadName, String.format("(%s) Pause for Observer", targetType));
             Thread.sleep(OBSERVER_SLEEP_MS);
         }
     }
@@ -301,8 +301,8 @@ public class threadCompare extends Thread {
     /**
      * Processes remaining records after main loop.
      */
-    private void processRemainingRecords(boolean useLoaderThreads, DataCompare[] dc, PreparedStatement stmtLoad, 
-                                       RepoController rpc, Connection connRepo, int cntRecord) throws Exception {
+    private void processRemainingRecords(boolean useLoaderThreads, DataComparisonResult[] dc, PreparedStatement stmtLoad,
+                                         RepoController rpc, Connection connRepo, int cntRecord) throws Exception {
         if (useLoaderThreads) {
             if (q != null) {
                 q.put(dc);
@@ -321,7 +321,7 @@ public class threadCompare extends Thread {
     private void waitForQueuesToEmpty(String threadName) throws InterruptedException {
         if (q != null) {
             while (!q.isEmpty()) {
-                Logging.write("info", threadName, String.format("(%s) Waiting for message queue to empty", targetType));
+                LoggingUtils.write("info", threadName, String.format("(%s) Waiting for message queue to empty", targetType));
                 Thread.sleep(QUEUE_WAIT_SLEEP_MS);
             }
             Thread.sleep(QUEUE_WAIT_SLEEP_MS);
@@ -361,7 +361,7 @@ public class threadCompare extends Thread {
                 conn.close();
             }
         } catch (Exception e) {
-            Logging.write("warning", threadName, String.format("(%s) Error closing connections: %s", targetType, e.getMessage()));
+            LoggingUtils.write("warning", threadName, String.format("(%s) Error closing connections: %s", targetType, e.getMessage()));
         }
 
     }

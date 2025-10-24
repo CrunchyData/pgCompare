@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.crunchydata.util;
+package com.crunchydata.config.sql;
 
-public interface SQLConstantsPostgres {
+public interface PostgresSQLConstants {
     //
     // Postgres SQL
     //

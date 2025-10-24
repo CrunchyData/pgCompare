@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.service;
+package com.crunchydata.core.threading;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -22,14 +22,14 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import com.crunchydata.controller.RepoController;
-import com.crunchydata.model.DCTable;
-import com.crunchydata.util.Logging;
-import com.crunchydata.util.ThreadSync;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 
-import static com.crunchydata.service.dbConnection.getConnection;
-import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_CLEARMATCH;
-import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCRESULT_UPDATECNT;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.service.DatabaseConnectionService.getConnection;
+import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_CLEARMATCH;
+import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_DCRESULT_UPDATECNT;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Thread class that observes the reconciliation process between source and target tables.
@@ -46,7 +46,7 @@ import static com.crunchydata.util.Settings.Props;
  *
  * @author Brian Pace
  */
-public class threadObserver extends Thread  {
+public class ReconciliationObserverThread extends Thread  {
 
     private final Integer tid;
     private final String tableAlias;
@@ -79,7 +79,7 @@ public class threadObserver extends Thread  {
      *
      * @author Brian Pace
      */
-    public threadObserver(DCTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
+    public ReconciliationObserverThread(DataComparisonTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
         this.tid = dct.getTid();
         this.tableAlias = dct.getTableAlias();
         this.cid = cid;
@@ -98,7 +98,7 @@ public class threadObserver extends Thread  {
      */
     public void run() {
         String threadName = String.format("observer-c%s-t%s", cid, threadNbr);
-        Logging.write("info", threadName, "Starting reconcile observer");
+        LoggingUtils.write("info", threadName, "Starting reconcile observer");
 
         // Configuration variables
         ArrayList<Object> binds = new ArrayList<>();
@@ -123,7 +123,7 @@ public class threadObserver extends Thread  {
                                         formatter, lastRun, rpc, sleepTime);
 
         } catch (Exception e) {
-            Logging.write("severe", threadName, String.format("Error in observer process: %s", e.getMessage()));
+            LoggingUtils.write("severe", threadName, String.format("Error in observer process: %s", e.getMessage()));
             performRollback(threadName, repoConn);
         } finally {
             // Clean up resources
@@ -135,7 +135,7 @@ public class threadObserver extends Thread  {
      * Initializes repository connection with proper error handling.
      */
     private Connection initializeRepositoryConnection(String threadName) throws Exception {
-        Logging.write("info", threadName, "Connecting to repository database");
+        LoggingUtils.write("info", threadName, "Connecting to repository database");
         Connection repoConn = getConnection("postgres", "repo");
 
         if (repoConn == null) {
@@ -150,9 +150,9 @@ public class threadObserver extends Thread  {
 
         // Apply PostgreSQL optimizations
         try {
-            SQLService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_NESTLOOP);
-            SQLService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_WORK_MEM);
-            SQLService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_MAINTENANCE_WORK_MEM);
+            SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_NESTLOOP);
+            SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_WORK_MEM);
+            SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_MAINTENANCE_WORK_MEM);
         } catch (Exception e) {
             // Optimizations are not critical, continue
         }
@@ -183,7 +183,7 @@ public class threadObserver extends Thread  {
                 if (tmpRowCount > 0) {
                     repoConn.commit();
                     deltaCount += tmpRowCount;
-                    Logging.write("info", threadName, String.format("Matched %s rows", formatter.format(tmpRowCount)));
+                    LoggingUtils.write("info", threadName, String.format("Matched %s rows", formatter.format(tmpRowCount)));
                 } else {
                     handleNoMatches(cntEqual, deltaCount, binds, rpc, repoConn, stmtSUS);
                 }
@@ -232,7 +232,7 @@ public class threadObserver extends Thread  {
     private void performVacuum(ArrayList<Object> binds, Connection repoConn) throws Exception {
         repoConn.setAutoCommit(true);
         binds.clear();
-        SQLService.simpleUpdate(repoConn, 
+        SQLExecutionService.simpleUpdate(repoConn,
             String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
         repoConn.setAutoCommit(false);
     }
@@ -266,7 +266,7 @@ public class threadObserver extends Thread  {
      * Performs cleanup operations including loading findings and dropping staging tables.
      */
     private void performCleanup(String threadName, Connection repoConn, RepoController rpc) throws Exception {
-        Logging.write("info", threadName, "Staging table cleanup");
+        LoggingUtils.write("info", threadName, "Staging table cleanup");
 
         // Move out-of-sync rows from temporary staging tables to dc_source and dc_target
         rpc.loadFindings(repoConn, "source", tid, tableAlias, stagingTableSource, batchNbr, threadNbr);
@@ -285,7 +285,7 @@ public class threadObserver extends Thread  {
             try {
                 repoConn.rollback();
             } catch (Exception e) {
-                Logging.write("warning", threadName, String.format("Error rolling back transaction: %s", e.getMessage()));
+                LoggingUtils.write("warning", threadName, String.format("Error rolling back transaction: %s", e.getMessage()));
             }
         }
     }
@@ -305,7 +305,7 @@ public class threadObserver extends Thread  {
                 repoConn.close();
             }
         } catch (Exception e) {
-            Logging.write("warning", threadName, String.format("Error closing resources: %s", e.getMessage()));
+            LoggingUtils.write("warning", threadName, String.format("Error closing resources: %s", e.getMessage()));
         }
     }
 

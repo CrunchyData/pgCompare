@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DCTableMap {
+public class DataComparisonTableMap {
     private Integer tid;
     private String destType = "target";
     private String schemaName;

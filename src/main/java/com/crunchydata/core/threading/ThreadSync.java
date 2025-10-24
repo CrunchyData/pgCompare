@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.util;
+package com.crunchydata.core.threading;
 
 /**
  * Utility class for thread synchronization.

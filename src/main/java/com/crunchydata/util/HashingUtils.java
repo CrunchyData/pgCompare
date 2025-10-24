@@ -28,10 +28,10 @@ import java.security.NoSuchAlgorithmException;
  *
  * @author Brian Pace
  */
-public class HashUtility {
+public class HashingUtils {
 
     // Private constructor to prevent instantiation
-    private HashUtility() {
+    private HashingUtils() {
         throw new UnsupportedOperationException("HashUtility is a utility class and cannot be instantiated.");
     }
 

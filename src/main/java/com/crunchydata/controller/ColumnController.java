@@ -1,15 +1,15 @@
 package com.crunchydata.controller;
 
-import com.crunchydata.models.ColumnMetadata;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import static com.crunchydata.services.DatabaseService.getConcatOperator;
-import static com.crunchydata.services.DatabaseService.getQuoteChar;
+import static com.crunchydata.service.DatabaseMetadataService.getConcatOperator;
+import static com.crunchydata.service.DatabaseMetadataService.getQuoteChar;
 
 /**
  * ColumnController class that provides a simplified interface for column operations.
@@ -50,7 +50,7 @@ public class ColumnController {
             return builder.build(columnMap);
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error building column metadata for %s.%s: %s", schema, table, e.getMessage()));
             throw new RuntimeException("Failed to build column metadata", e);
         }
@@ -105,15 +105,15 @@ public class ColumnController {
             // Use the optimized discovery service
             ColumnDiscoveryService.discoverColumns(props, pid, table, connRepo, connSource, connTarget);
             
-            Logging.write("info", THREAD_NAME, 
+            LoggingUtils.write("info", THREAD_NAME,
                 String.format("Successfully completed column discovery for project %d", pid));
                 
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Database error during column discovery for project %d: %s", pid, e.getMessage()));
             throw new RuntimeException("Column discovery failed", e);
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error during column discovery for project %d: %s", pid, e.getMessage()));
             throw new RuntimeException("Column discovery failed", e);
         }
@@ -170,11 +170,11 @@ public class ColumnController {
             ColumnDiscoveryService.loadColumns(props, tid, schema, tableName, connRepo, connDest, destRole, populateDCTableColumn);
             
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Database error loading columns for table %s.%s: %s", schema, tableName, e.getMessage()));
             throw new RuntimeException("Column loading failed", e);
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error loading columns for table %s.%s: %s", schema, tableName, e.getMessage()));
             throw new RuntimeException("Column loading failed", e);
         }

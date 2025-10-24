@@ -16,19 +16,15 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.ApplicationContext;
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.util.Logging;
-import com.crunchydata.controller.RepoController;
-import com.crunchydata.controller.ReportController;
-import com.crunchydata.controller.TableController;
+import com.crunchydata.config.ApplicationContext;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
-import java.sql.SQLException;
 
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.config.Settings.Props;
 
 import org.json.JSONObject;
 
@@ -57,8 +53,8 @@ public class CompareController {
      * @param dctmTarget     Target table map
      * @return JSON object with reconciliation results
      */
-    public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget, 
-                                          long rid, Boolean check, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
+    public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget,
+                                           long rid, Boolean check, DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget) {
         try {
             // Validate inputs
             validateReconcileInputs(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget);
@@ -67,7 +63,7 @@ public class CompareController {
             return DataReconciliationService.reconcileData(connRepo, connSource, connTarget, rid, check, dct, dctmSource, dctmTarget);
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error during data reconciliation: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error during data reconciliation: %s", e.getMessage()));
             return createErrorResult(dct.getTableAlias(), e.getMessage());
         }
     }
@@ -83,7 +79,7 @@ public class CompareController {
      * @param dctmTarget Target table map
      */
     private static void validateReconcileInputs(Connection connRepo, Connection connSource, Connection connTarget,
-                                               DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget) {
+                                                DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget) {
         if (connRepo == null) {
             throw new IllegalArgumentException("Repository connection cannot be null");
         }
@@ -135,7 +131,7 @@ public class CompareController {
         boolean isCheck = Props.getProperty("isCheck").equals("true");
         String tableFilter = context.getCmd().hasOption("table") ? context.getCmd().getOptionValue("table").toLowerCase() : "";
         
-        Logging.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s", isCheck));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s", isCheck));
 
         try {
             // Validate context
@@ -156,10 +152,10 @@ public class CompareController {
             // Generate summary and reports
             ReportController.createSummary(context, results.getTablesProcessed(), results.getRunResults(), isCheck);
             
-            Logging.write("info", THREAD_NAME, "Comparison operation completed successfully");
+            LoggingUtils.write("info", THREAD_NAME, "Comparison operation completed successfully");
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s", e.getMessage()));
             throw new RuntimeException("Comparison operation failed", e);
         }
     }

@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DCTable {
+public class DataComparisonTable {
     private Integer pid;
     private Integer tid;
     private String tableAlias;

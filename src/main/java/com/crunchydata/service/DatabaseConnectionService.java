@@ -16,7 +16,7 @@
 
 package com.crunchydata.service;
 
-import com.crunchydata.util.Logging;
+import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Properties;
 
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Service class for managing database connections across different platforms.
@@ -34,7 +34,7 @@ import static com.crunchydata.util.Settings.Props;
  * 
  * @author Brian Pace
  */
-public class dbConnection {
+public class DatabaseConnectionService {
 
     private static final String THREAD_NAME = "connection";
     
@@ -106,7 +106,7 @@ public class dbConnection {
             try {
                 return valueOf(platform.toUpperCase());
             } catch (IllegalArgumentException e) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Unknown platform '%s', defaulting to POSTGRES", platform));
                 return POSTGRES;
             }
@@ -123,13 +123,13 @@ public class dbConnection {
             try {
                 if (!conn.isClosed()) {
                     conn.close();
-                    Logging.write("debug", THREAD_NAME, "Database connection closed successfully");
+                    LoggingUtils.write("debug", THREAD_NAME, "Database connection closed successfully");
                 }
             } catch (SQLException e) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Error closing database connection: %s", e.getMessage()));
             } catch (Exception e) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Unexpected error closing database connection: %s", e.getMessage()));
             }
         }
@@ -149,7 +149,7 @@ public class dbConnection {
         try {
             return !conn.isClosed() && conn.isValid(5); // 5 second timeout
         } catch (SQLException e) {
-            Logging.write("warning", THREAD_NAME, 
+            LoggingUtils.write("warning", THREAD_NAME,
                 String.format("Error validating connection: %s", e.getMessage()));
             return false;
         }
@@ -187,16 +187,16 @@ public class dbConnection {
             // Configure platform-specific settings
             configureConnection(conn, dbPlatform);
             
-            Logging.write("info", THREAD_NAME, 
+            LoggingUtils.write("info", THREAD_NAME,
                 String.format("Successfully connected to %s database (%s)", platform, destType));
             
             return conn;
             
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error connecting to %s (%s): %s", platform, destType, e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error connecting to %s (%s): %s", platform, destType, e.getMessage()));
         }
         
@@ -290,7 +290,7 @@ public class dbConnection {
         
         // Apply platform-specific SQL configurations
         if (platform.requiresAnsiMode()) {
-            SQLService.simpleUpdate(conn, ANSI_SQL_MODE, new ArrayList<>(), false);
+            SQLExecutionService.simpleUpdate(conn, ANSI_SQL_MODE, new ArrayList<>(), false);
         }
     }
     
@@ -319,13 +319,13 @@ public class dbConnection {
             try {
                 conn = getConnection(platform, destType);
                 if (conn != null && isConnectionValid(conn)) {
-                    Logging.write("info", THREAD_NAME, 
+                    LoggingUtils.write("info", THREAD_NAME,
                         String.format("Connection established on attempt %d/%d", attempt, maxRetries));
                     return conn;
                 }
             } catch (Exception e) {
                 lastException = e;
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Connection attempt %d/%d failed: %s", attempt, maxRetries, e.getMessage()));
             }
             
@@ -341,17 +341,17 @@ public class dbConnection {
                     Thread.sleep(retryDelayMs);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    Logging.write("warning", THREAD_NAME, "Connection retry interrupted");
+                    LoggingUtils.write("warning", THREAD_NAME, "Connection retry interrupted");
                     break;
                 }
             }
         }
         
-        Logging.write("severe", THREAD_NAME, 
+        LoggingUtils.write("severe", THREAD_NAME,
             String.format("Failed to establish connection after %d attempts", maxRetries));
         
         if (lastException != null) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Last connection error: %s", lastException.getMessage()));
         }
         
@@ -371,10 +371,10 @@ public class dbConnection {
         
         try {
             // Execute a simple query to test the connection
-            SQLService.simpleSelect(conn, "SELECT 1", new ArrayList<>());
+            SQLExecutionService.simpleSelect(conn, "SELECT 1", new ArrayList<>());
             return true;
         } catch (Exception e) {
-            Logging.write("warning", THREAD_NAME, 
+            LoggingUtils.write("warning", THREAD_NAME,
                 String.format("Connection test failed: %s", e.getMessage()));
             return false;
         }

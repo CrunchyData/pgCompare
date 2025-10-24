@@ -35,7 +35,7 @@ import static com.crunchydata.util.ColumnMetadataUtils.RESERVED_WORDS;
  *
  * @author Brian Pace
  */
-public class DataUtility {
+public class DataProcessingUtils {
     
     // Constants for better maintainability
     private static final String NULL_STRING = "NULL";

@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-package com.crunchydata;
+package com.crunchydata.config;
 
 import java.sql.Connection;
 
 import static com.crunchydata.service.DatabaseConnectionService.closeDatabaseConnection;
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
-import static com.crunchydata.util.Settings.*;
+import static com.crunchydata.config.Settings.*;
 
 import com.crunchydata.service.RepositoryManagementService;
 import com.crunchydata.util.LoggingUtils;
 import com.crunchydata.util.ValidationUtils;
-import com.crunchydata.util.Settings;
 
 import org.apache.commons.cli.CommandLine;
 

@@ -15,7 +15,7 @@
  */
 package com.crunchydata.service;
 
-import com.crunchydata.util.Logging;
+import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetProvider;
@@ -35,7 +35,7 @@ import java.util.Objects;
  *
  * @author Brian Pace
  */
-public class SQLService {
+public class SQLExecutionService {
     private static final String THREAD_NAME = "sql-service";
     
     // Performance and configuration constants
@@ -102,16 +102,16 @@ public class SQLService {
             }
             
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("debug", THREAD_NAME, 
+            LoggingUtils.write("debug", THREAD_NAME,
                 String.format("Query executed successfully in %dms: %s", executionTime, sql));
                 
         } catch (SQLException e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error executing query (%dms): %s - %s", executionTime, sql, e.getMessage()));
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error executing query (%dms): %s - %s", executionTime, sql, e.getMessage()));
         }
         
@@ -154,11 +154,11 @@ public class SQLService {
             
         } catch (SQLException e) {
             errorMessage = String.format("SQL error: %s", e.getMessage());
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error executing query: %s - %s", sql, e.getMessage()));
         } catch (Exception e) {
             errorMessage = String.format("Unexpected error: %s", e.getMessage());
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error executing query: %s - %s", sql, e.getMessage()));
         }
         
@@ -222,16 +222,16 @@ public class SQLService {
             }
             
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("debug", THREAD_NAME, 
+            LoggingUtils.write("debug", THREAD_NAME,
                 String.format("Integer query executed successfully in %dms: %s", executionTime, sql));
                 
         } catch (SQLException e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error executing integer query (%dms): %s - %s", executionTime, sql, e.getMessage()));
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error executing integer query (%dms): %s - %s", executionTime, sql, e.getMessage()));
         }
         
@@ -265,16 +265,16 @@ public class SQLService {
             }
             
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("debug", THREAD_NAME, 
+            LoggingUtils.write("debug", THREAD_NAME,
                 String.format("String query executed successfully in %dms: %s", executionTime, sql));
                 
         } catch (SQLException e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error executing string query (%dms): %s - %s", executionTime, sql, e.getMessage()));
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error executing string query (%dms): %s - %s", executionTime, sql, e.getMessage()));
         }
         
@@ -312,31 +312,31 @@ public class SQLService {
             }
             
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("debug", THREAD_NAME, 
+            LoggingUtils.write("debug", THREAD_NAME,
                 String.format("Update executed successfully in %dms, affected %d rows: %s", executionTime, cnt, sql));
                 
         } catch (SQLException e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error executing update (%dms): %s - %s", executionTime, sql, e.getMessage()));
             
             try {
                 conn.rollback();
             } catch (SQLException rollbackException) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Failed to rollback transaction: %s", rollbackException.getMessage()));
             }
             
             cnt = -1;
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error executing update (%dms): %s - %s", executionTime, sql, e.getMessage()));
             
             try {
                 conn.rollback();
             } catch (SQLException rollbackException) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Failed to rollback transaction: %s", rollbackException.getMessage()));
             }
             
@@ -381,23 +381,23 @@ public class SQLService {
             }
             
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("debug", THREAD_NAME, 
+            LoggingUtils.write("debug", THREAD_NAME,
                 String.format("Batch executed successfully in %dms, %d statements", executionTime, sqlStatements.size()));
                 
         } catch (SQLException e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("SQL error executing batch (%dms): %s", executionTime, e.getMessage()));
             
             try {
                 conn.rollback();
             } catch (SQLException rollbackException) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Failed to rollback batch transaction: %s", rollbackException.getMessage()));
             }
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error executing batch (%dms): %s", executionTime, e.getMessage()));
         }
         
@@ -418,7 +418,7 @@ public class SQLService {
         try {
             return !conn.isClosed() && conn.isValid(5); // 5 second timeout
         } catch (SQLException e) {
-            Logging.write("warning", THREAD_NAME, 
+            LoggingUtils.write("warning", THREAD_NAME,
                 String.format("Connection health check failed: %s", e.getMessage()));
             return false;
         }
@@ -489,7 +489,7 @@ public class SQLService {
             conn.commit();
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, "Error executing simple update with returning (" + sql + "):  " + e.getMessage());
+            LoggingUtils.write("severe", THREAD_NAME, "Error executing simple update with returning (" + sql + "):  " + e.getMessage());
             try { conn.rollback(); } catch (Exception ee) {
                 // do nothing
             }
@@ -537,7 +537,7 @@ public class SQLService {
             conn.commit();
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, "Error executing simple update with returning (" + sql + "):  " + e.getMessage());
+            LoggingUtils.write("severe", THREAD_NAME, "Error executing simple update with returning (" + sql + "):  " + e.getMessage());
             try { conn.rollback(); } catch (Exception ee) {
                 // do nothing
             }
@@ -575,7 +575,7 @@ public class SQLService {
                 conn.commit();
             }
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, "Error executing simple execute (" + sql + "):  " + e.getMessage());
+            LoggingUtils.write("severe", THREAD_NAME, "Error executing simple execute (" + sql + "):  " + e.getMessage());
             try { conn.rollback(); } catch (Exception ee) {
                 // do nothing
             }

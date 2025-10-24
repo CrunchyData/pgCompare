@@ -16,16 +16,15 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.services.SQLService;
-import com.crunchydata.util.Logging;
-import org.json.JSONObject;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Service class for managing staging table operations in the repository.
@@ -62,9 +61,9 @@ public class StagingOperationsService {
         dropStagingTable(conn, stagingTable);
         
         // Create new staging table
-        SQLService.simpleExecute(conn, sql);
+        SQLExecutionService.simpleExecute(conn, sql);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Staging table created: %s for location: %s, table: %d, thread: %d", 
                 stagingTable, location, tid, threadNbr));
         
@@ -82,9 +81,9 @@ public class StagingOperationsService {
         validateDropStagingTableInputs(conn, stagingTable);
         
         String sql = String.format("DROP TABLE IF EXISTS %s", stagingTable);
-        SQLService.simpleExecute(conn, sql);
+        SQLExecutionService.simpleExecute(conn, sql);
         
-        Logging.write("debug", THREAD_NAME, 
+        LoggingUtils.write("debug", THREAD_NAME,
             String.format("Staging table dropped: %s", stagingTable));
     }
     
@@ -114,9 +113,9 @@ public class StagingOperationsService {
         binds.add(batchNbr);
         binds.add(tableAlias);
         
-        SQLService.simpleUpdate(conn, sqlFinal, binds, true);
+        SQLExecutionService.simpleUpdate(conn, sqlFinal, binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Findings loaded from staging table %s to main table for location: %s", 
                 stagingTable, location));
     }
@@ -140,9 +139,9 @@ public class StagingOperationsService {
         binds.add(tableName);
         binds.add(rid);
         
-        Integer cid = SQLService.simpleUpdateReturningInteger(conn, SQL_REPO_DCRESULT_INSERT, binds);
+        Integer cid = SQLExecutionService.simpleUpdateReturningInteger(conn, SQL_REPO_DCRESULT_INSERT, binds);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Data comparison result created with CID: %d for table: %s", cid, tableName));
         
         return cid;
@@ -166,9 +165,9 @@ public class StagingOperationsService {
         binds.add(rowCount);
         binds.add(cid);
         
-        SQLService.simpleUpdate(conn, sql, binds, true);
+        SQLExecutionService.simpleUpdate(conn, sql, binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Row count updated for %s: %d rows, CID: %d", targetType, rowCount, cid));
     }
     
@@ -185,17 +184,17 @@ public class StagingOperationsService {
             boolean autoCommit = conn.getAutoCommit();
             conn.setAutoCommit(true);
             
-            SQLService.simpleExecute(conn, "VACUUM dc_table");
-            SQLService.simpleExecute(conn, "VACUUM dc_table_map");
-            SQLService.simpleExecute(conn, "VACUUM dc_table_column");
-            SQLService.simpleExecute(conn, "VACUUM dc_table_column_map");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table_map");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table_column");
+            SQLExecutionService.simpleExecute(conn, "VACUUM dc_table_column_map");
             
             conn.setAutoCommit(autoCommit);
             
-            Logging.write("info", THREAD_NAME, "Repository tables vacuumed successfully");
+            LoggingUtils.write("info", THREAD_NAME, "Repository tables vacuumed successfully");
             
         } catch (Exception e) {
-            Logging.write("warning", THREAD_NAME, 
+            LoggingUtils.write("warning", THREAD_NAME,
                 String.format("Repository vacuum completed with warnings: %s", e.getMessage()));
         }
     }

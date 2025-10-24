@@ -17,8 +17,8 @@
 package com.crunchydata.service;
 
 import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTableMap;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -30,8 +30,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Objects;
 
-import static com.crunchydata.util.DataUtility.ShouldQuoteString;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.DataProcessingUtils.ShouldQuoteString;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Service class for database operations and platform-specific SQL generation.
@@ -40,7 +40,7 @@ import static com.crunchydata.util.Settings.Props;
  * 
  * @author Brian Pace
  */
-public class DatabaseService {
+public class DatabaseMetadataService {
 
     private static final String THREAD_NAME = "database-service";
     
@@ -100,7 +100,7 @@ public class DatabaseService {
             try {
                 return valueOf(platform.toUpperCase());
             } catch (IllegalArgumentException e) {
-                Logging.write("warning", THREAD_NAME, 
+                LoggingUtils.write("warning", THREAD_NAME,
                     String.format("Unknown platform '%s', defaulting to POSTGRES", platform));
                 return POSTGRES;
             }
@@ -152,7 +152,7 @@ public class DatabaseService {
      * @return SQL query string for loading data from the specified table
      * @throws IllegalArgumentException if required parameters are null or invalid
      */
-    public static String buildLoadSQL(String columnHashMethod, DCTableMap tableMap, ColumnMetadata columnMetadata) {
+    public static String buildLoadSQL(String columnHashMethod, DataComparisonTableMap tableMap, ColumnMetadata columnMetadata) {
         // Input validation
         Objects.requireNonNull(tableMap, "tableMap cannot be null");
         Objects.requireNonNull(columnMetadata, "columnMetadata cannot be null");
@@ -239,10 +239,10 @@ public class DatabaseService {
                 }
             }
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error retrieving tables for schema '%s': %s", schema, e.getMessage()));
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error retrieving tables for schema '%s': %s", schema, e.getMessage()));
         }
 
@@ -264,15 +264,15 @@ public class DatabaseService {
         String dbVersion = null;
         ArrayList<Object> binds = new ArrayList<>();
 
-        try (CachedRowSet crsVersion = SQLService.simpleSelect(conn, sql, binds)) {
+        try (CachedRowSet crsVersion = SQLExecutionService.simpleSelect(conn, sql, binds)) {
             if (crsVersion != null && crsVersion.next()) {
                 dbVersion = crsVersion.getString(VERSION_FIELD);
             }
         } catch (SQLException e) {
-            Logging.write("info", THREAD_NAME, 
+            LoggingUtils.write("info", THREAD_NAME,
                 String.format("Could not retrieve database version: %s", e.getMessage()));
         } catch (Exception e) {
-            Logging.write("info", THREAD_NAME, 
+            LoggingUtils.write("info", THREAD_NAME,
                 String.format("Unexpected error retrieving database version: %s", e.getMessage()));
         }
 

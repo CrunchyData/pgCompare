@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.service;
+package com.crunchydata.core.threading;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -27,27 +27,28 @@ import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
 
 import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DCTable;
-import com.crunchydata.model.DCTableMap;
-import com.crunchydata.model.DataCompare;
-import com.crunchydata.util.DataUtility;
-import com.crunchydata.util.Logging;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.model.DataComparisonResult;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.DataProcessingUtils;
+import com.crunchydata.util.LoggingUtils;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static com.crunchydata.service.DatabaseService.getQuoteChar;
-import static com.crunchydata.util.ColumnUtility.createColumnFilterClause;
-import static com.crunchydata.util.ColumnUtility.findColumnAlias;
-import static com.crunchydata.util.SQLConstantsRepo.*;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.service.DatabaseMetadataService.getQuoteChar;
+import static com.crunchydata.util.ColumnMetadataUtils.createColumnFilterClause;
+import static com.crunchydata.util.ColumnMetadataUtils.findColumnAlias;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Thread to perform reconciliation checks on rows that are out of sync.
  *
  * @author Brian Pace
  */
-public class threadCheck {
+public class DataValidationThread {
 
     private static final String THREAD_NAME = "check";
     
@@ -72,7 +73,7 @@ public class threadCheck {
      * @param ciTarget           Column metadata from target database.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static JSONObject checkRows (Connection repoConn, Connection sourceConn, Connection targetConn, DCTable dct, DCTableMap dctmSource, DCTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
+    public static JSONObject checkRows (Connection repoConn, Connection sourceConn, Connection targetConn, DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget, ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid) {
         ArrayList<Object> binds = new ArrayList<>();
         JSONObject result = new JSONObject();
         JSONArray rows = new JSONArray();
@@ -90,7 +91,7 @@ public class threadCheck {
 
             int processedRows = 0;
             while (rs.next() && processedRows < MAX_ROWS_TO_PROCESS) {
-                DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, dct.getBatchNbr());
+                DataComparisonResult dcRow = new DataComparisonResult(null,null,null,null,null,null, 0, dct.getBatchNbr());
 
                 dcRow.setTid(dct.getTid());
                 dcRow.setTableName(dct.getTableAlias());
@@ -101,7 +102,7 @@ public class threadCheck {
                 // Get Column Info and Mapping
                 binds.clear();
                 binds.addFirst(dct.getTid());
-                JSONObject columnMapping = new JSONObject(SQLService.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
+                JSONObject columnMapping = new JSONObject(SQLExecutionService.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
 
                 int pkColumnCount = 0;
                 binds.clear();
@@ -125,7 +126,7 @@ public class threadCheck {
                     pkColumnCount++;
                 }
 
-                Logging.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter()));
+                LoggingUtils.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter()));
 
                 JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
 
@@ -136,16 +137,16 @@ public class threadCheck {
                 processedRows++;
             }
             
-            Logging.write("info", THREAD_NAME, String.format("Processed %d out-of-sync rows for table %s", processedRows, dct.getTableAlias()));
+            LoggingUtils.write("info", THREAD_NAME, String.format("Processed %d out-of-sync rows for table %s", processedRows, dct.getTableAlias()));
             result.put("data", rows);
 
         } catch (SQLException e) {
             result.put("status", FAILED_STATUS);
-            Logging.write("severe", THREAD_NAME, String.format("SQL error performing check of table %s: %s", dct.getTableAlias(), e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("SQL error performing check of table %s: %s", dct.getTableAlias(), e.getMessage()));
         } catch (Exception e) {
             result.put("status", FAILED_STATUS);
             StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s at line %s:  %s", dct.getTableAlias(), stackTrace[0].getLineNumber(), e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error performing check of table %s at line %s:  %s", dct.getTableAlias(), stackTrace[0].getLineNumber(), e.getMessage()));
         } finally {
             // Ensure resources are properly closed
             try {
@@ -156,7 +157,7 @@ public class threadCheck {
                     stmt.close();
                 }
             } catch (SQLException e) {
-                Logging.write("warning", THREAD_NAME, String.format("Error closing resources: %s", e.getMessage()));
+                LoggingUtils.write("warning", THREAD_NAME, String.format("Error closing resources: %s", e.getMessage()));
             }
         }
 
@@ -174,7 +175,7 @@ public class threadCheck {
      * @param dcRow              DataCompare object with row to be compared.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static JSONObject reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DCTableMap dctmSource, DCTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataCompare dcRow, Integer cid) {
+    public static JSONObject reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataComparisonResult dcRow, Integer cid) {
         JSONArray arr = new JSONArray();
         int columnOutofSync = 0;
         JSONObject rowResult = new JSONObject();
@@ -187,8 +188,8 @@ public class threadCheck {
         rowResult.put("missingSource", 0);
         rowResult.put("missingTarget", 0);
 
-        CachedRowSet sourceRow = SQLService.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
-        CachedRowSet targetRow = SQLService.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
+        CachedRowSet sourceRow = SQLExecutionService.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
+        CachedRowSet targetRow = SQLExecutionService.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
 
         try {
             rowResult.put("pk", dcRow.getPk());
@@ -225,10 +226,10 @@ public class threadCheck {
                         }
                     } catch (Exception e) {
                         StackTraceElement[] stackTrace = e.getStackTrace();
-                        Logging.write("severe", THREAD_NAME, String.format("Error comparing column values at line %s: %s",stackTrace[0].getLineNumber(), e.getMessage()));
-                        Logging.write("severe", THREAD_NAME, String.format("Error on column %s",column));
-                        Logging.write("severe", THREAD_NAME, String.format("Source values:  %s", sourceRow.getString(i)));
-                        Logging.write("severe", THREAD_NAME, String.format("Target values:  %s", targetRow.getString(i)));
+                        LoggingUtils.write("severe", THREAD_NAME, String.format("Error comparing column values at line %s: %s",stackTrace[0].getLineNumber(), e.getMessage()));
+                        LoggingUtils.write("severe", THREAD_NAME, String.format("Error on column %s",column));
+                        LoggingUtils.write("severe", THREAD_NAME, String.format("Source values:  %s", sourceRow.getString(i)));
+                        LoggingUtils.write("severe", THREAD_NAME, String.format("Target values:  %s", targetRow.getString(i)));
                     }
                 }
 
@@ -246,17 +247,17 @@ public class threadCheck {
                 rowResult.put("equal", 1);
                 removeInSyncRow(repoConn, dcRow);
             } else {
-                Logging.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
+                LoggingUtils.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
             }
 
             // Update result counts
             updateResultCounts(repoConn, rowResult, sourceRow, targetRow, cid);
 
         } catch (SQLException e) {
-            Logging.write("severe", THREAD_NAME, String.format("SQL error comparing source and target values: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("SQL error comparing source and target values: %s", e.getMessage()));
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error comparing source and target values at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         return rowResult;
@@ -269,7 +270,7 @@ public class threadCheck {
         String value = rowSet.getString(columnIndex);
         
         if (value != null && value.contains("javax.sql.rowset.serial.SerialClob")) {
-            return DataUtility.convertClobToString((SerialClob) rowSet.getObject(columnIndex));
+            return DataProcessingUtils.convertClobToString((SerialClob) rowSet.getObject(columnIndex));
         }
         
         return value;
@@ -278,14 +279,14 @@ public class threadCheck {
     /**
      * Removes in-sync rows from staging tables.
      */
-    private static void removeInSyncRow(Connection repoConn, DataCompare dcRow) {
+    private static void removeInSyncRow(Connection repoConn, DataComparisonResult dcRow) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0, dcRow.getTid());
         binds.add(1, dcRow.getPkHash());
         binds.add(2, dcRow.getBatchNbr());
         
-        SQLService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
-        SQLService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
+        SQLExecutionService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
+        SQLExecutionService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
     }
     
     /**
@@ -298,7 +299,7 @@ public class threadCheck {
         binds.add(2, targetRow.size());
         binds.add(3, cid);
         
-        SQLService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
+        SQLExecutionService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
     }
 
 }

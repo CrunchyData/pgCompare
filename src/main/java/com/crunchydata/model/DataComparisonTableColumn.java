@@ -22,7 +22,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DCTableColumn {
+public class DataComparisonTableColumn {
     private Integer tid;
     private Integer columnID;
     private String columnAlias;

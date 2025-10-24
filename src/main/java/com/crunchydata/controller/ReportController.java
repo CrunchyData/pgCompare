@@ -16,8 +16,8 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.ApplicationContext;
-import com.crunchydata.util.Logging;
+import com.crunchydata.config.ApplicationContext;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -59,7 +59,7 @@ public class ReportController {
         try {
             ReportGenerationService.generateHtmlReport(report, filePath, title);
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error generating HTML report: %s", e.getMessage()));
             throw new RuntimeException("Failed to generate HTML report", e);
         }
@@ -91,7 +91,7 @@ public class ReportController {
                 DisplayOperationsService.displayNoTablesMessage(isCheck);
             }
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error creating summary: %s", e.getMessage()));
             throw new RuntimeException("Failed to create summary", e);
         }

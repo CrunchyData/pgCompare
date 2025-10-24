@@ -16,18 +16,17 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.models.DCTableColumn;
-import com.crunchydata.models.DCTableColumnMap;
-import com.crunchydata.services.SQLService;
-import com.crunchydata.util.Logging;
-import org.json.JSONObject;
+import com.crunchydata.model.DataComparisonTableColumn;
+import com.crunchydata.model.DataComparisonTableColumnMap;
+import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 /**
  * Service class for managing column-related operations in the repository.
@@ -49,17 +48,17 @@ public class ColumnManagementService {
      * @return Updated table column model with generated ID
      * @throws SQLException if database operations fail
      */
-    public static DCTableColumn saveTableColumn(Connection conn, DCTableColumn dctc) throws SQLException {
+    public static DataComparisonTableColumn saveTableColumn(Connection conn, DataComparisonTableColumn dctc) throws SQLException {
         validateTableColumnInputs(conn, dctc);
         
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(dctc.getTid());
         binds.add(dctc.getColumnAlias());
         
-        Integer cid = SQLService.simpleUpdateReturningInteger(conn, SQL_REPO_DCTABLECOLUMN_INSERT, binds);
+        Integer cid = SQLExecutionService.simpleUpdateReturningInteger(conn, SQL_REPO_DCTABLECOLUMN_INSERT, binds);
         dctc.setColumnID(cid);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Table column saved with ID: %d for table: %d", cid, dctc.getTid()));
         return dctc;
     }
@@ -71,7 +70,7 @@ public class ColumnManagementService {
      * @param dctcm Table column map model to save
      * @throws SQLException if database operations fail
      */
-    public static void saveTableColumnMap(Connection conn, DCTableColumnMap dctcm) throws SQLException {
+    public static void saveTableColumnMap(Connection conn, DataComparisonTableColumnMap dctcm) throws SQLException {
         validateTableColumnMapInputs(conn, dctcm);
         
         ArrayList<Object> binds = new ArrayList<>();
@@ -89,9 +88,9 @@ public class ColumnManagementService {
         binds.add(dctcm.getSupported());
         binds.add(dctcm.getPreserveCase());
         
-        SQLService.simpleUpdate(conn, SQL_REPO_DCTABLECOLUMNMAP_INSERT, binds, true);
+        SQLExecutionService.simpleUpdate(conn, SQL_REPO_DCTABLECOLUMNMAP_INSERT, binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Table column map saved for column ID: %d, origin: %s", 
                 dctcm.getColumnID(), dctcm.getColumnOrigin()));
     }
@@ -112,7 +111,7 @@ public class ColumnManagementService {
         binds.add(tid);
         binds.add(columnAlias);
         
-        return SQLService.simpleSelectReturnInteger(conn, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
+        return SQLExecutionService.simpleSelectReturnInteger(conn, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
     }
     
     /**
@@ -129,9 +128,9 @@ public class ColumnManagementService {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(tid);
         
-        String result = SQLService.simpleSelectReturnString(conn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
+        String result = SQLExecutionService.simpleSelectReturnString(conn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Column mapping retrieved for table ID: %d", tid));
         
         return result;
@@ -150,9 +149,9 @@ public class ColumnManagementService {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(tid);
         
-        SQLService.simpleUpdate(conn, "DELETE FROM dc_table_column_map WHERE tid=?", binds, true);
+        SQLExecutionService.simpleUpdate(conn, "DELETE FROM dc_table_column_map WHERE tid=?", binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Column mappings deleted for table ID: %d", tid));
     }
     
@@ -171,9 +170,9 @@ public class ColumnManagementService {
         binds.add(tid);
         binds.add(columnAlias);
         
-        SQLService.simpleUpdate(conn, "DELETE FROM dc_table_column_map WHERE tid=? AND column_id IN (SELECT column_id FROM dc_table_column WHERE tid=? AND column_alias=?)", binds, true);
+        SQLExecutionService.simpleUpdate(conn, "DELETE FROM dc_table_column_map WHERE tid=? AND column_id IN (SELECT column_id FROM dc_table_column WHERE tid=? AND column_alias=?)", binds, true);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Column mapping deleted for table ID: %d, alias: %s", tid, columnAlias));
     }
     
@@ -191,10 +190,10 @@ public class ColumnManagementService {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(tid);
         
-        Logging.write("info", THREAD_NAME, 
+        LoggingUtils.write("info", THREAD_NAME,
             String.format("Retrieving columns for table ID: %d", tid));
         
-        return SQLService.simpleSelect(conn, "SELECT * FROM dc_table_column WHERE tid=?", binds);
+        return SQLExecutionService.simpleSelect(conn, "SELECT * FROM dc_table_column WHERE tid=?", binds);
     }
     
     /**
@@ -203,7 +202,7 @@ public class ColumnManagementService {
      * @param conn Database connection
      * @param dctc Table column model
      */
-    private static void validateTableColumnInputs(Connection conn, DCTableColumn dctc) {
+    private static void validateTableColumnInputs(Connection conn, DataComparisonTableColumn dctc) {
         if (conn == null) {
             throw new IllegalArgumentException("Database connection cannot be null");
         }
@@ -224,7 +223,7 @@ public class ColumnManagementService {
      * @param conn Database connection
      * @param dctcm Table column map model
      */
-    private static void validateTableColumnMapInputs(Connection conn, DCTableColumnMap dctcm) {
+    private static void validateTableColumnMapInputs(Connection conn, DataComparisonTableColumnMap dctcm) {
         if (conn == null) {
             throw new IllegalArgumentException("Database connection cannot be null");
         }

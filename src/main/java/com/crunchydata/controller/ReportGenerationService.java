@@ -16,8 +16,8 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.ApplicationContext;
-import com.crunchydata.util.Logging;
+import com.crunchydata.config.ApplicationContext;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -49,17 +49,17 @@ public class ReportGenerationService {
     public static void generateHtmlReport(JSONArray report, String filePath, String title) {
         validateGenerateHtmlReportInputs(report, filePath, title);
         
-        Logging.write("info", THREAD_NAME, String.format("Generating HTML report: %s", filePath));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Generating HTML report: %s", filePath));
         
         try (FileWriter writer = new FileWriter(filePath)) {
             writeHtmlHeader(writer, title);
             writeHtmlContent(writer, report);
             writeHtmlFooter(writer);
             
-            Logging.write("info", THREAD_NAME, "HTML report generated successfully");
+            LoggingUtils.write("info", THREAD_NAME, "HTML report generated successfully");
             
         } catch (IOException e) {
-            Logging.write("severe", THREAD_NAME, 
+            LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error generating HTML report: %s", e.getMessage()));
             throw new RuntimeException("Failed to generate HTML report", e);
         }

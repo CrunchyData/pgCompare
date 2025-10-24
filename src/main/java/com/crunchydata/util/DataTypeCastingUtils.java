@@ -2,8 +2,8 @@ package com.crunchydata.util;
 
 import org.json.JSONObject;
 
-import static com.crunchydata.util.ColumnUtility.*;
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.util.ColumnMetadataUtils.*;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Utility class for handling database column casting operations across different database platforms.
@@ -11,7 +11,7 @@ import static com.crunchydata.util.Settings.Props;
  *
  * @author Brian Pace
  */
-public class CastUtility {
+public class DataTypeCastingUtils {
     
     // Constants for better maintainability
     private static final String NOTATION_CAST = "notation";

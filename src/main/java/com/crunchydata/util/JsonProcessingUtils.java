@@ -27,10 +27,10 @@ import org.json.JSONObject;
  *
  * @author Brian Pace
  */
-public class JsonUtility {
+public class JsonProcessingUtils {
 
     // Private constructor to prevent instantiation
-    private JsonUtility() {
+    private JsonProcessingUtils() {
         throw new UnsupportedOperationException("JsonUtility is a utility class and cannot be instantiated.");
     }
 

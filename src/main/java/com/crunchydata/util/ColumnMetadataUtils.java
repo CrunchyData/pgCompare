@@ -32,14 +32,14 @@ import static com.crunchydata.service.DatabaseMetadataService.getNativeCase;
 import static com.crunchydata.service.DatabaseMetadataService.getQuoteChar;
 import static com.crunchydata.util.DataTypeCastingUtils.cast;
 import static com.crunchydata.util.DataTypeCastingUtils.castRaw;
-import static com.crunchydata.util.DataUtility.*;
-import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_COLUMNS;
-import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
+import static com.crunchydata.util.DataProcessingUtils.*;
+import static com.crunchydata.config.sql.DB2SQLConstants.SQL_DB2_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.MSSQLSQLConstants.SQL_MSSQL_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.MYSQLSQLConstants.SQL_MYSQL_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.MariaDBSQLConstants.SQL_MARIADB_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
 
 /**
  * Utility class for column data type validation and classification.
@@ -50,7 +50,7 @@ import static com.crunchydata.util.SQLConstantsRepo.SQL_REPO_DCTABLECOLUMNMAP_BY
  *
  * @author Brian Pace
  */
-public class ColumnUtility {
+public class ColumnMetadataUtils {
 
     private static final String THREAD_NAME = "column-util";
     
@@ -156,7 +156,7 @@ public class ColumnUtility {
             crs.close();
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error locating primary key column map: %s", e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error locating primary key column map: %s", e.getMessage()));
         }
 
         return columnFilter;
@@ -217,7 +217,7 @@ public class ColumnUtility {
                 }
             }
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s: %s", schema, table, e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s: %s", schema, table, e.getMessage()));
         }
         return columnInfo;
     }
@@ -267,7 +267,7 @@ public class ColumnUtility {
         
         // Check for unsupported data types
         if (UNSUPPORTED_TYPES.contains(dataType.toLowerCase())) {
-            Logging.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", dataType, columnName));
+            LoggingUtils.write("warning", THREAD_NAME, String.format("Unsupported data type (%s) for column (%s)", dataType, columnName));
             column.put(SUPPORTED_PROPERTY, false);
         } else {
             column.put(SUPPORTED_PROPERTY, true);

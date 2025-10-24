@@ -16,11 +16,11 @@
 
 package com.crunchydata.controller;
 
-import com.crunchydata.ApplicationContext;
-import com.crunchydata.models.DCTable;
-import com.crunchydata.models.DCTableMap;
-import com.crunchydata.services.*;
-import com.crunchydata.util.Logging;
+import com.crunchydata.config.ApplicationContext;
+import com.crunchydata.model.DataComparisonTable;
+import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.service.*;
+import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -30,22 +30,22 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
 
-import static com.crunchydata.services.DatabaseService.getNativeCase;
-import static com.crunchydata.services.DatabaseService.getTables;
-import static com.crunchydata.util.DataUtility.preserveCase;
-import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsDB2.SQL_DB2_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsMSSQL.SQL_MSSQL_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsMYSQL.SQL_MYSQL_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsMariaDB.SQL_MARIADB_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsOracle.SQL_ORACLE_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLE;
-import static com.crunchydata.util.SQLConstantsPostgres.SQL_POSTGRES_SELECT_TABLES;
-import static com.crunchydata.util.SQLConstantsRepo.*;
+import static com.crunchydata.service.DatabaseMetadataService.getNativeCase;
+import static com.crunchydata.service.DatabaseMetadataService.getTables;
+import static com.crunchydata.util.DataProcessingUtils.preserveCase;
+import static com.crunchydata.config.sql.DB2SQLConstants.SQL_DB2_SELECT_TABLE;
+import static com.crunchydata.config.sql.DB2SQLConstants.SQL_DB2_SELECT_TABLES;
+import static com.crunchydata.config.sql.MSSQLSQLConstants.SQL_MSSQL_SELECT_TABLE;
+import static com.crunchydata.config.sql.MSSQLSQLConstants.SQL_MSSQL_SELECT_TABLES;
+import static com.crunchydata.config.sql.MYSQLSQLConstants.SQL_MYSQL_SELECT_TABLE;
+import static com.crunchydata.config.sql.MYSQLSQLConstants.SQL_MYSQL_SELECT_TABLES;
+import static com.crunchydata.config.sql.MariaDBSQLConstants.SQL_MARIADB_SELECT_TABLE;
+import static com.crunchydata.config.sql.MariaDBSQLConstants.SQL_MARIADB_SELECT_TABLES;
+import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_TABLE;
+import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_TABLES;
+import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_TABLE;
+import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_TABLES;
+import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 public class TableController {
 
@@ -109,16 +109,16 @@ public class TableController {
         clearIncompleteMappings(connRepo, pid);
     }
 
-    public static DCTableMap getTableMap (Connection conn, Integer tid, String tableOrigin) {
+    public static DataComparisonTableMap getTableMap (Connection conn, Integer tid, String tableOrigin) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0,tid);
         binds.add(1,tableOrigin);
 
-        DCTableMap result = new DCTableMap();
+        DataComparisonTableMap result = new DataComparisonTableMap();
 
         try {
 
-            CachedRowSet crs = SQLService.simpleSelect(conn, SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN, binds);
+            CachedRowSet crs = SQLExecutionService.simpleSelect(conn, SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN, binds);
 
             while (crs.next()) {
                 result.setTid(crs.getInt("tid"));
@@ -132,7 +132,7 @@ public class TableController {
             }
 
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error retrieving table mapping for tid %d:  %s", tid, e.getMessage()));
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error retrieving table mapping for tid %d:  %s", tid, e.getMessage()));
             return result;
         }
 
@@ -159,7 +159,7 @@ public class TableController {
         ArrayList<Object> binds = new ArrayList<>();
         Integer tableCount = 0;
 
-        Logging.write("info", THREAD_NAME, String.format("(%s) Performing table discovery on %s for schema %s",destRole, platform,schema));
+        LoggingUtils.write("info", THREAD_NAME, String.format("(%s) Performing table discovery on %s for schema %s",destRole, platform,schema));
 
         // Get Tables based on Platform
         JSONArray tables = getDatabaseTables(platform,connDest,schema, table);
@@ -176,9 +176,9 @@ public class TableController {
             binds.add(0,tableName);
             binds.add(1,pid);
 
-            Integer tid = SQLService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
+            Integer tid = SQLExecutionService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
 
-            DCTable dct = new DCTable();
+            DataComparisonTable dct = new DataComparisonTable();
             dct.setPid(pid);
             dct.setTableAlias(tableName.toLowerCase());
 
@@ -186,7 +186,7 @@ public class TableController {
                 if ( populateDCTable ) {
                     dct = RepoController.saveTable(connRepo, dct);
                 } else {
-                    Logging.write("warning", THREAD_NAME, String.format("(%s) Skipping, table %s not found on other destination", destRole, tableName));
+                    LoggingUtils.write("warning", THREAD_NAME, String.format("(%s) Skipping, table %s not found on other destination", destRole, tableName));
                 }
             } else {
                 dct.setTid(tid);
@@ -194,7 +194,7 @@ public class TableController {
 
             if ( dct.getTid() != null ) {
                 tableCount++;
-                DCTableMap dctm = new DCTableMap();
+                DataComparisonTableMap dctm = new DataComparisonTableMap();
                 dctm.setTid(dct.getTid());
                 dctm.setDestType(destRole);
                 dctm.setSchemaName(schemaName);
@@ -204,12 +204,12 @@ public class TableController {
 
                 RepoController.saveTableMap(connRepo, dctm);
 
-                Logging.write("info", THREAD_NAME, String.format("(%s) Discovered Table: %s",destRole, tableName));
+                LoggingUtils.write("info", THREAD_NAME, String.format("(%s) Discovered Table: %s",destRole, tableName));
 
             }
         }
 
-        Logging.write("info", THREAD_NAME, String.format("(%s) Discovered %d tables on %s for for schema %s", destRole, tableCount, platform, schema));
+        LoggingUtils.write("info", THREAD_NAME, String.format("(%s) Discovered %d tables on %s for for schema %s", destRole, tableCount, platform, schema));
 
     }
     
@@ -224,19 +224,19 @@ public class TableController {
         String tableName = context.getCmd().getOptionValue("table");
         String newTableName = tableName + "_copy";
 
-        Logging.write("info", THREAD_NAME, String.format("Copying table and column map for %s to %s", tableName, newTableName));
+        LoggingUtils.write("info", THREAD_NAME, String.format("Copying table and column map for %s to %s", tableName, newTableName));
 
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(0, tableName);
 
-        Integer tid = SQLService.simpleSelectReturnInteger(context.getConnRepo(), SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
+        Integer tid = SQLExecutionService.simpleSelectReturnInteger(context.getConnRepo(), SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
 
         binds.clear();
         binds.add(0, context.getPid());
         binds.add(1, tid);
         binds.add(2, newTableName);
 
-        newTID = SQLService.simpleUpdateReturningInteger(context.getConnRepo(), SQL_REPO_DC_COPY_TABLE, binds);
+        newTID = SQLExecutionService.simpleUpdateReturningInteger(context.getConnRepo(), SQL_REPO_DC_COPY_TABLE, binds);
 
         return newTID;
     }
@@ -269,7 +269,7 @@ public class TableController {
             tablesProcessed++;
             
             // Create DCTable object from result set
-            DCTable table = createDCTableFromResultSet(tablesResultSet, context.getPid());
+            DataComparisonTable table = createDCTableFromResultSet(tablesResultSet, context.getPid());
             
             // Process the table and get results
             JSONObject actionResult = processTable(table, isCheck, repoController, context);
@@ -287,8 +287,8 @@ public class TableController {
      * @return DCTable object
      * @throws SQLException if database operations fail
      */
-    public static DCTable createDCTableFromResultSet(CachedRowSet resultSet, Integer pid) throws SQLException {
-        DCTable dct = new DCTable();
+    public static DataComparisonTable createDCTableFromResultSet(CachedRowSet resultSet, Integer pid) throws SQLException {
+        DataComparisonTable dct = new DataComparisonTable();
         dct.setPid(pid);
         dct.setTid(resultSet.getInt("tid"));
         dct.setEnabled(resultSet.getBoolean("enabled"));
@@ -307,7 +307,7 @@ public class TableController {
      * @param context Application context
      * @return JSONObject containing the result of processing this table
      */
-    public static JSONObject processTable(DCTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
+    public static JSONObject processTable(DataComparisonTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
         // Basic input validation
         if (table == null) {
             throw new IllegalArgumentException("Table cannot be null");
@@ -335,8 +335,8 @@ public class TableController {
      * @param context Application context
      * @return JSONObject containing the result of processing this table
      */
-    public static JSONObject processEnabledTable(DCTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
-        Logging.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE: %s ---", 
+    public static JSONObject processEnabledTable(DataComparisonTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
+        LoggingUtils.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE: %s ---",
             table.getTableAlias().toUpperCase()));
 
         try {
@@ -344,8 +344,8 @@ public class TableController {
             validateTableForProcessing(table);
             
             // Create table maps for source and target
-            DCTableMap sourceTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_SOURCE);
-            DCTableMap targetTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_TARGET);
+            DataComparisonTableMap sourceTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_SOURCE);
+            DataComparisonTableMap targetTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_TARGET);
             
             // Set batch number and project ID
             sourceTableMap.setBatchNbr(table.getBatchNbr());
@@ -361,7 +361,7 @@ public class TableController {
 
             // Clear previous results if not a recheck
             if (!isCheck) {
-                Logging.write("info", THREAD_NAME, "Clearing data compare findings");
+                LoggingUtils.write("info", THREAD_NAME, "Clearing data compare findings");
                 repoController.deleteDataCompare(context.getConnRepo(), table.getTid(), table.getBatchNbr());
             }
 
@@ -376,7 +376,7 @@ public class TableController {
             return actionResult;
             
         } catch (Exception e) {
-            Logging.write("severe", THREAD_NAME, String.format("Error processing table %s: %s", 
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error processing table %s: %s",
                 table.getTableAlias(), e.getMessage()));
             return createErrorTableResult(table, e.getMessage());
         }
@@ -388,8 +388,8 @@ public class TableController {
      * @param table The table that was skipped
      * @return JSONObject containing skip result
      */
-    public static JSONObject createSkippedTableResult(DCTable table) {
-        Logging.write("warning", THREAD_NAME, String.format("Skipping disabled table: %s", 
+    public static JSONObject createSkippedTableResult(DataComparisonTable table) {
+        LoggingUtils.write("warning", THREAD_NAME, String.format("Skipping disabled table: %s",
             table.getTableAlias().toUpperCase()));
         
         JSONObject result = new JSONObject();
@@ -410,7 +410,7 @@ public class TableController {
      * @param errorMessage The error message
      * @return JSONObject containing error result
      */
-    public static JSONObject createErrorTableResult(DCTable table, String errorMessage) {
+    public static JSONObject createErrorTableResult(DataComparisonTable table, String errorMessage) {
         JSONObject result = new JSONObject();
         result.put("tableName", table.getTableAlias());
         result.put("status", STATUS_ERROR);
@@ -431,14 +431,14 @@ public class TableController {
      * @param binds Bind parameters
      */
     private static void cleanupPreviousDiscovery(Connection connRepo, String sql, ArrayList<Object> binds) {
-        Logging.write("info", THREAD_NAME, "Clearing previous discovery");
-        SQLService.simpleUpdate(connRepo, sql, binds, true);
+        LoggingUtils.write("info", THREAD_NAME, "Clearing previous discovery");
+        SQLExecutionService.simpleUpdate(connRepo, sql, binds, true);
 
         // Clean up orphaned tables
         binds.clear();
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_CLEAN, binds, true);
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_CLEAN, binds, true);
-        SQLService.simpleUpdate(connRepo, SQL_REPO_DCRESULT_CLEAN, binds, true);
+        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_CLEAN, binds, true);
+        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_CLEAN, binds, true);
+        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCRESULT_CLEAN, binds, true);
         RepoController.vacuumRepo(connRepo);
     }
     
@@ -451,21 +451,21 @@ public class TableController {
     private static void clearIncompleteMappings(Connection connRepo, Integer pid) {
         ArrayList<Object> binds = new ArrayList<>();
         binds.addFirst(pid);
-        CachedRowSet crs = SQLService.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
+        CachedRowSet crs = SQLExecutionService.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
 
         try {
             while (crs.next()) {
                 binds.clear();
                 binds.addFirst(crs.getInt("tid"));
 
-                Logging.write("warning", THREAD_NAME, String.format("Skipping table %s due to incomplete mapping (missing source or target)", crs.getString("table_alias")));
+                LoggingUtils.write("warning", THREAD_NAME, String.format("Skipping table %s due to incomplete mapping (missing source or target)", crs.getString("table_alias")));
 
-                SQLService.simpleUpdate(connRepo, SQL_REPO_DCTABLE_DELETEBYTID, binds, true);
+                SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTABLE_DELETEBYTID, binds, true);
             }
 
             crs.close();
         } catch (Exception e) {
-            Logging.write("warning", THREAD_NAME, String.format("Error clearing incomplete map: %s", e.getMessage()));
+            LoggingUtils.write("warning", THREAD_NAME, String.format("Error clearing incomplete map: %s", e.getMessage()));
         }
     }
     
@@ -474,7 +474,7 @@ public class TableController {
      * 
      * @param table Table object to validate
      */
-    private static void validateTableForProcessing(DCTable table) {
+    private static void validateTableForProcessing(DataComparisonTable table) {
         if (table == null) {
             throw new IllegalArgumentException("Table cannot be null");
         }
@@ -510,7 +510,7 @@ public class TableController {
      * @param tableOrigin Connection type (source/target)
      * @return DCTableMap object
      */
-    public static DCTableMap createTableMap(Connection connRepo, Integer tid, String tableOrigin) {
+    public static DataComparisonTableMap createTableMap(Connection connRepo, Integer tid, String tableOrigin) {
         return getTableMap(connRepo, tid, tableOrigin);
     }
 }

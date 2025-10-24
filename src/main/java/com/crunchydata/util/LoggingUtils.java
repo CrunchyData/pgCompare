@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.logging.*;
 
-import static com.crunchydata.util.Settings.Props;
+import static com.crunchydata.config.Settings.Props;
 
 /**
  * Utility class for logging operations.
@@ -15,9 +15,9 @@ import static com.crunchydata.util.Settings.Props;
  *
  * @author Brian Pace
  */
-public final class Logging {
+public final class LoggingUtils {
 
-    private static final Logger LOGGER = Logger.getLogger(Logging.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(LoggingUtils.class.getName());
     private static final String STDOUT = "stdout";
     private static final String LOG_FORMAT_PROPERTY = "java.util.logging.SimpleFormatter.format";
     private static final String DEFAULT_LOG_FORMAT = "[%1$tF %1$tT] [%4$-7s] %5$s %n";
@@ -29,7 +29,7 @@ public final class Logging {
     }
 
     // Private constructor to prevent instantiation
-    private Logging() {
+    private LoggingUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 
