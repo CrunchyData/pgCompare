@@ -47,6 +47,12 @@ public class threadLoader extends Thread  {
     private final String targetType;
     private final Integer threadNumber;
     private final ThreadSync ts;
+    
+    // Constants for better maintainability
+    private static final int DEFAULT_QUEUE_POLL_TIMEOUT_MS = 500;
+    private static final String STAGING_INSERT_SQL = "INSERT INTO %s (tid, pk_hash, column_hash, pk) VALUES (?, ?,?,(?)::jsonb)";
+    private static final String POSTGRES_OPTIMIZATION_SYNC_COMMIT = "set synchronous_commit='off'";
+    private static final String POSTGRES_OPTIMIZATION_WORK_MEM = "set work_mem='256MB'";
 
     /**
      * Constructor for initializing a dbLoader instance.
@@ -84,91 +90,121 @@ public class threadLoader extends Thread  {
         PreparedStatement stmtLoad = null;
 
         try {
-            // Connect to Repository
-            Logging.write("info", threadName, "Connecting to repository database");
-            connRepo = getConnection("postgres", "repo");
-
-            if (connRepo == null) {
-                Logging.write("severe", threadName, "Cannot connect to repository database");
-                System.exit(1);
-            }
-
-            SQLService.simpleExecute(connRepo,"set synchronous_commit='off'");
-            SQLService.simpleExecute(connRepo,"set work_mem='256MB'");
-
-            connRepo.setAutoCommit(false);
-
+            // Initialize repository connection
+            connRepo = initializeRepositoryConnection(threadName);
+            
             // Prepare INSERT statement for the staging table
-            String sqlLoad = String.format("INSERT INTO %s (tid, pk_hash, column_hash, pk) VALUES (?, ?,?,(?)::jsonb)",stagingTable);
-            connRepo.setAutoCommit(false);
-            stmtLoad = connRepo.prepareStatement(sqlLoad);
+            stmtLoad = prepareStagingInsertStatement(connRepo);
 
-            boolean stillLoading = true;
-
-            // Main loop to load data into the repository
-            while (stillLoading) {
-
-                // Poll for DataCompare array from the blocking queue
-                DataCompare[] dc = q.poll(500, TimeUnit.MILLISECONDS);
-
-                if (dc != null && dc.length > 0) {
-                    // Process each DataCompare object
-                    for (DataCompare dataCompare : dc) {
-                        if (dataCompare != null && dataCompare.getPk() != null) {
-                            stmtLoad.setInt(1, dataCompare.getTid());
-                            stmtLoad.setString(2, dataCompare.getPkHash());
-                            stmtLoad.setString(3, dataCompare.getColumnHash());
-                            stmtLoad.setString(4, dataCompare.getPk());
-                            stmtLoad.addBatch();
-                            stmtLoad.clearParameters();
-                        } else {
-                            // Exit loop if null or incomplete DataCompare object
-                            break;
-                        }
-                    }
-
-                    // Execute batch insert and commit transaction
-                    stmtLoad.executeBatch();
-                    stmtLoad.clearBatch();
-                    connRepo.commit();
-                }
-
-                // Check if both source and target are complete
-                if (ts.sourceComplete && ts.targetComplete) {
-                    stillLoading = false;
-                }
-            }
+            // Main data loading loop
+            executeDataLoading(threadName, stmtLoad, connRepo);
 
             Logging.write("info", threadName, "Loader thread complete.");
 
-            stmtLoad.close();
-            connRepo.close();
-
-            stmtLoad = null;
-            connRepo = null;
-
-            ts.incrementLoaderThreadComplete();
-
-        } catch( SQLException e) {
-            StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", threadName, String.format("Database error at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+        } catch (SQLException e) {
+            Logging.write("severe", threadName, String.format("Database error: %s", e.getMessage()));
         } catch (Exception e) {
-            StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", threadName, String.format("Error in loader thread at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+            Logging.write("severe", threadName, String.format("Error in loader thread: %s", e.getMessage()));
         } finally {
-            // Close PreparedStatement and Connection in finally block
-            try {
-                if (stmtLoad != null) {
-                    stmtLoad.close();
-                }
+            // Clean up resources and signal completion
+            cleanupResources(threadName, stmtLoad, connRepo);
+            signalThreadCompletion();
+        }
+    }
+    
+    /**
+     * Initializes repository connection with proper error handling.
+     */
+    private Connection initializeRepositoryConnection(String threadName) throws SQLException {
+        Logging.write("info", threadName, "Connecting to repository database");
+        Connection connRepo = getConnection("postgres", "repo");
 
-                if (connRepo != null) {
-                    connRepo.close();
-                }
-            } catch (Exception e) {
-                StackTraceElement[] stackTrace = e.getStackTrace();
-                Logging.write("severe", threadName, String.format("Error closing connections at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
+        if (connRepo == null) {
+            throw new SQLException("Cannot connect to repository database");
+        }
+
+        // Apply PostgreSQL optimizations
+        SQLService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_SYNC_COMMIT);
+        SQLService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_WORK_MEM);
+        connRepo.setAutoCommit(false);
+        
+        return connRepo;
+    }
+    
+    /**
+     * Prepares the staging table INSERT statement.
+     */
+    private PreparedStatement prepareStagingInsertStatement(Connection connRepo) throws SQLException {
+        String sqlLoad = String.format(STAGING_INSERT_SQL, stagingTable);
+        return connRepo.prepareStatement(sqlLoad);
+    }
+    
+    /**
+     * Executes the main data loading logic.
+     */
+    private void executeDataLoading(String threadName, PreparedStatement stmtLoad, Connection connRepo) throws Exception {
+        boolean stillLoading = true;
+
+        // Main loop to load data into the repository
+        while (stillLoading) {
+            // Poll for DataCompare array from the blocking queue
+            DataCompare[] dc = q.poll(DEFAULT_QUEUE_POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+            if (dc != null && dc.length > 0) {
+                processDataCompareArray(dc, stmtLoad, connRepo);
+            }
+
+            // Check if both source and target are complete
+            if (ts.sourceComplete && ts.targetComplete) {
+                stillLoading = false;
             }
         }
+    }
+    
+    /**
+     * Processes a DataCompare array and inserts into database.
+     */
+    private void processDataCompareArray(DataCompare[] dc, PreparedStatement stmtLoad, Connection connRepo) throws SQLException {
+        for (DataCompare dataCompare : dc) {
+            if (dataCompare != null && dataCompare.getPk() != null) {
+                stmtLoad.setInt(1, dataCompare.getTid());
+                stmtLoad.setString(2, dataCompare.getPkHash());
+                stmtLoad.setString(3, dataCompare.getColumnHash());
+                stmtLoad.setString(4, dataCompare.getPk());
+                stmtLoad.addBatch();
+                stmtLoad.clearParameters();
+            } else {
+                // Exit loop if null or incomplete DataCompare object
+                break;
+            }
+        }
+
+        // Execute batch insert and commit transaction
+        stmtLoad.executeBatch();
+        stmtLoad.clearBatch();
+        connRepo.commit();
+    }
+    
+    /**
+     * Cleans up database resources.
+     */
+    private void cleanupResources(String threadName, PreparedStatement stmtLoad, Connection connRepo) {
+        try {
+            if (stmtLoad != null) {
+                stmtLoad.close();
+            }
+            if (connRepo != null) {
+                connRepo.close();
+            }
+        } catch (Exception e) {
+            Logging.write("warning", threadName, String.format("Error closing connections: %s", e.getMessage()));
+        }
+    }
+    
+    /**
+     * Signals thread completion.
+     */
+    private void signalThreadCompletion() {
+        ts.incrementLoaderThreadComplete();
     }
 }

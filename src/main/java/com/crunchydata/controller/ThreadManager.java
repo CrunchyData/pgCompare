@@ -22,7 +22,6 @@ import com.crunchydata.models.DCTableMap;
 import com.crunchydata.models.DataCompare;
 import com.crunchydata.util.Logging;
 import com.crunchydata.util.ThreadSync;
-import com.crunchydata.controller.RepoController;
 import com.crunchydata.services.threadCompare;
 import com.crunchydata.services.threadLoader;
 import com.crunchydata.services.threadObserver;

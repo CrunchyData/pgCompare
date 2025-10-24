@@ -47,6 +47,14 @@ public class threadCompare extends Thread {
     private BlockingQueue<DataCompare[]> q;
     private final ThreadSync ts;
     private final Boolean useDatabaseHash;
+    
+    // Constants for better maintainability
+    private static final int QUEUE_WAIT_THRESHOLD = 100;
+    private static final int QUEUE_WAIT_TARGET = 50;
+    private static final int QUEUE_WAIT_SLEEP_MS = 1000;
+    private static final int OBSERVER_SLEEP_MS = 1000;
+    private static final int PROGRESS_REPORT_INTERVAL = 10000;
+    private static final String SOURCE_TYPE = "source";
 
     public threadCompare(Integer threadNumber, DCTable dct, DCTableMap dctm, ColumnMetadata cm, Integer cid, ThreadSync ts, Boolean useDatabaseHash, String stagingTable, BlockingQueue<DataCompare[]> q) {
         this.q = q;
@@ -66,48 +74,36 @@ public class threadCompare extends Thread {
     }
 
     public void run() {
-
         String threadName = String.format("compare-%s-%s-t%s", targetType, tid, threadNumber);
-        Logging.write("info", threadName, String.format("(%s) Start database reconcile thread",targetType));
+        Logging.write("info", threadName, String.format("(%s) Start database reconcile thread", targetType));
 
-
+        // Configuration variables
         int totalRows = 0;
         int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
         int fetchSize = Integer.parseInt(Props.getProperty("batch-fetch-size"));
         boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
         boolean observerThrottle = Boolean.parseBoolean(Props.getProperty("observer-throttle"));
         int cntRecord = 0;
-        Connection conn = null;
         boolean firstPass = true;
         DecimalFormat formatter = new DecimalFormat("#,###");
         int loadRowCount = Integer.parseInt(Props.getProperty("batch-progress-report-size"));
         int observerRowCount = Integer.parseInt(Props.getProperty("observer-throttle-size"));
+        
+        // Database resources
+        Connection conn = null;
         Connection connRepo = null;
-        RepoController rpc = new RepoController();
         ResultSet rs = null;
         PreparedStatement stmt = null;
         PreparedStatement stmtLoad = null;
+        
+        RepoController rpc = new RepoController();
 
         try {
             // Connect to Repository
-            Logging.write("info", threadName, String.format("(%s) Connecting to repository database", targetType));
-            connRepo = getConnection("postgres", "repo");
-
-            if ( connRepo == null) {
-                Logging.write("severe", threadName, String.format("(%s) Cannot connect to repository database", targetType));
-                System.exit(1);
-            }
-            connRepo.setAutoCommit(false);
-
+            connRepo = initializeRepositoryConnection(threadName);
+            
             // Connect to Source/Target
-            Logging.write("info", threadName, String.format("(%s) Connecting to database", targetType));
-
-            conn = getConnection(Props.getProperty(targetType+"-type"), targetType);
-
-            if ( conn == null) {
-                Logging.write("severe", threadName, String.format("(%s) Cannot connect to database", targetType));
-                System.exit(1);
-            }
+            conn = initializeSourceTargetConnection(threadName);
 
             // Load Reconcile Data
             if ( parallelDegree > 1 && !modColumn.isEmpty()) {
@@ -164,123 +160,208 @@ public class threadCompare extends Thread {
                 cntRecord++;
                 totalRows++;
 
-                if (totalRows % batchCommitSize == 0 ) {
+                if (totalRows % batchCommitSize == 0) {
                     if (useLoaderThreads) {
-                        if ( q.size() == 100) {
-                            Logging.write("info", threadName, String.format("(%s) Waiting for Queue space", targetType));
-                            while (q.size() > 50) {
-                                Thread.sleep(1000);
-                            }
-                        }
-                        q.put(dc);
-                        dc = null;
-                        dc = new DataCompare[batchCommitSize];
+                        handleLoaderThreadBatch(threadName, dc, batchCommitSize);
                     } else {
-                        stmtLoad.executeLargeBatch();
-                        stmtLoad.clearBatch();
-                        connRepo.commit();
+                        handleDirectDatabaseBatch(stmtLoad, connRepo);
                     }
-                    cntRecord=0;
+                    cntRecord = 0;
                 }
 
-                if (totalRows % ((firstPass) ? 10000 : loadRowCount) == 0) {
+                // Handle progress reporting
+                if (totalRows % ((firstPass) ? PROGRESS_REPORT_INTERVAL : loadRowCount) == 0) {
                     Logging.write("info", threadName, String.format("(%s) Loaded %s rows", targetType, formatter.format(totalRows)));
                 }
 
-                if (totalRows % ((firstPass) ? 10000 : observerRowCount) == 0) {
-                    if (firstPass || observerThrottle) {
+                // Handle observer coordination
+                if (totalRows % ((firstPass) ? PROGRESS_REPORT_INTERVAL : observerRowCount) == 0) {
+                    handleObserverCoordination(threadName, firstPass, observerThrottle, rpc, connRepo, cntRecord);
+                    if (firstPass) {
                         firstPass = false;
-
-                        Logging.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
-
-                        rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
-
-                        connRepo.commit();
-
-                        cntRecord=0;
-
-                        if ( targetType.equals("source")) {
-                            ts.sourceWaiting = true;
-                        } else {
-                            ts.targetWaiting = true;
-                        }
-
-                        ts.observerWait();
-
-                        if ( targetType.equals("source")) {
-                            ts.sourceWaiting = false;
-                        } else {
-                            ts.targetWaiting = false;
-                        }
-
-                        Logging.write("info", threadName, String.format("(%s) Cleared by Observer",targetType));
-                    } else {
-                        Logging.write("info", threadName, String.format("(%s) Pause for Observer",targetType));
-                        Thread.sleep(1000);
                     }
                 }
 
             }
 
-            if ( cntRecord > 0 ) {
-                if (useLoaderThreads) {
-                    q.put(dc);
-                } else {
-                    stmtLoad.executeBatch();
-                }
-                rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
+            // Process remaining records
+            if (cntRecord > 0) {
+                processRemainingRecords(useLoaderThreads, dc, stmtLoad, rpc, connRepo, cntRecord);
             }
 
             Logging.write("info", threadName, String.format("(%s) Complete. Total rows loaded: %s", targetType, formatter.format(totalRows)));
 
-            // Wait for Queues to Empty
+            // Wait for queues to empty if using loader threads
             if (useLoaderThreads) {
-                while (!q.isEmpty()) {
-                    Logging.write("info", threadName, String.format("(%s) Waiting for message queue to empty",targetType));
-                    Thread.sleep(1000);
-                }
-                Thread.sleep(1000);
+                waitForQueuesToEmpty(threadName);
             }
 
-        } catch( SQLException e) {
-            StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", threadName, String.format("(%s) Database error at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
+        } catch (SQLException e) {
+            Logging.write("severe", threadName, String.format("(%s) Database error: %s", targetType, e.getMessage()));
         } catch (Exception e) {
-            StackTraceElement[] stackTrace = e.getStackTrace();
-            Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
+            Logging.write("severe", threadName, String.format("(%s) Error in reconciliation thread: %s", targetType, e.getMessage()));
         } finally {
-            if ( targetType.equals("source")) {
-                ts.sourceComplete = true;
+            // Signal completion
+            signalThreadCompletion();
+            
+            // Clean up resources
+            cleanupResources(threadName, rs, stmt, stmtLoad, connRepo, conn);
+        }
+    }
+    
+    /**
+     * Initializes repository connection with proper error handling.
+     */
+    private Connection initializeRepositoryConnection(String threadName) throws SQLException {
+        Logging.write("info", threadName, String.format("(%s) Connecting to repository database", targetType));
+        Connection connRepo = getConnection("postgres", "repo");
+        
+        if (connRepo == null) {
+            throw new SQLException("Cannot connect to repository database");
+        }
+        connRepo.setAutoCommit(false);
+        return connRepo;
+    }
+    
+    /**
+     * Initializes source/target connection with proper error handling.
+     */
+    private Connection initializeSourceTargetConnection(String threadName) throws SQLException {
+        Logging.write("info", threadName, String.format("(%s) Connecting to database", targetType));
+        Connection conn = getConnection(Props.getProperty(targetType + "-type"), targetType);
+        
+        if (conn == null) {
+            throw new SQLException("Cannot connect to " + targetType + " database");
+        }
+        return conn;
+    }
+    
+    /**
+     * Handles batch processing for loader threads.
+     */
+    private void handleLoaderThreadBatch(String threadName, DataCompare[] dc, int batchCommitSize) throws InterruptedException {
+        if (q != null && q.size() == QUEUE_WAIT_THRESHOLD) {
+            Logging.write("info", threadName, String.format("(%s) Waiting for Queue space", targetType));
+            while (q.size() > QUEUE_WAIT_TARGET) {
+                Thread.sleep(QUEUE_WAIT_SLEEP_MS);
+            }
+        }
+        if (q != null) {
+            q.put(dc);
+        }
+        dc = null;
+        dc = new DataCompare[batchCommitSize];
+    }
+    
+    /**
+     * Handles batch processing for direct database insertion.
+     */
+    private void handleDirectDatabaseBatch(PreparedStatement stmtLoad, Connection connRepo) throws SQLException {
+        if (stmtLoad != null) {
+            stmtLoad.executeLargeBatch();
+            stmtLoad.clearBatch();
+            connRepo.commit();
+        }
+    }
+    
+    /**
+     * Handles observer coordination logic.
+     */
+    private void handleObserverCoordination(String threadName, boolean firstPass, boolean observerThrottle, 
+                                         RepoController rpc, Connection connRepo, int cntRecord) throws Exception {
+        if (firstPass || observerThrottle) {
+            Logging.write("info", threadName, String.format("(%s) Wait for Observer", targetType));
+            
+            rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
+            connRepo.commit();
+            
+            // Set waiting flags
+            if (SOURCE_TYPE.equals(targetType)) {
+                ts.sourceWaiting = true;
             } else {
-                ts.targetComplete = true;
+                ts.targetWaiting = true;
             }
-
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-
-                if (stmt != null) {
-                    stmt.close();
-                }
-
-                if (stmtLoad != null) {
-                    stmtLoad.close();
-                }
-
-                // Close Connections
-                if (connRepo != null) {
-                    connRepo.close();
-                }
-
-                if (conn != null) {
-                    conn.close();
-                }
-
-            } catch (Exception e) {
-                StackTraceElement[] stackTrace = e.getStackTrace();
-                Logging.write("severe", threadName, String.format("(%s) Error closing connections thread at line %s:  %s", targetType, stackTrace[0].getLineNumber(), e.getMessage()));
+            
+            ts.observerWait();
+            
+            // Clear waiting flags
+            if (SOURCE_TYPE.equals(targetType)) {
+                ts.sourceWaiting = false;
+            } else {
+                ts.targetWaiting = false;
             }
+            
+            Logging.write("info", threadName, String.format("(%s) Cleared by Observer", targetType));
+        } else {
+            Logging.write("info", threadName, String.format("(%s) Pause for Observer", targetType));
+            Thread.sleep(OBSERVER_SLEEP_MS);
+        }
+    }
+    
+    /**
+     * Processes remaining records after main loop.
+     */
+    private void processRemainingRecords(boolean useLoaderThreads, DataCompare[] dc, PreparedStatement stmtLoad, 
+                                       RepoController rpc, Connection connRepo, int cntRecord) throws Exception {
+        if (useLoaderThreads) {
+            if (q != null) {
+                q.put(dc);
+            }
+        } else {
+            if (stmtLoad != null) {
+                stmtLoad.executeBatch();
+            }
+        }
+        rpc.dcrUpdateRowCount(connRepo, targetType, cid, cntRecord);
+    }
+    
+    /**
+     * Waits for queues to empty if using loader threads.
+     */
+    private void waitForQueuesToEmpty(String threadName) throws InterruptedException {
+        if (q != null) {
+            while (!q.isEmpty()) {
+                Logging.write("info", threadName, String.format("(%s) Waiting for message queue to empty", targetType));
+                Thread.sleep(QUEUE_WAIT_SLEEP_MS);
+            }
+            Thread.sleep(QUEUE_WAIT_SLEEP_MS);
+        }
+    }
+    
+    /**
+     * Signals thread completion.
+     */
+    private void signalThreadCompletion() {
+        if (SOURCE_TYPE.equals(targetType)) {
+            ts.sourceComplete = true;
+        } else {
+            ts.targetComplete = true;
+        }
+    }
+    
+    /**
+     * Cleans up database resources.
+     */
+    private void cleanupResources(String threadName, ResultSet rs, PreparedStatement stmt, 
+                                PreparedStatement stmtLoad, Connection connRepo, Connection conn) {
+        try {
+            if (rs != null) {
+                rs.close();
+            }
+            if (stmt != null) {
+                stmt.close();
+            }
+            if (stmtLoad != null) {
+                stmtLoad.close();
+            }
+            if (connRepo != null) {
+                connRepo.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        } catch (Exception e) {
+            Logging.write("warning", threadName, String.format("(%s) Error closing connections: %s", targetType, e.getMessage()));
         }
 
     }

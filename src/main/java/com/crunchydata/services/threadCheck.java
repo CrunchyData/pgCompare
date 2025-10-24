@@ -19,6 +19,7 @@ package com.crunchydata.services;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import javax.sql.RowSetMetaData;
@@ -49,6 +50,16 @@ import static com.crunchydata.util.Settings.Props;
 public class threadCheck {
 
     private static final String THREAD_NAME = "check";
+    
+    // Constants for better maintainability
+    private static final int MAX_ROWS_TO_PROCESS = 1000;
+    private static final String COMPARE_RESULT_FIELD = "compare_result";
+    private static final String IN_SYNC_STATUS = "in-sync";
+    private static final String OUT_OF_SYNC_STATUS = "out-of-sync";
+    private static final String MISSING_TARGET = "Missing Target";
+    private static final String MISSING_SOURCE = "Missing Source";
+    private static final String SUCCESS_STATUS = "success";
+    private static final String FAILED_STATUS = "failed";
 
     /**
      * Pulls a list of out-of-sync rows from the repository dc_source and dc_target tables.
@@ -66,22 +77,26 @@ public class threadCheck {
         JSONObject result = new JSONObject();
         JSONArray rows = new JSONArray();
 
-        result.put("status","success");
+        result.put("status", SUCCESS_STATUS);
 
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+        
         try {
-            PreparedStatement stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
+            stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
             stmt.setObject(1, dct.getTid());
             stmt.setObject(2, dct.getTid());
-            ResultSet rs = stmt.executeQuery();
+            rs = stmt.executeQuery();
 
-            while (rs.next()) {
+            int processedRows = 0;
+            while (rs.next() && processedRows < MAX_ROWS_TO_PROCESS) {
                 DataCompare dcRow = new DataCompare(null,null,null,null,null,null, 0, dct.getBatchNbr());
 
                 dcRow.setTid(dct.getTid());
                 dcRow.setTableName(dct.getTableAlias());
                 dcRow.setPkHash(rs.getString("pk_hash"));
                 dcRow.setPk(rs.getString("pk"));
-                dcRow.setCompareResult("compare_result");
+                dcRow.setCompareResult(COMPARE_RESULT_FIELD);
 
                 // Get Column Info and Mapping
                 binds.clear();
@@ -114,19 +129,35 @@ public class threadCheck {
 
                 JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
 
-                if ( rows.length() < 1000 ) {
+                if ( rows.length() < MAX_ROWS_TO_PROCESS ) {
                     rows.put(recheckResult);
                 }
+                
+                processedRows++;
             }
-
-            rs.close();
-            stmt.close();
+            
+            Logging.write("info", THREAD_NAME, String.format("Processed %d out-of-sync rows for table %s", processedRows, dct.getTableAlias()));
             result.put("data", rows);
 
+        } catch (SQLException e) {
+            result.put("status", FAILED_STATUS);
+            Logging.write("severe", THREAD_NAME, String.format("SQL error performing check of table %s: %s", dct.getTableAlias(), e.getMessage()));
         } catch (Exception e) {
-            result.put("status","failed");
+            result.put("status", FAILED_STATUS);
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error performing check of table %s at line %s:  %s", dct.getTableAlias(), stackTrace[0].getLineNumber(), e.getMessage()));
+        } finally {
+            // Ensure resources are properly closed
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException e) {
+                Logging.write("warning", THREAD_NAME, String.format("Error closing resources: %s", e.getMessage()));
+            }
         }
 
         return result;
@@ -148,12 +179,13 @@ public class threadCheck {
         int columnOutofSync = 0;
         JSONObject rowResult = new JSONObject();
 
-        rowResult.put("compareStatus","in-sync");
-        rowResult.put("compareResult"," ");
-        rowResult.put("equal",0);
-        rowResult.put("notEqual",0);
-        rowResult.put("missingSource",0);
-        rowResult.put("missingTarget",0);
+        // Initialize result with default values
+        rowResult.put("compareStatus", IN_SYNC_STATUS);
+        rowResult.put("compareResult", " ");
+        rowResult.put("equal", 0);
+        rowResult.put("notEqual", 0);
+        rowResult.put("missingSource", 0);
+        rowResult.put("missingTarget", 0);
 
         CachedRowSet sourceRow = SQLService.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
         CachedRowSet targetRow = SQLService.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
@@ -162,26 +194,27 @@ public class threadCheck {
             rowResult.put("pk", dcRow.getPk());
 
             if (sourceRow.size() > 0 && targetRow.size() == 0) {
-                rowResult.put("compareStatus", "out-of-sync");
-                rowResult.put("compareResult", "Missing Target");
+                rowResult.put("compareStatus", OUT_OF_SYNC_STATUS);
+                rowResult.put("compareResult", MISSING_TARGET);
                 rowResult.put("missingTarget", 1);
-                rowResult.put("result", new JSONArray().put(0, "Missing Target"));
+                rowResult.put("result", new JSONArray().put(0, MISSING_TARGET));
             } else if (targetRow.size() > 0 && sourceRow.size() == 0 ) {
-                rowResult.put("compareStatus", "out-of-sync");
-                rowResult.put("compareResult", "Missing Source");
+                rowResult.put("compareStatus", OUT_OF_SYNC_STATUS);
+                rowResult.put("compareResult", MISSING_SOURCE);
                 rowResult.put("missingSource", 1);
-                rowResult.put("result", new JSONArray().put(0, "Missing Source"));
+                rowResult.put("result", new JSONArray().put(0, MISSING_SOURCE));
             } else {
-
+                // Both rows exist, perform detailed comparison
                 RowSetMetaData rowMetadata = (RowSetMetaData) sourceRow.getMetaData();
                 sourceRow.next();
                 targetRow.next();
+                
                 for (int i = 3; i <= rowMetadata.getColumnCount(); i++) {
                     String column = rowMetadata.getColumnName(i);
 
                     try {
-                        String sourceValue = (sourceRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) sourceRow.getObject(i)) : sourceRow.getString(i);
-                        String targetValue = (targetRow.getString(i).contains("javax.sql.rowset.serial.SerialClob")) ? DataUtility.convertClobToString((SerialClob) targetRow.getObject(i)) : targetRow.getString(i);
+                        String sourceValue = extractColumnValue(sourceRow, i);
+                        String targetValue = extractColumnValue(targetRow, i);
 
                         if (!sourceValue.equals(targetValue)) {
                             JSONObject col = new JSONObject();
@@ -200,42 +233,72 @@ public class threadCheck {
                 }
 
                 if (columnOutofSync > 0) {
-                    rowResult.put("compareStatus", "out-of-sync");
+                    rowResult.put("compareStatus", OUT_OF_SYNC_STATUS);
                     rowResult.put("compareResult", arr.toString());
                     rowResult.put("pk", dcRow.getPk());
                     rowResult.put("notEqual", 1);
                     rowResult.put("result", arr);
                 }
-
             }
 
-            if (rowResult.get("compareStatus").equals("in-sync")) {
-                rowResult.put("equal",1);
-                binds.clear();
-                binds.add(0,dcRow.getTid());
-                binds.add(1,dcRow.getPkHash());
-                binds.add(2, dcRow.getBatchNbr());
-                SQLService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
-                SQLService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
+            // Handle in-sync rows
+            if (IN_SYNC_STATUS.equals(rowResult.get("compareStatus"))) {
+                rowResult.put("equal", 1);
+                removeInSyncRow(repoConn, dcRow);
             } else {
                 Logging.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
             }
 
-            binds.clear();
-            binds.add(0,rowResult.getInt("equal"));
-            binds.add(1,sourceRow.size());
-            binds.add(2,targetRow.size());
-            binds.add(3,cid);
-            SQLService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
+            // Update result counts
+            updateResultCounts(repoConn, rowResult, sourceRow, targetRow, cid);
 
-
+        } catch (SQLException e) {
+            Logging.write("severe", THREAD_NAME, String.format("SQL error comparing source and target values: %s", e.getMessage()));
         } catch (Exception e) {
             StackTraceElement[] stackTrace = e.getStackTrace();
             Logging.write("severe", THREAD_NAME, String.format("Error comparing source and target values at line %s:  %s", stackTrace[0].getLineNumber(), e.getMessage()));
         }
 
         return rowResult;
-
+    }
+    
+    /**
+     * Extracts a column value, handling CLOB types properly.
+     */
+    private static String extractColumnValue(CachedRowSet rowSet, int columnIndex) throws Exception {
+        String value = rowSet.getString(columnIndex);
+        
+        if (value != null && value.contains("javax.sql.rowset.serial.SerialClob")) {
+            return DataUtility.convertClobToString((SerialClob) rowSet.getObject(columnIndex));
+        }
+        
+        return value;
+    }
+    
+    /**
+     * Removes in-sync rows from staging tables.
+     */
+    private static void removeInSyncRow(Connection repoConn, DataCompare dcRow) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, dcRow.getTid());
+        binds.add(1, dcRow.getPkHash());
+        binds.add(2, dcRow.getBatchNbr());
+        
+        SQLService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
+        SQLService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
+    }
+    
+    /**
+     * Updates result counts in the repository.
+     */
+    private static void updateResultCounts(Connection repoConn, JSONObject rowResult, CachedRowSet sourceRow, CachedRowSet targetRow, Integer cid) {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(0, rowResult.getInt("equal"));
+        binds.add(1, sourceRow.size());
+        binds.add(2, targetRow.size());
+        binds.add(3, cid);
+        
+        SQLService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
     }
 
 }
