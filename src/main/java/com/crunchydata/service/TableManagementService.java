@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.service;
 
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
-import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
@@ -58,7 +57,6 @@ public class TableManagementService {
         Integer tid = SQLExecutionService.simpleUpdateReturningInteger(conn, SQL_REPO_DCTABLE_INSERT, binds);
         dataComparisonTable.setTid(tid);
         
-        LoggingUtils.write("info", THREAD_NAME, String.format("Table saved with ID: %d", tid));
         return dataComparisonTable;
     }
     
@@ -82,9 +80,6 @@ public class TableManagementService {
         
         SQLExecutionService.simpleUpdate(conn, SQL_REPO_DCTABLEMAP_INSERT, binds, true);
         
-        LoggingUtils.write("info", THREAD_NAME,
-            String.format("Table map saved for table ID: %d, type: %s", 
-                dataComparisonTableMap.getTid(), dataComparisonTableMap.getDestType()));
     }
     
     /**

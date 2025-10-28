@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Set;
 
+import static com.crunchydata.core.database.SnowflakeHelper.GetSnowflakePrimaryKey;
 import static com.crunchydata.service.DatabaseMetadataService.getNativeCase;
 import static com.crunchydata.service.DatabaseMetadataService.getQuoteChar;
 import static com.crunchydata.util.DataTypeCastingUtils.cast;
@@ -39,6 +40,7 @@ import static com.crunchydata.config.sql.MYSQLSQLConstants.SQL_MYSQL_SELECT_COLU
 import static com.crunchydata.config.sql.MariaDBSQLConstants.SQL_MARIADB_SELECT_COLUMNS;
 import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_COLUMNS;
 import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_COLUMNS;
+import static com.crunchydata.config.sql.SnowflakeSQLConstants.SQL_SNOWFLAKE_SELECT_COLUMNS;
 import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS;
 
 /**
@@ -46,7 +48,7 @@ import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_DCTABLECOLUMN
  * Provides methods to determine the classification of a given database column data type.
  *
  * <p>This class handles column metadata retrieval, data type classification, and column filtering
- * across different database platforms including PostgreSQL, Oracle, MySQL, MariaDB, MSSQL, and DB2.</p>
+ * across different database platforms including PostgreSQL, Oracle, MySQL, MariaDB, MSSQL, Snowflake, and DB2.</p>
  *
  * @author Brian Pace
  */
@@ -194,6 +196,7 @@ public class ColumnMetadataUtils {
     public static JSONArray getColumns (Properties Props, Connection conn, String schema, String table, String destRole) {
         JSONArray columnInfo = new JSONArray();
         String platform = Props.getProperty(destRole + "-type");
+        String dbname = Props.getProperty(destRole + "-dbname");
         String nativeCase = getNativeCase(platform);
         String quoteChar = getQuoteChar(platform);
 
@@ -203,6 +206,7 @@ public class ColumnMetadataUtils {
             case "mysql" -> SQL_MYSQL_SELECT_COLUMNS;
             case "mssql" -> SQL_MSSQL_SELECT_COLUMNS;
             case "db2" -> SQL_DB2_SELECT_COLUMNS;
+            case "snowflake" -> SQL_SNOWFLAKE_SELECT_COLUMNS;
             default -> SQL_POSTGRES_SELECT_COLUMNS;
         };
 
@@ -215,6 +219,9 @@ public class ColumnMetadataUtils {
                     JSONObject column = buildColumnMetadata(rs, nativeCase, quoteChar, platform, Props);
                     columnInfo.put(column);
                 }
+
+                columnInfo = (platform.equals("snowflake") ? GetSnowflakePrimaryKey(conn, columnInfo, dbname, schema, table) : columnInfo);
+
             }
         } catch (Exception e) {
             LoggingUtils.write("severe", THREAD_NAME, String.format("Error retrieving columns for table %s.%s: %s", schema, table, e.getMessage()));

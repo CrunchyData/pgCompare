@@ -59,7 +59,9 @@ public class DatabaseConnectionService {
     private static final String MSSQL_URL_TEMPLATE = "jdbc:sqlserver://%s:%s";
     private static final String DB2_URL_TEMPLATE = "jdbc:db2://%s:%s/%s";
     private static final String POSTGRES_URL_TEMPLATE = "jdbc:postgresql://%s:%s/%s";
-    
+    private static final String SNOWFLAKE_URL_TEMPLATE = "jdbc:snowflake://%s%s/?db=%s";
+    private static final String SNOWFLAKE_CONTEXT_TEMPLATE = "&warehouse=%s&schema=%s";
+
     // SQL mode constants
     private static final String ANSI_SQL_MODE = "set session sql_mode='ANSI'";
     
@@ -72,7 +74,8 @@ public class DatabaseConnectionService {
         MYSQL("mysql", MYSQL_URL_TEMPLATE, false, true, true),
         MSSQL("mssql", MSSQL_URL_TEMPLATE, false, false, false),
         DB2("db2", DB2_URL_TEMPLATE, true, false, false),
-        POSTGRES("postgres", POSTGRES_URL_TEMPLATE, false, false, true);
+        POSTGRES("postgres", POSTGRES_URL_TEMPLATE, false, false, true),
+        SNOWFLAKE("snowflake", SNOWFLAKE_URL_TEMPLATE, false, false, true);
         
         private final String name;
         private final String urlTemplate;
@@ -158,7 +161,7 @@ public class DatabaseConnectionService {
     /**
      * Establishes a database connection using platform-specific configuration.
      *
-     * @param platform The database platform (oracle, mariadb, mysql, mssql, db2, postgres)
+     * @param platform The database platform (oracle, mariadb, mysql, mssql, db2, postgres, snowflake)
      * @param destType Type of destination (e.g., source, target)
      * @return Connection object to the database, null if connection fails
      * @throws IllegalArgumentException if required parameters are null or invalid
@@ -238,9 +241,14 @@ public class DatabaseConnectionService {
                     url.append(String.format(POSTGRES_SSL_MODE_TEMPLATE, sslModePg));
                 }
                 break;
+            case SNOWFLAKE:
+                    String warehouse = Props.getProperty(destType + "-warehouse");
+                    String schema = Props.getProperty(destType + "-schema");
+                    url.append(String.format(SNOWFLAKE_CONTEXT_TEMPLATE, warehouse, schema));
+                    break;
             case ORACLE:
             case DB2:
-                // No additional URL parameters needed for Oracle and DB2
+                // No additional URL parameters needed for Oracle, DB2, and Snowflake
                 break;
         }
         

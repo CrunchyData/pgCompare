@@ -42,7 +42,7 @@ import static com.crunchydata.config.Settings.Props;
  */
 public class DatabaseMetadataService {
 
-    private static final String THREAD_NAME = "database-service";
+    private static final String THREAD_NAME = "database-metadata";
     
     // SQL query constants
     private static final String SELECT_CLAUSE = "SELECT ";
@@ -70,7 +70,8 @@ public class DatabaseMetadataService {
         MARIADB("lower", "`", "lower(md5(%s)) AS %s", "||"),
         MYSQL("lower", "`", "lower(md5(%s)) AS %s", "||"),
         MSSQL("lower", "\"", "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s", "+"),
-        POSTGRES("lower", "\"", "lower(md5(%s)) AS %s", "||");
+        POSTGRES("lower", "\"", "lower(md5(%s)) AS %s", "||"),
+        SNOWFLAKE("upper", "\"", "lower(md5(%s)) AS %s", "||");
         
         private final String nativeCase;
         private final String quoteChar;
@@ -241,6 +242,7 @@ public class DatabaseMetadataService {
         } catch (SQLException e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error retrieving tables for schema '%s': %s", schema, e.getMessage()));
+            e.printStackTrace();
         } catch (Exception e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error retrieving tables for schema '%s': %s", schema, e.getMessage()));

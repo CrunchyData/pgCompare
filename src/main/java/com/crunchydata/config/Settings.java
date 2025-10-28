@@ -71,8 +71,8 @@ public class Settings {
     public static Map<String, Set<String>> validPropertyValues = Map.of(
             "column-hash-method", Set.of("database", "hybrid", "raw"),
             "number-cast", Set.of("notation", "standard"),
-            "source-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql"),
-            "target-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql")
+            "source-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql", "snowflake"),
+            "target-type", Set.of("db2", "oracle", "postgres", "mariadb", "mssql", "mysql", "snowflake")
     );
 
     static {

@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.service;
 
-import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;

@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.service;
 
 import com.crunchydata.model.DataComparisonTableColumn;
 import com.crunchydata.model.DataComparisonTableColumnMap;
-import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
@@ -58,8 +57,6 @@ public class ColumnManagementService {
         Integer cid = SQLExecutionService.simpleUpdateReturningInteger(conn, SQL_REPO_DCTABLECOLUMN_INSERT, binds);
         dctc.setColumnID(cid);
         
-        LoggingUtils.write("info", THREAD_NAME,
-            String.format("Table column saved with ID: %d for table: %d", cid, dctc.getTid()));
         return dctc;
     }
     

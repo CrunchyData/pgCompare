@@ -20,7 +20,10 @@ import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableColumn;
 import com.crunchydata.model.DataComparisonTableColumnMap;
 import com.crunchydata.model.DataComparisonTableMap;
+import com.crunchydata.service.ColumnManagementService;
 import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.service.StagingOperationsService;
+import com.crunchydata.service.TableManagementService;
 import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;

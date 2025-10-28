@@ -94,4 +94,30 @@ public class JsonProcessingUtils {
 
     }
 
+    /**
+     * Replaces a JSONObject at a specified location in a JSONArray with a new JSONObject.
+     *
+     * @param jsonArray the JSONArray to modify
+     * @param newObject the JSONObject to insert at the specified location
+     * @param location the index in the JSONArray where the replacement should occur
+     * @return the updated JSONArray with the replaced object
+     * @throws IllegalArgumentException if the location is out of bounds or parameters are null
+     */
+    public static JSONArray replaceObjectAtLocation(JSONArray jsonArray, JSONObject newObject, int location) {
+        if (jsonArray == null) {
+            throw new IllegalArgumentException("JSONArray cannot be null");
+        }
+        if (newObject == null) {
+            throw new IllegalArgumentException("JSONObject cannot be null");
+        }
+        if (location < 0 || location >= jsonArray.length()) {
+            throw new IllegalArgumentException("Location " + location + " is out of bounds for array of length " + jsonArray.length());
+        }
+
+        // Replace the object at the specified location
+        jsonArray.put(location, newObject);
+        
+        return jsonArray;
+    }
+
 }

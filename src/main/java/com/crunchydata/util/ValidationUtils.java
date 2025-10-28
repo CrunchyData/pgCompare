@@ -33,6 +33,7 @@ public class ValidationUtils {
     private static final String STANDARD_CAST = "standard";
     private static final String STANDARD_NUMBER_FORMAT_PROPERTY = "standard-number-format";
     private static final String DB2_PRECISION_FORMAT = "0000000000000000000000000000000.0000000000000000000000000000000";
+    private static final String SNOWFLAKE_PRECISION_FORMAT = "9999999999999999999.0000000000000000000";
 
     /**
      * Performs all preflight validation checks.
@@ -83,6 +84,9 @@ public class ValidationUtils {
             case "db2":
                 handleDB2Configuration(Props);
                 break;
+            case "snowflake":
+                handleSnowflakeConfiguration(Props);
+                break;
             case "mariadb", "mysql", "oracle", "postgres":
                 // No restrictions for these databases
                 break;
@@ -111,7 +115,22 @@ public class ValidationUtils {
             Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
         }
     }
-    
+
+    private static void handleSnowflakeConfiguration(Properties Props) {
+        // Number Cast must be standard for Snowflake
+        if (NOTATION_CAST.equals(Props.getProperty(NUMBER_CAST_PROPERTY))) {
+            LoggingUtils.write("warning", THREAD_NAME, "Switching number-cast to standard");
+            Props.setProperty(NUMBER_CAST_PROPERTY, STANDARD_CAST);
+        }
+
+        // Precision must be limited to 38
+        if ( !Props.getProperty(STANDARD_NUMBER_FORMAT_PROPERTY).equals(SNOWFLAKE_PRECISION_FORMAT) ) {
+            LoggingUtils.write("warning", THREAD_NAME, "Switching standard-number-format to precision of 38 as required for Snowflake");
+            Props.setProperty(STANDARD_NUMBER_FORMAT_PROPERTY, SNOWFLAKE_PRECISION_FORMAT);
+        }
+
+    }
+
     /**
      * Handles MSSQL-specific configuration adjustments.
      *

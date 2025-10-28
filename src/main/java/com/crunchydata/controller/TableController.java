@@ -45,6 +45,8 @@ import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_TA
 import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_TABLES;
 import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_TABLE;
 import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_TABLES;
+import static com.crunchydata.config.sql.SnowflakeSQLConstants.SQL_SNOWFLAKE_SELECT_TABLE;
+import static com.crunchydata.config.sql.SnowflakeSQLConstants.SQL_SNOWFLAKE_SELECT_TABLES;
 import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 public class TableController {
@@ -148,6 +150,7 @@ public class TableController {
             case "mysql" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_MYSQL_SELECT_TABLES : SQL_MYSQL_SELECT_TABLE);
             case "mssql" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_MSSQL_SELECT_TABLES : SQL_MSSQL_SELECT_TABLE);
             case "db2" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_DB2_SELECT_TABLES : SQL_DB2_SELECT_TABLE);
+            case "snowflake" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_SNOWFLAKE_SELECT_TABLES : SQL_SNOWFLAKE_SELECT_TABLE);
             default -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_POSTGRES_SELECT_TABLES : SQL_POSTGRES_SELECT_TABLE);
         };
 

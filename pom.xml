@@ -77,6 +77,12 @@
             <artifactId>mariadb-java-client</artifactId>
             <version>3.5.3</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/net.snowflake/snowflake-jdbc -->
+        <dependency>
+            <groupId>net.snowflake</groupId>
+            <artifactId>snowflake-jdbc</artifactId>
+            <version>3.27.0</version>
+        </dependency>
     </dependencies>
     </dependencyManagement>
 

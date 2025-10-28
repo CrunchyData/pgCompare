@@ -62,6 +62,7 @@ public class DataTypeCastingUtils {
      */
     public static String castBinary(String dataType, String columnName, String platform) {
         return switch (platform) {
+            // Snowflake TODO: Add support for binary types.
             // MSSQL does not have a binary type.
             // Postgres and MySQL use the same function for binary types.
             case "db2" ->
@@ -88,7 +89,7 @@ public class DataTypeCastingUtils {
         String numberFormat = Props.getProperty("standard-number-format");
 
         return switch (platform) {
-            case "db2" -> String.format("coalesce(to_char(%1$s),'0')", columnName);
+            case "db2", "snowflake" -> String.format("coalesce(to_char(%1$s),'0')", columnName);
             case "oracle" -> String.format("nvl(to_char(%1$s),'0')", columnName);
             case "mariadb" ->
                     String.format("case when coalesce(cast(%1$s as char),'0') = 'true' then '1' else '0' end", columnName);
@@ -120,6 +121,7 @@ public class DataTypeCastingUtils {
         // MSSQL:  tinyint, smallint, in, bigint, decimal(p,s)/numeric(p,s), float(n), real, money/smallmoney
         // Oracle: number(p,s), float(p), binary_float, binary_double, integer/int, dec/decimal/numeric (aka number)
         // Postgres: smallint, integer/int, bigint, decimal(p,s)/numeric(p,s), real, double precision, serial/bigserial (aka auto incrementing int/bigint)
+        // Snowflake: number, decimal, dec, numeric, int, integer, bigint, smallint, tinyint, byteint, float, float4, float8, double, double precision, real
 
         // Common Types:  These common types create buckets for categorizing numeric types into a common schema:
         //      Common Type     Description                     Use Case Example
@@ -168,6 +170,9 @@ public class DataTypeCastingUtils {
                 case "oracle" -> NOTATION_CAST.equals(numberCast)
                         ? String.format("lower(nvl(trim(to_char(%1$s,'0.9999999999EEEE')),'%2$s'))", columnName, EMPTY_STRING)
                         : String.format("nvl(trim(to_char(%s,'%s')),'%s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
+                case "snowflake" -> NOTATION_CAST.equals(numberCast)
+                        ? String.format("coalesce(trim(to_char(%1$s,'FM9.9999999999EEEE')),'%2$s')", columnName, EMPTY_STRING)
+                        : String.format("trim(trim(coalesce(trim(to_char(%s, '%s')),'%s'),'0'))", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
                 default -> NOTATION_CAST.equals(numberCast)
                         ? String.format("coalesce(trim(to_char(%1$s,'0.9999999999EEEE')),'%2$s')", columnName, EMPTY_STRING)
                         : String.format("coalesce(trim(to_char(trim_scale(%1$s),'%s')),'%s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);

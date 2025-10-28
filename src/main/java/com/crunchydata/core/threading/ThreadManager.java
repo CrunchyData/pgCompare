@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.core.threading;
 
+import com.crunchydata.controller.RepoController;
 import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.util.LoggingUtils;
-import com.crunchydata.core.threading.ThreadSync;
-import com.crunchydata.core.threading.DataComparisonThread;
-import com.crunchydata.core.threading.DataLoaderThread;
-import com.crunchydata.core.threading.ReconciliationObserverThread;
 
 import java.sql.Connection;
 import java.util.ArrayList;

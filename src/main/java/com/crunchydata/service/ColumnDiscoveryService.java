@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.service;
 
 import com.crunchydata.model.DataComparisonTableColumn;
 import com.crunchydata.model.DataComparisonTableColumnMap;
-import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;

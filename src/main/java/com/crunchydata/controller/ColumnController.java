@@ -1,6 +1,8 @@
 package com.crunchydata.controller;
 
+import com.crunchydata.core.database.ColumnMetadataBuilder;
 import com.crunchydata.model.ColumnMetadata;
+import com.crunchydata.service.ColumnDiscoveryService;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
 

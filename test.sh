@@ -1,5 +1,5 @@
 # To run in a loop to test all platforms:
-#  for T in db2 mariadb mssql mysql oracle
+#  for T in db2 mariadb mssql mysql oracle snowflake
 #  do
 #    ./test.sh $T 2>&1 | grep -v "INFO"
 #  done

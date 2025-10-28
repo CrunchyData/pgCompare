@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.service;
 
+import com.crunchydata.controller.RepoController;
+import com.crunchydata.core.database.ResultProcessor;
+import com.crunchydata.core.threading.ThreadManager;
 import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
-import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.core.threading.DataValidationThread;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;

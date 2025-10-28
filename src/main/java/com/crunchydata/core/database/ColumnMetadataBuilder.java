@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.controller;
+package com.crunchydata.core.database;
 
 import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.util.LoggingUtils;
@@ -283,7 +283,7 @@ public class ColumnMetadataBuilder {
         );
         
         if (platform.equals("postgres") || platform.equals("mariadb") || 
-            platform.equals("mssql") || platform.equals("mysql")) {
+            platform.equals("mssql") || platform.equals("mysql") || platform.equals("snowflake")) {
             return pkHash.size() > 1 ? "concat(" + joined + ")" : joined;
         }
         
