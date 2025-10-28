@@ -104,15 +104,20 @@ public class ValidationUtils {
     private static void handleDB2Configuration(Properties Props) {
         // Number Cast must be standard for DB2
         if (NOTATION_CAST.equals(Props.getProperty(NUMBER_CAST_PROPERTY))) {
-            LoggingUtils.write("warning", THREAD_NAME, "Switching number-cast to standard and standard-number-format to precision of 31 as required for DB2");
+            LoggingUtils.write("warning", THREAD_NAME, "Switching number-cast to standard as required for DB2");
             Props.setProperty(NUMBER_CAST_PROPERTY, STANDARD_CAST);
-            Props.setProperty(STANDARD_NUMBER_FORMAT_PROPERTY, DB2_PRECISION_FORMAT);
         }
 
         // Database side hash is not supported for DB2
         if (DATABASE_HASH_METHOD.equals(Props.getProperty(COLUMN_HASH_METHOD_PROPERTY))) {
             LoggingUtils.write("warning", THREAD_NAME, "Switching column hash method to hybrid as required for DB2");
             Props.setProperty(COLUMN_HASH_METHOD_PROPERTY, HYBRID_HASH_METHOD);
+        }
+
+        // Precision must be limited to 38
+        if ( !Props.getProperty(STANDARD_NUMBER_FORMAT_PROPERTY).equals(DB2_PRECISION_FORMAT) ) {
+            LoggingUtils.write("warning", THREAD_NAME, "Switching standard-number-format to precision of 31 as required for DB2");
+            Props.setProperty(STANDARD_NUMBER_FORMAT_PROPERTY, DB2_PRECISION_FORMAT);
         }
     }
 
