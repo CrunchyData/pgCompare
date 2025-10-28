@@ -169,13 +169,14 @@ public class DataTypeCastingUtils {
                         : String.format("coalesce(cast(format(%s, '%s') as text),'%s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
                 case "oracle" -> NOTATION_CAST.equals(numberCast)
                         ? String.format("lower(nvl(trim(to_char(%1$s,'0.9999999999EEEE')),'%2$s'))", columnName, EMPTY_STRING)
-                        : String.format("nvl(trim(to_char(%s,'%s')),'%s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
+                        : String.format("nvl(trim(to_char(%1$s,'%2$s')),'%3$s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
                 case "snowflake" -> NOTATION_CAST.equals(numberCast)
                         ? String.format("coalesce(trim(to_char(%1$s,'FM9.9999999999EEEE')),'%2$s')", columnName, EMPTY_STRING)
-                        : String.format("trim(trim(coalesce(trim(to_char(%s, '%s')),'%s'),'0'))", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
+                        : String.format("trim(coalesce(trim(to_char(%1$s, '%2$s')),'%3$s'))", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
                 default -> NOTATION_CAST.equals(numberCast)
                         ? String.format("coalesce(trim(to_char(%1$s,'0.9999999999EEEE')),'%2$s')", columnName, EMPTY_STRING)
-                        : String.format("coalesce(trim(to_char(trim_scale(%1$s),'%s')),'%s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
+                        : String.format("coalesce(trim(to_char(trim_scale(%1$s),'%2$s')),'%3$s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
+
             };
         };
 
