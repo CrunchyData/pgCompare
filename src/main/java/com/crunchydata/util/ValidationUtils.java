@@ -27,13 +27,14 @@ public class ValidationUtils {
     private static final String TRUE_VALUE = "true";
     private static final String COLUMN_HASH_METHOD_PROPERTY = "column-hash-method";
     private static final String DATABASE_HASH_METHOD = "database";
+    private static final String FLOAT_SCALE = "float-scale";
     private static final String HYBRID_HASH_METHOD = "hybrid";
     private static final String NUMBER_CAST_PROPERTY = "number-cast";
     private static final String NOTATION_CAST = "notation";
     private static final String STANDARD_CAST = "standard";
     private static final String STANDARD_NUMBER_FORMAT_PROPERTY = "standard-number-format";
     private static final String DB2_PRECISION_FORMAT = "0000000000000000000000000000000.0000000000000000000000000000000";
-    private static final String SNOWFLAKE_PRECISION_FORMAT = "9999999999999999999.0000000000000000000";
+    private static final String SNOWFLAKE_PRECISION_FORMAT = "999999999999999999990.0000000000000000";
 
     /**
      * Performs all preflight validation checks.
@@ -132,6 +133,12 @@ public class ValidationUtils {
         if ( !Props.getProperty(STANDARD_NUMBER_FORMAT_PROPERTY).equals(SNOWFLAKE_PRECISION_FORMAT) ) {
             LoggingUtils.write("warning", THREAD_NAME, "Switching standard-number-format to precision of 38 as required for Snowflake");
             Props.setProperty(STANDARD_NUMBER_FORMAT_PROPERTY, SNOWFLAKE_PRECISION_FORMAT);
+        }
+
+        // Set scale to 1
+        if ( !Props.getProperty(FLOAT_SCALE).equals("1")) {
+            LoggingUtils.write("warning", THREAD_NAME, "Switching float-scale to 1 as required for Snowflake");
+            Props.setProperty(FLOAT_SCALE, "1");
         }
 
     }

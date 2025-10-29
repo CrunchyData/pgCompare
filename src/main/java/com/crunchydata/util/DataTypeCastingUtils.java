@@ -143,6 +143,7 @@ public class DataTypeCastingUtils {
         //      oracle          number(p,s)                     decimal(p,s)    default/notation
         //      mssql           tinyint                         <custom int8>   default/notation
 
+        String floatScale = Props.getProperty("float-scale");
         String numberCast = Props.getProperty("number-cast");
 
         return switch (dataType) {
@@ -151,11 +152,11 @@ public class DataTypeCastingUtils {
             case "binary_float", "float", "float4", "real", "double", "binary_double", "float8" -> switch (platform) {
                 case "db2" -> String.format("trim(to_char(%1$s,'999999999999999999999999999990.000'))", columnName);
                 case "mariadb", "mysql", "mssql" ->
-                        String.format("trim(cast(cast(%1$s as decimal(32,3)) as char))", columnName);
+                        String.format("trim(cast(cast(%1$s as decimal(32,%2$s)) as char))", columnName, floatScale);
                 case "oracle" ->
-                        String.format("trim(to_char(cast(%1$s as NUMBER(32,3)),'99999999999999999999999999999990.000'))", columnName);
+                        String.format("trim(to_char(cast(%1$s as NUMBER(32,%2$s)),'99999999999999999999999999999990.000'))", columnName, floatScale);
                 default ->
-                        String.format("trim(cast(cast(cast(%1$s as double precision) as numeric(32,3)) as text))", columnName);
+                        String.format("trim(cast(cast(cast(%1$s as double precision) as numeric(32,%2$s)) as text))", columnName, floatScale);
             };
             default -> switch (platform) {
                 case "db2" -> NOTATION_CAST.equals(numberCast)
@@ -172,7 +173,7 @@ public class DataTypeCastingUtils {
                         : String.format("nvl(trim(to_char(%1$s,'%2$s')),'%3$s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
                 case "snowflake" -> NOTATION_CAST.equals(numberCast)
                         ? String.format("coalesce(trim(to_char(%1$s,'FM9.9999999999EEEE')),'%2$s')", columnName, EMPTY_STRING)
-                        : String.format("trim(coalesce(trim(to_char(%1$s, '%2$s')),'%3$s'))", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
+                        : String.format("coalesce(trim(to_char(%1$s, '%2$s')),'%3$s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
                 default -> NOTATION_CAST.equals(numberCast)
                         ? String.format("coalesce(trim(to_char(%1$s,'0.9999999999EEEE')),'%2$s')", columnName, EMPTY_STRING)
                         : String.format("coalesce(trim(to_char(trim_scale(%1$s),'%2$s')),'%3$s')", columnName, Props.getProperty("standard-number-format"), EMPTY_STRING);
@@ -283,8 +284,11 @@ public class DataTypeCastingUtils {
             case "oracle" -> (dataType.contains(TIMEZONE_INDICATOR) || dataType.contains(TZ_INDICATOR))
                     ? String.format("nvl(to_char(%1$s at time zone '%3$s','MMDDYYYYHH24MISS'),'%2$s')", columnName, EMPTY_STRING, UTC_TIMEZONE)
                     : String.format("nvl(to_char(%1$s,'MMDDYYYYHH24MISS'),'%2$s')", columnName, EMPTY_STRING);
+            case "snowflake" -> (dataType.contains(TIMEZONE_INDICATOR) || dataType.contains(TZ_INDICATOR)) && !dataType.contains("ntz")
+                    ? String.format("coalesce(to_char(convert_timezone('%3$s', %1$s),'MMDDYYYYHH24MISS'),'%2$s')", columnName, EMPTY_STRING, UTC_TIMEZONE)
+                    : String.format("coalesce(to_char(%1$s,'MMDDYYYYHH24MISS'),'%2$s')", columnName, EMPTY_STRING);
             default -> {
-                boolean hasTZ = dataType.contains(TIMEZONE_INDICATOR) || dataType.contains(TZ_INDICATOR);
+                boolean hasTZ = (dataType.contains(TIMEZONE_INDICATOR) || dataType.contains(TZ_INDICATOR)) && !dataType.contains("ntz");
                 yield hasTZ
                         ? String.format("coalesce(to_char(%1$s at time zone '%3$s','MMDDYYYYHH24MISS'),'%2$s')", columnName, EMPTY_STRING, UTC_TIMEZONE)
                         : String.format("coalesce(to_char(%1$s,'MMDDYYYYHH24MISS'),'%2$s')", columnName, EMPTY_STRING);

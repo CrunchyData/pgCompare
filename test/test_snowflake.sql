@@ -62,7 +62,7 @@ CREATE TABLE pgctest.test_nbr
     ,   col_dec_20      number(20)
     ,   col_dec_38      number(38)
     ,   col_dec_10_2    number(10,2)
-    ,   col_float32     float
+    ,   col_float32     real
     ,   col_float64     double
     ,   col_dec_38_9    NUMBER(38,9)
     ,   col_dec_38_30   NUMBER(38,30)

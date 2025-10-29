@@ -100,7 +100,7 @@ public class ColumnMetadataUtils {
      * TIMESTAMP data types
      */
     public static final Set<String> TIMESTAMP_TYPES = Set.of("date", "datetime", "datetimeoffset", "datetime2",
-            "smalldatetime", "time", "timestamp", "timestamptz", "timestamp(0)", "timestamp(1) with time zone",
+            "smalldatetime", "time", "timestamp", "timestamptz", "timestamp_ltz", "timestamp_ntz", "timestamp(0)", "timestamp(1) with time zone",
             "timestamp(3)", "timestamp(3) with time zone", "timestamp(6)", "timestamp(6) with time zone",
             "timestamp(9)", "timestamp(9) with time zone", "year");
 

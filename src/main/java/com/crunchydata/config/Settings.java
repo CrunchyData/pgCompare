@@ -112,6 +112,7 @@ public class Settings {
         defaultProps.setProperty("batch-progress-report-size","1000000");
         defaultProps.setProperty("column-hash-method","database");
         defaultProps.setProperty("database-sort","true");
+        defaultProps.setProperty("float-scale","3");
         defaultProps.setProperty("loader-threads","0");
         defaultProps.setProperty("log-destination","stdout");
         defaultProps.setProperty("log-level","INFO");

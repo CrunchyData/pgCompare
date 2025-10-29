@@ -23,15 +23,17 @@ public class SnowflakeHelper {
 
             ResultSet rs = meta.getPrimaryKeys(catalog.toUpperCase(), schema, table);
 
-            rs.next();
+            while (rs.next()) {
 
-            String columnName = rs.getString("COLUMN_NAME");
+                String columnName = rs.getString("COLUMN_NAME");
 
-            JSONObject columnResult = findOne(columnInfo, COLUMN_NAME_PROPERTY, columnName);
-            JSONObject column = columnResult.getJSONObject("data");
-            column.put(PRIMARY_KEY_PROPERTY, true);
+                JSONObject columnResult = findOne(columnInfo, COLUMN_NAME_PROPERTY, columnName);
+                JSONObject column = columnResult.getJSONObject("data");
+                column.put(PRIMARY_KEY_PROPERTY, true);
 
-            columnInfo = replaceObjectAtLocation(columnInfo, column, columnResult.getInt("location"));
+                columnInfo = replaceObjectAtLocation(columnInfo, column, columnResult.getInt("location"));
+
+            }
 
         } catch (Exception e) {
             LoggingUtils.write("severe", THREAD_NAME, String.format("Error during primary key discovery for Snowflake on table %s: %s", table, e.getMessage()));

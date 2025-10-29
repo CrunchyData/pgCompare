@@ -6,6 +6,9 @@
 
 export TEST_PLATFORM=$1
 export OUTPUT_BASE=~/app/temp/pgcompare
+# Following Java required for Snowflake JDBC
+export _JAVA_OPTIONS="--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED"
+
 echo "====================================="
 echo Test ${TEST_PLATFORM} to Postgres
 echo "====================================="
