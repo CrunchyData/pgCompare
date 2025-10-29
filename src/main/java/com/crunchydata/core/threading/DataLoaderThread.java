@@ -123,7 +123,7 @@ public class DataLoaderThread extends Thread  {
             throw new SQLException("Cannot connect to repository database");
         }
 
-        // Apply PostgreSQL optimizations
+        // Apply Postgres optimizations
         SQLExecutionService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_SYNC_COMMIT);
         SQLExecutionService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_WORK_MEM);
         connRepo.setAutoCommit(false);

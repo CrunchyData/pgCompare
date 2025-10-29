@@ -48,7 +48,7 @@ import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_DCTABLECOLUMN
  * Provides methods to determine the classification of a given database column data type.
  *
  * <p>This class handles column metadata retrieval, data type classification, and column filtering
- * across different database platforms including PostgreSQL, Oracle, MySQL, MariaDB, MSSQL, Snowflake, and DB2.</p>
+ * across different database platforms including Postgres, Oracle, MySQL, MariaDB, MSSQL, Snowflake, and DB2.</p>
  *
  * @author Brian Pace
  */

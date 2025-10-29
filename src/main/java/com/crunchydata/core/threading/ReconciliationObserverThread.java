@@ -55,7 +55,7 @@ public class ReconciliationObserverThread extends Thread  {
     private final Integer batchNbr;
     private final String stagingTableSource;
     private final String stagingTableTarget;
-    private ThreadSync ts;
+    private final ThreadSync ts;
     private final Boolean useLoaderThreads;
     
     // Constants for better maintainability
@@ -148,7 +148,7 @@ public class ReconciliationObserverThread extends Thread  {
             // Auto-commit setting is not critical, continue
         }
 
-        // Apply PostgreSQL optimizations
+        // Apply Postgres optimizations
         try {
             SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_NESTLOOP);
             SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_WORK_MEM);
@@ -265,7 +265,7 @@ public class ReconciliationObserverThread extends Thread  {
     /**
      * Performs cleanup operations including loading findings and dropping staging tables.
      */
-    private void performCleanup(String threadName, Connection repoConn, RepoController rpc) throws Exception {
+    private void performCleanup(String threadName, Connection repoConn, RepoController rpc) {
         LoggingUtils.write("info", threadName, "Staging table cleanup");
 
         // Move out-of-sync rows from temporary staging tables to dc_source and dc_target

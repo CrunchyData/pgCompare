@@ -76,9 +76,8 @@ public class ColumnDiscoveryService {
      * @param connRepo Repository connection
      * @param pid Project ID
      * @param table Table name filter
-     * @throws SQLException if database operations fail
      */
-    private static void clearPreviousMappings(Connection connRepo, Integer pid, String table) throws SQLException {
+    private static void clearPreviousMappings(Connection connRepo, Integer pid, String table)  {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(pid);
         if (!table.isEmpty()) {
@@ -138,11 +137,10 @@ public class ColumnDiscoveryService {
      * @param connDest Destination database connection
      * @param destRole Destination role
      * @param populateDCTableColumn Whether to populate DCTableColumn
-     * @throws SQLException if database operations fail
      */
     public static void loadColumns(Properties props, Integer tid, String schema, String tableName,
                                  Connection connRepo, Connection connDest, String destRole, 
-                                 Boolean populateDCTableColumn) throws SQLException {
+                                 Boolean populateDCTableColumn) {
         
         String destType = props.getProperty(destRole + "-type");
         int columnCount = 0;
@@ -184,10 +182,8 @@ public class ColumnDiscoveryService {
      * @param tid Table ID
      * @param columnName Column name
      * @return Column ID if found, null otherwise
-     * @throws SQLException if database operations fail
      */
-    private static Integer findExistingColumn(Connection connRepo, Integer tid, String columnName) 
-            throws SQLException {
+    private static Integer findExistingColumn(Connection connRepo, Integer tid, String columnName)  {
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(tid);
         binds.add(columnName);
@@ -204,11 +200,9 @@ public class ColumnDiscoveryService {
      * @param populateDCTableColumn Whether to populate DCTableColumn
      * @param connRepo Repository connection
      * @return DCTableColumn object
-     * @throws SQLException if database operations fail
      */
     private static DataComparisonTableColumn createOrUpdateColumn(Integer tid, String columnName, Integer cid,
-                                                                  Boolean populateDCTableColumn, Connection connRepo)
-                                                    throws SQLException {
+                                                                  Boolean populateDCTableColumn, Connection connRepo) {
         DataComparisonTableColumn dtc = new DataComparisonTableColumn();
         dtc.setTid(tid);
         dtc.setColumnAlias(columnName.toLowerCase());
@@ -235,10 +229,9 @@ public class ColumnDiscoveryService {
      * @param columnID Column ID
      * @param destRole Destination role
      * @param columnInfo Column information JSON
-     * @throws SQLException if database operations fail
      */
     private static void createColumnMapping(Connection connRepo, Integer tid, Integer columnID,
-                                         String destRole, JSONObject columnInfo) throws SQLException {
+                                         String destRole, JSONObject columnInfo)  {
         DataComparisonTableColumnMap dctcm = new DataComparisonTableColumnMap();
         
         dctcm.setTid(tid);

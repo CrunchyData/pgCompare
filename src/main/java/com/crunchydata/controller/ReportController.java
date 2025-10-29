@@ -22,7 +22,6 @@ import com.crunchydata.service.ReportGenerationService;
 import com.crunchydata.service.SummaryProcessingService;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
-import org.json.JSONObject;
 
 /**
  * Controller class that provides a simplified interface for report operations.
@@ -39,35 +38,6 @@ public class ReportController {
     // Constants for summary generation
     private static final int DEFAULT_INDENT = 0;
 
-    /**
-     * Create a report section with title, data, and layout using the optimized ReportGenerationService.
-     *
-     * @param title     Section title
-     * @param data      Report data
-     * @param layout    Layout settings
-     * @return          JSON Object
-     */
-    public static JSONObject createSection(String title, Object data, JSONArray layout) {
-        return ReportGenerationService.createSection(title, data, layout);
-    }
-
-    /**
-     * Generate HTML report using the optimized ReportGenerationService.
-     *
-     * @param report        Report content
-     * @param filePath      HTML file name and location
-     * @param title         Report title
-     */
-    public static void generateHtmlReport(JSONArray report, String filePath, String title) {
-        try {
-            ReportGenerationService.generateHtmlReport(report, filePath, title);
-        } catch (Exception e) {
-            LoggingUtils.write("severe", THREAD_NAME,
-                String.format("Error generating HTML report: %s", e.getMessage()));
-            throw new RuntimeException("Failed to generate HTML report", e);
-        }
-    }
-    
     /**
      * Create and display summary of the comparison operation using optimized services.
      * 

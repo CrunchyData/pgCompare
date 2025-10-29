@@ -22,12 +22,10 @@ import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Objects;
 
 import static com.crunchydata.util.DataProcessingUtils.ShouldQuoteString;
@@ -57,7 +55,6 @@ public class DatabaseMetadataService {
     // JSON field names
     private static final String SCHEMA_NAME_FIELD = "schemaName";
     private static final String TABLE_NAME_FIELD = "tableName";
-    private static final String VERSION_FIELD = "version";
     private static final String OWNER_FIELD = "owner";
     private static final String TABLE_NAME_COLUMN = "table_name";
     
@@ -124,15 +121,6 @@ public class DatabaseMetadataService {
      */
     public static String getQuoteChar(String platform) {
         return DatabasePlatform.fromString(platform).getQuoteChar();
-    }
-
-    /**
-     * Get the column hash template for the specified platform.
-     * @param platform The database platform name
-     * @return The column hash SQL template
-     */
-    public static String getColumnHash(String platform) {
-        return DatabasePlatform.fromString(platform).getColumnHashTemplate();
     }
 
     /**
@@ -242,7 +230,6 @@ public class DatabaseMetadataService {
         } catch (SQLException e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error retrieving tables for schema '%s': %s", schema, e.getMessage()));
-            e.printStackTrace();
         } catch (Exception e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Unexpected error retrieving tables for schema '%s': %s", schema, e.getMessage()));
@@ -251,85 +238,4 @@ public class DatabaseMetadataService {
         return tableInfo;
     }
 
-    /**
-     * Utility method to execute a provided SQL query and return the database version.
-     *
-     * @param conn The database Connection object to use for executing the query
-     * @param sql The SQL query to retrieve database version
-     * @return A String containing the database version, null if not found or error occurs
-     * @throws IllegalArgumentException if required parameters are null
-     */
-    public static String getVersion(Connection conn, String sql) {
-        Objects.requireNonNull(conn, "Connection cannot be null");
-        Objects.requireNonNull(sql, "SQL cannot be null");
-        
-        String dbVersion = null;
-        ArrayList<Object> binds = new ArrayList<>();
-
-        try (CachedRowSet crsVersion = SQLExecutionService.simpleSelect(conn, sql, binds)) {
-            if (crsVersion != null && crsVersion.next()) {
-                dbVersion = crsVersion.getString(VERSION_FIELD);
-            }
-        } catch (SQLException e) {
-            LoggingUtils.write("info", THREAD_NAME,
-                String.format("Could not retrieve database version: %s", e.getMessage()));
-        } catch (Exception e) {
-            LoggingUtils.write("info", THREAD_NAME,
-                String.format("Unexpected error retrieving database version: %s", e.getMessage()));
-        }
-
-        return dbVersion;
-    }
-    
-    /**
-     * Validates that a platform string is supported.
-     * 
-     * @param platform The platform name to validate
-     * @return true if the platform is supported, false otherwise
-     */
-    public static boolean isSupportedPlatform(String platform) {
-        if (platform == null || platform.trim().isEmpty()) {
-            return false;
-        }
-        
-        try {
-            DatabasePlatform.fromString(platform);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    /**
-     * Gets the list of all supported database platforms.
-     * 
-     * @return Array of supported platform names
-     */
-    public static String[] getSupportedPlatforms() {
-        DatabasePlatform[] platforms = DatabasePlatform.values();
-        String[] platformNames = new String[platforms.length];
-        
-        for (int i = 0; i < platforms.length; i++) {
-            platformNames[i] = platforms[i].name().toLowerCase();
-        }
-        
-        return platformNames;
-    }
-    
-    /**
-     * Creates a properly quoted identifier for the given platform.
-     * 
-     * @param identifier The identifier to quote
-     * @param platform The database platform
-     * @param preserveCase Whether to preserve the case of the identifier
-     * @return The quoted identifier
-     */
-    public static String quoteIdentifier(String identifier, String platform, boolean preserveCase) {
-        if (identifier == null || identifier.trim().isEmpty()) {
-            throw new IllegalArgumentException("Identifier cannot be null or empty");
-        }
-        
-        DatabasePlatform dbPlatform = DatabasePlatform.fromString(platform);
-        return ShouldQuoteString(preserveCase, identifier, dbPlatform.getQuoteChar());
-    }
 }

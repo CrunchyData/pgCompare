@@ -56,8 +56,6 @@ public class pgCompare {
         } catch (Exception e) {
             LoggingUtils.write("severe", THREAD_NAME, String.format("Fatal error: %s", e.getMessage()));
             System.exit(1);
-        } finally {
-            // Cleanup is handled by ApplicationContext
         }
     }
 }

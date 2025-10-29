@@ -96,8 +96,7 @@ public class DatabaseConnectionService {
         public String getUrlTemplate() { return urlTemplate; }
         public boolean isAutoCommit() { return autoCommit; }
         public boolean requiresAnsiMode() { return requiresAnsiMode; }
-        public boolean supportsSSL() { return supportsSSL; }
-        
+
         /**
          * Get platform configuration by name, with fallback to POSTGRES for unknown platforms.
          */
@@ -116,28 +115,6 @@ public class DatabaseConnectionService {
         }
     }
 
-    /**
-     * Safely closes a database connection with proper error handling.
-     *
-     * @param conn Database connection to close
-     */
-    public static void closeDatabaseConnection(Connection conn) {
-        if (conn != null) {
-            try {
-                if (!conn.isClosed()) {
-                    conn.close();
-                    LoggingUtils.write("debug", THREAD_NAME, "Database connection closed successfully");
-                }
-            } catch (SQLException e) {
-                LoggingUtils.write("warning", THREAD_NAME,
-                    String.format("Error closing database connection: %s", e.getMessage()));
-            } catch (Exception e) {
-                LoggingUtils.write("warning", THREAD_NAME,
-                    String.format("Unexpected error closing database connection: %s", e.getMessage()));
-            }
-        }
-    }
-    
     /**
      * Validates that a database connection is open and valid.
      *
@@ -301,113 +278,5 @@ public class DatabaseConnectionService {
             SQLExecutionService.simpleUpdate(conn, ANSI_SQL_MODE, new ArrayList<>(), false);
         }
     }
-    
-    /**
-     * Establishes a connection with retry logic for improved reliability.
-     *
-     * @param platform The database platform
-     * @param destType Type of destination (e.g., source, target)
-     * @param maxRetries Maximum number of connection attempts
-     * @param retryDelayMs Delay between retry attempts in milliseconds
-     * @return Connection object to the database, null if all attempts fail
-     */
-    public static Connection getConnectionWithRetry(String platform, String destType, 
-                                                   int maxRetries, long retryDelayMs) {
-        Objects.requireNonNull(platform, "Platform cannot be null");
-        Objects.requireNonNull(destType, "Destination type cannot be null");
-        
-        if (maxRetries < 1) {
-            throw new IllegalArgumentException("Max retries must be at least 1");
-        }
-        
-        Connection conn = null;
-        Exception lastException = null;
-        
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                conn = getConnection(platform, destType);
-                if (conn != null && isConnectionValid(conn)) {
-                    LoggingUtils.write("info", THREAD_NAME,
-                        String.format("Connection established on attempt %d/%d", attempt, maxRetries));
-                    return conn;
-                }
-            } catch (Exception e) {
-                lastException = e;
-                LoggingUtils.write("warning", THREAD_NAME,
-                    String.format("Connection attempt %d/%d failed: %s", attempt, maxRetries, e.getMessage()));
-            }
-            
-            // Close failed connection
-            if (conn != null) {
-                closeDatabaseConnection(conn);
-                conn = null;
-            }
-            
-            // Wait before retry (except on last attempt)
-            if (attempt < maxRetries && retryDelayMs > 0) {
-                try {
-                    Thread.sleep(retryDelayMs);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    LoggingUtils.write("warning", THREAD_NAME, "Connection retry interrupted");
-                    break;
-                }
-            }
-        }
-        
-        LoggingUtils.write("severe", THREAD_NAME,
-            String.format("Failed to establish connection after %d attempts", maxRetries));
-        
-        if (lastException != null) {
-            LoggingUtils.write("severe", THREAD_NAME,
-                String.format("Last connection error: %s", lastException.getMessage()));
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Tests a database connection by executing a simple query.
-     *
-     * @param conn Database connection to test
-     * @return true if connection test succeeds, false otherwise
-     */
-    public static boolean testConnection(Connection conn) {
-        if (!isConnectionValid(conn)) {
-            return false;
-        }
-        
-        try {
-            // Execute a simple query to test the connection
-            SQLExecutionService.simpleSelect(conn, "SELECT 1", new ArrayList<>());
-            return true;
-        } catch (Exception e) {
-            LoggingUtils.write("warning", THREAD_NAME,
-                String.format("Connection test failed: %s", e.getMessage()));
-            return false;
-        }
-    }
-    
-    /**
-     * Gets connection information for debugging purposes.
-     *
-     * @param conn Database connection
-     * @return String containing connection metadata
-     */
-    public static String getConnectionInfo(Connection conn) {
-        if (conn == null) {
-            return "Connection is null";
-        }
-        
-        try {
-            return String.format("Database: %s, URL: %s, AutoCommit: %s, ReadOnly: %s, Valid: %s",
-                conn.getCatalog(),
-                conn.getMetaData().getURL(),
-                conn.getAutoCommit(),
-                conn.isReadOnly(),
-                isConnectionValid(conn));
-        } catch (SQLException e) {
-            return String.format("Error getting connection info: %s", e.getMessage());
-        }
-    }
+
 }

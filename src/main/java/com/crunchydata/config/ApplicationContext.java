@@ -18,7 +18,6 @@ package com.crunchydata.config;
 
 import java.sql.Connection;
 
-import static com.crunchydata.service.DatabaseConnectionService.closeDatabaseConnection;
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 import static com.crunchydata.config.Settings.*;
 
@@ -120,9 +119,8 @@ public class ApplicationContext {
     /**
      * Execute the main action based on the parsed command line arguments.
      * 
-     * @throws Exception if action execution fails
      */
-    public void executeAction() throws Exception {
+    public void executeAction() {
         // Connect to source and target databases (skip for init action)
         if (!ACTION_INIT.equals(action)) {
             connectToSourceAndTarget();
@@ -144,39 +142,9 @@ public class ApplicationContext {
                 throw new IllegalArgumentException("Invalid action specified: " + action);
         }
     }
-    
-    /**
-     * Clean up resources and connections.
-     */
-    public void cleanup() {
-        try {
-            if (connRepo != null) {
-                closeDatabaseConnection(connRepo);
-            }
-        } catch (Exception e) {
-            LoggingUtils.write("warning", THREAD_NAME, "Error closing repository connection: " + e.getMessage());
-        }
-        
-        try {
-            if (connTarget != null) {
-                closeDatabaseConnection(connTarget);
-            }
-        } catch (Exception e) {
-            LoggingUtils.write("warning", THREAD_NAME, "Error closing target connection: " + e.getMessage());
-        }
-        
-        try {
-            if (connSource != null) {
-                closeDatabaseConnection(connSource);
-            }
-        } catch (Exception e) {
-            LoggingUtils.write("warning", THREAD_NAME, "Error closing source connection: " + e.getMessage());
-        }
-    }
-    
+
     // Getters for application state
     public CommandLine getCmd() { return cmd; }
-    public String getAction() { return action; }
     public Integer getBatchParameter() { return batchParameter; }
     public Integer getPid() { return pid; }
     public boolean isGenReport() { return genReport; }
@@ -198,9 +166,8 @@ public class ApplicationContext {
     /**
      * Connect to the repository database.
      * 
-     * @throws Exception if connection fails
      */
-    private void connectToRepository() throws Exception {
+    private void connectToRepository() {
         LoggingUtils.write("info", THREAD_NAME, "Connecting to repository database");
         connRepo = getConnection(CONN_TYPE_POSTGRES, CONN_TYPE_REPO);
         if (connRepo == null) {
@@ -211,9 +178,8 @@ public class ApplicationContext {
     /**
      * Connect to source and target databases.
      * 
-     * @throws Exception if connections fail
      */
-    private void connectToSourceAndTarget() throws Exception {
+    private void connectToSourceAndTarget() {
         LoggingUtils.write("info", THREAD_NAME, "Connecting to source and target databases");
         connSource = getConnection(Props.getProperty("source-type"), CONN_TYPE_SOURCE);
         connTarget = getConnection(Props.getProperty("target-type"), CONN_TYPE_TARGET);

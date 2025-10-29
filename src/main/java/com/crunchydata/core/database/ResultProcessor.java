@@ -22,7 +22,6 @@ import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import static com.crunchydata.config.sql.RepoSQLConstants.*;
@@ -115,13 +114,13 @@ public class ResultProcessor {
      * @param stats Reconciliation statistics
      */
     private static void updateResultWithStats(JSONObject result, ReconciliationStats stats) {
-        result.put("missingSource", stats.getMissingSource());
-        result.put("missingTarget", stats.getMissingTarget());
-        result.put("notEqual", stats.getNotEqual());
+        result.put("missingSource", stats.missingSource());
+        result.put("missingTarget", stats.missingTarget());
+        result.put("notEqual", stats.notEqual());
         
         // Determine final status
         if ("processing".equals(result.getString("compareStatus"))) {
-            boolean hasOutOfSyncRecords = stats.getMissingSource() + stats.getMissingTarget() + stats.getNotEqual() > 0;
+            boolean hasOutOfSyncRecords = stats.missingSource() + stats.missingTarget() + stats.notEqual() > 0;
             result.put("compareStatus", hasOutOfSyncRecords ? "out-of-sync" : "in-sync");
         }
     }
@@ -150,97 +149,11 @@ public class ResultProcessor {
             }
         }
     }
-    
+
+
     /**
-     * Format numbers for display.
-     * 
-     * @param number Number to format
-     * @return Formatted number string
-     */
-    public static String formatNumber(int number) {
-        DecimalFormat formatter = new DecimalFormat("#,###");
-        return formatter.format(number);
-    }
-    
-    /**
-     * Format numbers for display.
-     * 
-     * @param number Number to format
-     * @return Formatted number string
-     */
-    public static String formatNumber(long number) {
-        DecimalFormat formatter = new DecimalFormat("#,###");
-        return formatter.format(number);
-    }
-    
-    /**
-     * Calculate throughput (rows per second).
-     * 
-     * @param totalRows Total number of rows processed
-     * @param elapsedTime Elapsed time in seconds
-     * @return Throughput in rows per second
-     */
-    public static long calculateThroughput(int totalRows, long elapsedTime) {
-        return elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
-    }
-    
-    /**
-     * Calculate throughput (rows per second).
-     * 
-     * @param totalRows Total number of rows processed
-     * @param elapsedTime Elapsed time in seconds
-     * @return Throughput in rows per second
-     */
-    public static long calculateThroughput(long totalRows, long elapsedTime) {
-        return elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
-    }
-    
-    /**
-     * Create a summary report of reconciliation results.
-     * 
-     * @param result Result object
-     * @param tableAlias Table alias
-     * @return Summary report string
-     */
-    public static String createSummaryReport(JSONObject result, String tableAlias) {
-        return String.format(
-            "Reconciliation Complete: Table = %s; Status = %s; Equal = %s; Not Equal = %s; Missing Source = %s; Missing Target = %s",
-            tableAlias, result.getString("compareStatus"),
-            formatNumber(result.getInt("equal")),
-            formatNumber(result.getInt("notEqual")),
-            formatNumber(result.getInt("missingSource")),
-            formatNumber(result.getInt("missingTarget"))
-        );
-    }
-    
-    /**
-     * Log reconciliation results.
-     * 
-     * @param result Result object
-     * @param tableAlias Table alias
-     */
-    public static void logResults(JSONObject result, String tableAlias) {
-        String summary = createSummaryReport(result, tableAlias);
-        LoggingUtils.write("info", THREAD_NAME, summary);
-    }
-    
-    /**
-     * Inner class to hold reconciliation statistics.
-     */
-    public static class ReconciliationStats {
-        private final int missingSource;
-        private final int missingTarget;
-        private final int notEqual;
-        
-        public ReconciliationStats(int missingSource, int missingTarget, int notEqual) {
-            this.missingSource = missingSource;
-            this.missingTarget = missingTarget;
-            this.notEqual = notEqual;
-        }
-        
-        public int getMissingSource() { return missingSource; }
-        public int getMissingTarget() { return missingTarget; }
-        public int getNotEqual() { return notEqual; }
-        public int getTotalOutOfSync() { return missingSource + missingTarget + notEqual; }
+         * Inner class to hold reconciliation statistics.
+         */
+        public record ReconciliationStats(int missingSource, int missingTarget, int notEqual) {
     }
 }

@@ -226,7 +226,6 @@ public class DataValidationThread {
                         }
                     } catch (Exception e) {
                         StackTraceElement[] stackTrace = e.getStackTrace();
-                        e.printStackTrace();
                         LoggingUtils.write("severe", THREAD_NAME, String.format("Error comparing column values at line %s: %s",stackTrace[0].getLineNumber(), e.getMessage()));
                         LoggingUtils.write("severe", THREAD_NAME, String.format("Error on column %s",column));
                         LoggingUtils.write("severe", THREAD_NAME, String.format("Source values:  %s", sourceRow.getString(i)));

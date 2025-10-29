@@ -40,25 +40,9 @@ public class SQLExecutionService {
     
     // Performance and configuration constants
     private static final int DEFAULT_FETCH_SIZE = 2000;
-    
+
     // Query execution result wrapper
-    public static class QueryResult<T> {
-        private final T result;
-        private final boolean success;
-        private final String errorMessage;
-        private final long executionTimeMs;
-        
-        public QueryResult(T result, boolean success, String errorMessage, long executionTimeMs) {
-            this.result = result;
-            this.success = success;
-            this.errorMessage = errorMessage;
-            this.executionTimeMs = executionTimeMs;
-        }
-        
-        public T getResult() { return result; }
-        public boolean isSuccess() { return success; }
-        public String getErrorMessage() { return errorMessage; }
-        public long getExecutionTimeMs() { return executionTimeMs; }
+        public record QueryResult<T>(T result, boolean success, String errorMessage, long executionTimeMs) {
     }
 
     /**
@@ -402,49 +386,6 @@ public class SQLExecutionService {
         }
         
         return updateCounts;
-    }
-    
-    /**
-     * Validates database connection health.
-     *
-     * @param conn The database connection to validate
-     * @return true if connection is valid, false otherwise
-     */
-    public static boolean isConnectionHealthy(Connection conn) {
-        if (conn == null) {
-            return false;
-        }
-        
-        try {
-            return !conn.isClosed() && conn.isValid(5); // 5 second timeout
-        } catch (SQLException e) {
-            LoggingUtils.write("warning", THREAD_NAME,
-                String.format("Connection health check failed: %s", e.getMessage()));
-            return false;
-        }
-    }
-    
-    /**
-     * Gets connection information for debugging purposes.
-     *
-     * @param conn The database connection
-     * @return String containing connection metadata
-     */
-    public static String getConnectionInfo(Connection conn) {
-        if (conn == null) {
-            return "Connection is null";
-        }
-        
-        try {
-            return String.format("Database: %s, URL: %s, AutoCommit: %s, ReadOnly: %s, Valid: %s",
-                conn.getCatalog(),
-                conn.getMetaData().getURL(),
-                conn.getAutoCommit(),
-                conn.isReadOnly(),
-                isConnectionHealthy(conn));
-        } catch (SQLException e) {
-            return String.format("Error getting connection info: %s", e.getMessage());
-        }
     }
 
     /**

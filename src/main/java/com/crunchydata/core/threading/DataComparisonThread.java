@@ -44,7 +44,7 @@ public class DataComparisonThread extends Thread {
     private final Integer tid, batchNbr, cid, nbrColumns, parallelDegree, threadNumber;
     private final String modColumn, pkList, stagingTable, targetType;
     private String sql;
-    private BlockingQueue<DataComparisonResult[]> q;
+    private final BlockingQueue<DataComparisonResult[]> q;
     private final ThreadSync ts;
     private final Boolean useDatabaseHash;
     

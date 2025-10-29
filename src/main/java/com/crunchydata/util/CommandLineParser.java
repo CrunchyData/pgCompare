@@ -34,11 +34,6 @@ import static com.crunchydata.config.Settings.*;
 public class CommandLineParser {
     
     // Action constants
-    private static final String ACTION_CHECK = "check";
-    private static final String ACTION_COMPARE = "compare";
-    private static final String ACTION_DISCOVER = "discover";
-    private static final String ACTION_INIT = "init";
-    private static final String ACTION_COPY_TABLE = "copy-table";
     private static final String DEFAULT_ACTION = "compare";
     private static final String DEFAULT_BATCH_ENV_VAR = "PGCOMPARE-BATCH";
     

@@ -62,10 +62,6 @@ public class TableController {
     private static final String STATUS_DISABLED = "disabled";
     private static final String STATUS_ERROR = "error";
     private static final String STATUS_FAILED = "failed";
-    
-    // Default values
-    private static final int DEFAULT_BATCH_NBR = 1;
-    private static final int DEFAULT_PARALLEL_DEGREE = 1;
 
     /**
      * Discover Tables in Specified Schema.
@@ -230,7 +226,7 @@ public class TableController {
         LoggingUtils.write("info", THREAD_NAME, String.format("Copying table and column map for %s to %s", tableName, newTableName));
 
         ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0, tableName);
+        binds.addFirst(tableName);
 
         Integer tid = SQLExecutionService.simpleSelectReturnInteger(context.getConnRepo(), SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
 
@@ -488,21 +484,11 @@ public class TableController {
             throw new IllegalArgumentException("Table alias cannot be null or empty");
         }
     }
-    
+
     /**
-     * Inner class to hold comparison results.
-     */
-    public static class ComparisonResults {
-        private final int tablesProcessed;
-        private final JSONArray runResults;
-        
-        public ComparisonResults(int tablesProcessed, JSONArray runResults) {
-            this.tablesProcessed = tablesProcessed;
-            this.runResults = runResults;
-        }
-        
-        public int getTablesProcessed() { return tablesProcessed; }
-        public JSONArray getRunResults() { return runResults; }
+         * Inner class to hold comparison results.
+         */
+        public record ComparisonResults(int tablesProcessed, JSONArray runResults) {
     }
     
     /**

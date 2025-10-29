@@ -286,9 +286,9 @@ public class ReportGenerationService {
     private static JSONObject createJobSummaryData(int tablesProcessed, SummaryStatistics stats) {
         return new JSONObject()
                 .put("tablesProcessed", NUMBER_FORMATTER.format(tablesProcessed))
-                .put("elapsedTime", NUMBER_FORMATTER.format(stats.getElapsedTime()))
-                .put("totalRows", NUMBER_FORMATTER.format(stats.getTotalRows()))
-                .put("outOfSyncRows", NUMBER_FORMATTER.format(stats.getOutOfSyncRows()))
+                .put("elapsedTime", NUMBER_FORMATTER.format(stats.elapsedTime()))
+                .put("totalRows", NUMBER_FORMATTER.format(stats.totalRows()))
+                .put("outOfSyncRows", NUMBER_FORMATTER.format(stats.outOfSyncRows()))
                 .put("rowsPerSecond", NUMBER_FORMATTER.format(stats.getThroughput()));
     }
     
@@ -389,24 +389,13 @@ public class ReportGenerationService {
             throw new IllegalArgumentException("Summary statistics cannot be null");
         }
     }
-    
+
     /**
-     * Inner class to hold summary statistics.
-     */
-    public static class SummaryStatistics {
-        private final long totalRows;
-        private final long outOfSyncRows;
-        private final long elapsedTime;
-        
-        public SummaryStatistics(long totalRows, long outOfSyncRows, long elapsedTime) {
-            this.totalRows = totalRows;
-            this.outOfSyncRows = outOfSyncRows;
-            this.elapsedTime = elapsedTime;
+         * Inner class to hold summary statistics.
+         */
+        public record SummaryStatistics(long totalRows, long outOfSyncRows, long elapsedTime) {
+        public long getThroughput() {
+            return elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
         }
-        
-        public long getTotalRows() { return totalRows; }
-        public long getOutOfSyncRows() { return outOfSyncRows; }
-        public long getElapsedTime() { return elapsedTime; }
-        public long getThroughput() { return elapsedTime > 0 ? totalRows / elapsedTime : totalRows; }
-    }
+        }
 }

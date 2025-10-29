@@ -60,11 +60,9 @@ public class DataReconciliationService {
      * @param dctmSource Source table map
      * @param dctmTarget Target table map
      * @return JSON object with reconciliation results
-     * @throws SQLException if database operations fail
      */
     public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget,
-                                           long rid, Boolean check, DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget)
-                                         throws SQLException {
+                                           long rid, Boolean check, DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget) {
         
         long startTime = System.currentTimeMillis();
         JSONObject result = initializeResult(dct);
@@ -291,10 +289,8 @@ public class DataReconciliationService {
      * @param result Result object to update
      * @param tableName Table name
      * @param cid Compare ID
-     * @throws SQLException if database operations fail
      */
-    private static void skipReconciliation(Connection connRepo, JSONObject result, String tableName, Integer cid) 
-            throws SQLException {
+    private static void skipReconciliation(Connection connRepo, JSONObject result, String tableName, Integer cid)  {
         LoggingUtils.write("warning", THREAD_NAME,
             String.format("Table %s has no Primary Key, skipping reconciliation", tableName));
         result.put("status", "skipped");

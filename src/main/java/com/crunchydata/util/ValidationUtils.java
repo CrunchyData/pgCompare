@@ -167,7 +167,7 @@ public class ValidationUtils {
             Set<String> validValues = entry.getValue();
 
             if (!validValues.contains(Props.getProperty(propertyName))) {
-                LoggingUtils.write("severe", "Settings", String.format("Property %s has an invalid value. Valid values are: %s", propertyName, validValues.toString()));
+                LoggingUtils.write("severe", "Settings", String.format("Property %s has an invalid value. Valid values are: %s", propertyName, validValues));
                 return false;
             }
         }

@@ -36,7 +36,6 @@ public class DisplayOperationsService {
     private static final DecimalFormat NUMBER_FORMATTER = new DecimalFormat("###,###,###,###,###");
     
     // Indentation constants
-    private static final int DEFAULT_INDENT = 0;
     private static final int TABLE_INDENT = 4;
     private static final int SUMMARY_INDENT = 2;
     private static final int DETAIL_INDENT = 8;
@@ -68,9 +67,9 @@ public class DisplayOperationsService {
         
         printSummary("Job Summary:", SUMMARY_INDENT);
         printSummary(String.format("Tables Processed: %s", NUMBER_FORMATTER.format(tablesProcessed)), DETAIL_INDENT);
-        printSummary(String.format("Total Rows: %s", NUMBER_FORMATTER.format(stats.getTotalRows())), DETAIL_INDENT);
-        printSummary(String.format("Out of Sync Rows: %s", NUMBER_FORMATTER.format(stats.getOutOfSyncRows())), DETAIL_INDENT);
-        printSummary(String.format("Elapsed Time: %s seconds", NUMBER_FORMATTER.format(stats.getElapsedTime())), DETAIL_INDENT);
+        printSummary(String.format("Total Rows: %s", NUMBER_FORMATTER.format(stats.totalRows())), DETAIL_INDENT);
+        printSummary(String.format("Out of Sync Rows: %s", NUMBER_FORMATTER.format(stats.outOfSyncRows())), DETAIL_INDENT);
+        printSummary(String.format("Elapsed Time: %s seconds", NUMBER_FORMATTER.format(stats.elapsedTime())), DETAIL_INDENT);
         printSummary(String.format("Throughput: %s rows/second", NUMBER_FORMATTER.format(stats.getThroughput())), DETAIL_INDENT);
     }
     
@@ -127,90 +126,7 @@ public class DisplayOperationsService {
         validatePrintSummaryInputs(message, indent);
         LoggingUtils.write("info", THREAD_NAME, " ".repeat(indent) + message);
     }
-    
-    /**
-     * Format number with comma separators.
-     * 
-     * @param number Number to format
-     * @return Formatted number string
-     */
-    public static String formatNumber(long number) {
-        return NUMBER_FORMATTER.format(number);
-    }
-    
-    /**
-     * Format number with comma separators.
-     * 
-     * @param number Number to format
-     * @return Formatted number string
-     */
-    public static String formatNumber(int number) {
-        return NUMBER_FORMATTER.format(number);
-    }
-    
-    /**
-     * Calculate throughput (rows per second).
-     * 
-     * @param totalRows Total number of rows processed
-     * @param elapsedTime Elapsed time in seconds
-     * @return Throughput in rows per second
-     */
-    public static long calculateThroughput(long totalRows, long elapsedTime) {
-        return elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
-    }
-    
-    /**
-     * Calculate throughput (rows per second).
-     * 
-     * @param totalRows Total number of rows processed
-     * @param elapsedTime Elapsed time in seconds
-     * @return Throughput in rows per second
-     */
-    public static long calculateThroughput(int totalRows, long elapsedTime) {
-        return elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
-    }
-    
-    /**
-     * Create a formatted summary line.
-     * 
-     * @param label Label for the value
-     * @param value Value to display
-     * @param indent Indentation level
-     * @return Formatted summary line
-     */
-    public static String createSummaryLine(String label, Object value, int indent) {
-        validateCreateSummaryLineInputs(label, value, indent);
-        
-        String formattedValue = (value instanceof Number) ? 
-            NUMBER_FORMATTER.format(((Number) value).longValue()) : 
-            value.toString();
-        
-        return " ".repeat(indent) + String.format("%s: %s", label, formattedValue);
-    }
-    
-    /**
-     * Display a formatted summary section.
-     * 
-     * @param title Section title
-     * @param indent Indentation level
-     */
-    public static void displaySectionTitle(String title, int indent) {
-        validateDisplaySectionTitleInputs(title, indent);
-        printSummary(title, indent);
-    }
-    
-    /**
-     * Display a separator line.
-     * 
-     * @param length Length of the separator
-     * @param character Character to use for separator
-     */
-    public static void displaySeparator(int length, char character) {
-        validateDisplaySeparatorInputs(length, character);
-        String separator = String.valueOf(character).repeat(length);
-        LoggingUtils.write("info", THREAD_NAME, separator);
-    }
-    
+
     /**
      * Validate inputs for displayTableSummaries method.
      * 
@@ -266,50 +182,6 @@ public class DisplayOperationsService {
             throw new IllegalArgumentException("Indent cannot be negative");
         }
     }
-    
-    /**
-     * Validate inputs for createSummaryLine method.
-     * 
-     * @param label Label
-     * @param value Value
-     * @param indent Indentation level
-     */
-    private static void validateCreateSummaryLineInputs(String label, Object value, int indent) {
-        if (label == null || label.trim().isEmpty()) {
-            throw new IllegalArgumentException("Label cannot be null or empty");
-        }
-        if (value == null) {
-            throw new IllegalArgumentException("Value cannot be null");
-        }
-        if (indent < 0) {
-            throw new IllegalArgumentException("Indent cannot be negative");
-        }
-    }
-    
-    /**
-     * Validate inputs for displaySectionTitle method.
-     * 
-     * @param title Section title
-     * @param indent Indentation level
-     */
-    private static void validateDisplaySectionTitleInputs(String title, int indent) {
-        if (title == null || title.trim().isEmpty()) {
-            throw new IllegalArgumentException("Section title cannot be null or empty");
-        }
-        if (indent < 0) {
-            throw new IllegalArgumentException("Indent cannot be negative");
-        }
-    }
-    
-    /**
-     * Validate inputs for displaySeparator method.
-     * 
-     * @param length Separator length
-     * @param character Separator character
-     */
-    private static void validateDisplaySeparatorInputs(int length, char character) {
-        if (length <= 0) {
-            throw new IllegalArgumentException("Separator length must be positive");
-        }
-    }
+
+
 }

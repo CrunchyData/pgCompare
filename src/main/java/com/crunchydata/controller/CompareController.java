@@ -151,7 +151,7 @@ public class CompareController {
             }
             
             // Generate summary and reports
-            ReportController.createSummary(context, results.getTablesProcessed(), results.getRunResults(), isCheck);
+            ReportController.createSummary(context, results.tablesProcessed(), results.runResults(), isCheck);
             
             LoggingUtils.write("info", THREAD_NAME, "Comparison operation completed successfully");
             
