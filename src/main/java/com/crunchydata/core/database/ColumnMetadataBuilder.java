@@ -50,7 +50,8 @@ public class ColumnMetadataBuilder {
     private final boolean useDatabaseHash;
     private final String concatOperator;
     private final String quoteChar;
-    
+    private final String replaceSyntax;
+
     // Column collections
     private final List<String> pkList = new ArrayList<>();
     private final List<String> columnList = new ArrayList<>();
@@ -74,7 +75,7 @@ public class ColumnMetadataBuilder {
      * @param quoteChar The quote character for the platform
      */
     public ColumnMetadataBuilder(String targetType, String platform, String schema, String table, 
-                                boolean useDatabaseHash, String concatOperator, String quoteChar) {
+                                boolean useDatabaseHash, String concatOperator, String quoteChar, String replaceSyntax) {
         this.targetType = targetType;
         this.platform = platform;
         this.schema = schema;
@@ -82,6 +83,7 @@ public class ColumnMetadataBuilder {
         this.useDatabaseHash = useDatabaseHash;
         this.concatOperator = concatOperator;
         this.quoteChar = quoteChar;
+        this.replaceSyntax = replaceSyntax;
     }
     
     /**
@@ -167,7 +169,7 @@ public class ColumnMetadataBuilder {
         // Add to primary key collections
         pkHash.add(joColumn.getString("valueExpression"));
         pkList.add(columnName);
-        pkJSON.add(buildJsonExpression(platform, columnName, dataClass, concatOperator));
+        pkJSON.add(buildJsonExpression(platform, columnName, dataClass, concatOperator, replaceSyntax));
     }
     
     /**

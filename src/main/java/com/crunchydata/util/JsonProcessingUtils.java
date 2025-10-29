@@ -51,11 +51,12 @@ public class JsonProcessingUtils {
      * @param concatOperator    Operator to use for concatenation
      * @return                  Expression for SQL statement
      */
-    public static String buildJsonExpression(String platform, String column, String dataClass, String concatOperator) {
+    public static String buildJsonExpression(String platform, String column, String dataClass, String concatOperator, String replaceSyntax) {
         String cleanColumn = column.replace("\"", QUOTE_REPLACEMENT);
+        String stringColumnQuotes = String.format(replaceSyntax, cleanColumn);
         
         if (CHAR_DATA_CLASS.equals(dataClass)) {
-            return String.format(JSON_KEY_FORMAT, cleanColumn, concatOperator, column, concatOperator);
+            return String.format(JSON_KEY_FORMAT, cleanColumn, concatOperator, stringColumnQuotes, concatOperator);
         } else if (MSSQL_PLATFORM.equals(platform)) {
             return String.format(JSON_KEY_FORMAT_MSSQL, cleanColumn, concatOperator, column);
         } else {

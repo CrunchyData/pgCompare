@@ -57,35 +57,38 @@ public class DatabaseMetadataService {
     private static final String TABLE_NAME_FIELD = "tableName";
     private static final String OWNER_FIELD = "owner";
     private static final String TABLE_NAME_COLUMN = "table_name";
-    
+
     /**
      * Enum representing different database platforms and their specific configurations.
      */
     public enum DatabasePlatform {
-        DB2("upper", "\"", "LOWER(HASH(%s,'MD5')) AS %s", "||"),
-        ORACLE("upper", "\"", "LOWER(STANDARD_HASH(%s,'MD5')) AS %s", "||"),
-        MARIADB("lower", "`", "lower(md5(%s)) AS %s", "||"),
-        MYSQL("lower", "`", "lower(md5(%s)) AS %s", "||"),
-        MSSQL("lower", "\"", "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s", "+"),
-        POSTGRES("lower", "\"", "lower(md5(%s)) AS %s", "||"),
-        SNOWFLAKE("upper", "\"", "lower(md5(%s)) AS %s", "||");
+        DB2("upper", "\"", "LOWER(HASH(%s,'MD5')) AS %s", "||", "replace(%s, '\"', '\\\"')"),
+        ORACLE("upper", "\"", "LOWER(STANDARD_HASH(%s,'MD5')) AS %s", "||", "replace(%s, '\"', '\\\"')"),
+        MARIADB("lower", "`", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')"),
+        MYSQL("lower", "`", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')"),
+        MSSQL("lower", "\"", "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s", "+", "replace(%s, '\"', '\\\"')"),
+        POSTGRES("lower", "\"", "lower(md5(%s)) AS %s", "||", "replace(%s,'\"', '\\\"')"),
+        SNOWFLAKE("upper", "\"", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')");
         
         private final String nativeCase;
         private final String quoteChar;
         private final String columnHashTemplate;
         private final String concatOperator;
+        private final String replacePKSyntax;
         
-        DatabasePlatform(String nativeCase, String quoteChar, String columnHashTemplate, String concatOperator) {
+        DatabasePlatform(String nativeCase, String quoteChar, String columnHashTemplate, String concatOperator, String replacePKSyntax) {
             this.nativeCase = nativeCase;
             this.quoteChar = quoteChar;
             this.columnHashTemplate = columnHashTemplate;
             this.concatOperator = concatOperator;
+            this.replacePKSyntax = replacePKSyntax;
         }
         
         public String getNativeCase() { return nativeCase; }
         public String getQuoteChar() { return quoteChar; }
         public String getColumnHashTemplate() { return columnHashTemplate; }
         public String getConcatOperator() { return concatOperator; }
+        public String getReplacePKSyntax() { return replacePKSyntax; }
         
         /**
          * Get platform configuration by name, with fallback to POSTGRES for unknown platforms.
@@ -130,6 +133,15 @@ public class DatabaseMetadataService {
      */
     public static String getConcatOperator(String platform) {
         return DatabasePlatform.fromString(platform).getConcatOperator();
+    }
+
+    /**
+     * Get the replace command syntax for the specified platform.
+     * @param platform The database platform name
+     * @return The replace command syntax
+     */
+    public static String getReplacePKSyntax(String platform) {
+        return DatabasePlatform.fromString(platform).getReplacePKSyntax();
     }
 
     /**

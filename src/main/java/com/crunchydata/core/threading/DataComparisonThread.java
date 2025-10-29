@@ -29,6 +29,7 @@ import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.util.*;
+import org.apache.commons.lang3.StringEscapeUtils;
 
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 import static com.crunchydata.util.HashingUtils.getMd5;
@@ -146,14 +147,15 @@ public class DataComparisonThread extends Thread {
 
                 String pkHash = useDatabaseHash ? rs.getString("PK_HASH") : getMd5(rs.getString("PK_HASH"));
                 String columnHash = useDatabaseHash ? columnValue.toString() : getMd5(columnValue.toString());
+                String pkJSON = rs.getString("PK").replace(",}","}");
 
                 if (useLoaderThreads) {
-                    dc[cntRecord] = new DataComparisonResult(tid,null, pkHash, columnHash, rs.getString("PK").replace(",}","}"),null,threadNumber,batchNbr);
+                    dc[cntRecord] = new DataComparisonResult(tid,null, pkHash, columnHash, pkJSON,null,threadNumber,batchNbr);
                 } else {
                     stmtLoad.setInt(1, tid);
                     stmtLoad.setString(2, pkHash);
                     stmtLoad.setString(3, columnHash);
-                    stmtLoad.setString(4, rs.getString("PK").replace(",}","}"));
+                    stmtLoad.setString(4, pkJSON);
                     stmtLoad.addBatch();
                 }
 

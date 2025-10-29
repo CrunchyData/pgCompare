@@ -10,8 +10,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import static com.crunchydata.service.DatabaseMetadataService.getConcatOperator;
-import static com.crunchydata.service.DatabaseMetadataService.getQuoteChar;
+import static com.crunchydata.service.DatabaseMetadataService.*;
 
 /**
  * ColumnController class that provides a simplified interface for column operations.
@@ -44,9 +43,10 @@ public class ColumnController {
             // Create builder with platform-specific settings
             String concatOperator = getConcatOperator(platform);
             String quoteChar = getQuoteChar(platform);
+            String replaceSyntax = getReplacePKSyntax(platform);
             
             ColumnMetadataBuilder builder = new ColumnMetadataBuilder(
-                targetType, platform, schema, table, useDatabaseHash, concatOperator, quoteChar);
+                targetType, platform, schema, table, useDatabaseHash, concatOperator, quoteChar, replaceSyntax);
             
             // Build and return metadata
             return builder.build(columnMap);
