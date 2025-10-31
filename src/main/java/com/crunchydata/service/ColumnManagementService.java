@@ -16,13 +16,18 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTableColumn;
+import com.crunchydata.model.DataComparisonTableMap;
+import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import static com.crunchydata.config.Settings.Props;
 import static com.crunchydata.config.sql.RepoSQLConstants.*;
+import static com.crunchydata.controller.ColumnController.getColumnInfo;
 
 /**
  * Service class for managing column-related operations in the repository.
@@ -30,12 +35,54 @@ import static com.crunchydata.config.sql.RepoSQLConstants.*;
  * operations, providing a clean interface for column-related database operations.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class ColumnManagementService {
     
     private static final String THREAD_NAME = "column-management";
-    
+
+
+    /**
+     * Get column mapping for the table.
+     *
+     * @param connRepo Repository connection
+     * @param tid Table ID
+     * @return Column mapping JSON string
+     * @throws SQLException if database operations fail
+     */
+    public static String getColumnMapping(Connection connRepo, Integer tid) throws SQLException {
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(tid);
+        return SQLExecutionService.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
+    }
+
+
+    /**
+     * Get source column metadata.
+     *
+     * @param columnMap Column mapping JSON
+     * @param dctmSource Source table map
+     * @return Column metadata for source
+     */
+    public static ColumnMetadata getSourceColumnMetadata(JSONObject columnMap, DataComparisonTableMap dctmSource) {
+        return getColumnInfo(columnMap, "source", Props.getProperty("source-type"),
+                dctmSource.getSchemaName(), dctmSource.getTableName(),
+                "database".equals(Props.getProperty("column-hash-method")));
+    }
+
+    /**
+     * Get target column metadata.
+     *
+     * @param columnMap Column mapping JSON
+     * @param dctmTarget Target table map
+     * @param check Whether this is a check operation
+     * @return Column metadata for target
+     */
+    public static ColumnMetadata getTargetColumnMetadata(JSONObject columnMap, DataComparisonTableMap dctmTarget, Boolean check) {
+        return getColumnInfo(columnMap, "target", Props.getProperty("target-type"),
+                dctmTarget.getSchemaName(), dctmTarget.getTableName(),
+                !check && "database".equals(Props.getProperty("column-hash-method")));
+    }
+
     /**
      * Save table column information to the database.
      * 
@@ -59,7 +106,7 @@ public class ColumnManagementService {
 
     /**
      * Validate inputs for saveTableColumn method.
-     * 
+     *
      * @param conn Database connection
      * @param dctc Table column model
      */

@@ -17,7 +17,7 @@
 package com.crunchydata;
 
 import com.crunchydata.config.ApplicationContext;
-import com.crunchydata.util.CommandLineParser;
+import com.crunchydata.config.CommandLineParser;
 import com.crunchydata.util.LoggingUtils;
 import org.apache.commons.cli.CommandLine;
 

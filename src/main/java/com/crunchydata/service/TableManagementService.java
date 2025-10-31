@@ -33,7 +33,6 @@ import static com.crunchydata.config.sql.RepoSQLConstants.*;
  * operations, providing a clean interface for table-related database operations.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class TableManagementService {
     

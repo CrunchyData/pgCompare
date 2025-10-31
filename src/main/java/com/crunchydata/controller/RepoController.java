@@ -22,7 +22,7 @@ import com.crunchydata.model.DataComparisonTableColumnMap;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.service.ColumnManagementService;
 import com.crunchydata.service.SQLExecutionService;
-import com.crunchydata.service.StagingOperationsService;
+import com.crunchydata.service.StagingTableService;
 import com.crunchydata.service.TableManagementService;
 import com.crunchydata.util.LoggingUtils;
 
@@ -39,7 +39,6 @@ import static com.crunchydata.config.sql.RepoSQLConstants.*;
  * of concerns and improved maintainability.
  *
  * @author Brian Pace
- * @version 1.0
  */
 public class RepoController {
 
@@ -66,6 +65,20 @@ public class RepoController {
     }
 
     /**
+     * Create compare ID for this reconciliation run.
+     *
+     * @param connRepo Repository connection
+     * @param dctmTarget Target table map
+     * @param rid Reconciliation ID
+     * @return Compare ID
+     * @throws SQLException if database operations fail
+     */
+    public static Integer createCompareId(Connection connRepo, DataComparisonTableMap dctmTarget, long rid) throws SQLException {
+        RepoController rpc = new RepoController();
+        return rpc.dcrCreate(connRepo, dctmTarget.getTid(), dctmTarget.getTableAlias(), rid);
+    }
+
+    /**
      * Creates a staging table for data comparison using the optimized StagingOperationsService.
      *
      * @param conn          Database connection
@@ -76,7 +89,7 @@ public class RepoController {
      */
     public String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) {
         try {
-            return StagingOperationsService.createStagingTable(conn, location, tid, threadNbr);
+            return StagingTableService.createStagingTable(conn, location, tid, threadNbr);
         } catch (SQLException e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error creating staging table: %s", e.getMessage()));
@@ -109,7 +122,7 @@ public class RepoController {
      */
     public void dropStagingTable(Connection conn, String stagingTable) {
         try {
-            StagingOperationsService.dropStagingTable(conn, stagingTable);
+            StagingTableService.dropStagingTable(conn, stagingTable);
         } catch (SQLException e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error dropping staging table: %s", e.getMessage()));
@@ -164,7 +177,7 @@ public class RepoController {
      */
     public void loadFindings(Connection conn, String location, Integer tid, String tableAlias, String stagingTable, Integer batchNbr, Integer threadNbr) {
         try {
-            StagingOperationsService.loadFindings(conn, location, tid, stagingTable, batchNbr, threadNbr, tableAlias);
+            StagingTableService.loadFindings(conn, location, tid, stagingTable, batchNbr, threadNbr, tableAlias);
         } catch (SQLException e) {
             LoggingUtils.write("severe", THREAD_NAME,
                 String.format("Error loading findings: %s", e.getMessage()));

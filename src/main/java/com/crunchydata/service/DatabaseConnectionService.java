@@ -53,67 +53,10 @@ public class DatabaseConnectionService {
     private static final String POSTGRES_SSL_MODE_TEMPLATE = "?sslmode=%s";
     private static final String MYSQL_SSL_TEMPLATE = "?allowPublicKeyRetrieval=true&useSSL=%s";
     private static final String MSSQL_ENCRYPT_TEMPLATE = ";databaseName=%s;encrypt=%s";
-    private static final String ORACLE_URL_TEMPLATE = "jdbc:oracle:thin:@//%s:%s/%s";
-    private static final String MARIADB_URL_TEMPLATE = "jdbc:mariadb://%s:%s/%s";
-    private static final String MYSQL_URL_TEMPLATE = "jdbc:mysql://%s:%s/%s";
-    private static final String MSSQL_URL_TEMPLATE = "jdbc:sqlserver://%s:%s";
-    private static final String DB2_URL_TEMPLATE = "jdbc:db2://%s:%s/%s";
-    private static final String POSTGRES_URL_TEMPLATE = "jdbc:postgresql://%s:%s/%s";
-    private static final String SNOWFLAKE_URL_TEMPLATE = "jdbc:snowflake://%s%s/?db=%s";
     private static final String SNOWFLAKE_CONTEXT_TEMPLATE = "&warehouse=%s&schema=%s";
 
     // SQL mode constants
     private static final String ANSI_SQL_MODE = "set session sql_mode='ANSI'";
-    
-    /**
-     * Enum representing different database platforms and their connection configurations.
-     */
-    public enum DatabasePlatform {
-        ORACLE("oracle", ORACLE_URL_TEMPLATE, true, false, false),
-        MARIADB("mariadb", MARIADB_URL_TEMPLATE, false, true, true),
-        MYSQL("mysql", MYSQL_URL_TEMPLATE, false, true, true),
-        MSSQL("mssql", MSSQL_URL_TEMPLATE, false, false, false),
-        DB2("db2", DB2_URL_TEMPLATE, true, false, false),
-        POSTGRES("postgres", POSTGRES_URL_TEMPLATE, false, false, true),
-        SNOWFLAKE("snowflake", SNOWFLAKE_URL_TEMPLATE, false, false, true);
-        
-        private final String name;
-        private final String urlTemplate;
-        private final boolean autoCommit;
-        private final boolean requiresAnsiMode;
-        private final boolean supportsSSL;
-        
-        DatabasePlatform(String name, String urlTemplate, boolean autoCommit, 
-                        boolean requiresAnsiMode, boolean supportsSSL) {
-            this.name = name;
-            this.urlTemplate = urlTemplate;
-            this.autoCommit = autoCommit;
-            this.requiresAnsiMode = requiresAnsiMode;
-            this.supportsSSL = supportsSSL;
-        }
-        
-        public String getName() { return name; }
-        public String getUrlTemplate() { return urlTemplate; }
-        public boolean isAutoCommit() { return autoCommit; }
-        public boolean requiresAnsiMode() { return requiresAnsiMode; }
-
-        /**
-         * Get platform configuration by name, with fallback to POSTGRES for unknown platforms.
-         */
-        public static DatabasePlatform fromString(String platform) {
-            if (platform == null || platform.trim().isEmpty()) {
-                return POSTGRES;
-            }
-            
-            try {
-                return valueOf(platform.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                LoggingUtils.write("warning", THREAD_NAME,
-                    String.format("Unknown platform '%s', defaulting to POSTGRES", platform));
-                return POSTGRES;
-            }
-        }
-    }
 
     /**
      * Validates that a database connection is open and valid.
@@ -152,7 +95,7 @@ public class DatabaseConnectionService {
             throw new IllegalArgumentException("Platform and destination type cannot be empty");
         }
         
-        DatabasePlatform dbPlatform = DatabasePlatform.fromString(platform);
+        DatabaseMetadataService.DatabasePlatform dbPlatform = DatabaseMetadataService.DatabasePlatform.fromString(platform);
         
         try {
             // Build connection URL
@@ -186,7 +129,7 @@ public class DatabaseConnectionService {
     /**
      * Builds the connection URL for the specified platform and destination.
      */
-    private static String buildConnectionUrl(DatabasePlatform platform, String destType) {
+    private static String buildConnectionUrl(DatabaseMetadataService.DatabasePlatform platform, String destType) {
         String host = Props.getProperty(destType + "-host");
         String port = Props.getProperty(destType + "-port");
         String dbname = Props.getProperty(destType + "-dbname");
@@ -235,7 +178,7 @@ public class DatabaseConnectionService {
     /**
      * Builds connection properties for the specified platform and destination.
      */
-    private static Properties buildConnectionProperties(DatabasePlatform platform, String destType) {
+    private static Properties buildConnectionProperties(DatabaseMetadataService.DatabasePlatform platform, String destType) {
         Properties props = new Properties();
         
         // Basic authentication
@@ -251,7 +194,7 @@ public class DatabaseConnectionService {
         props.setProperty(PASSWORD_PROPERTY, password);
         
         // Platform-specific properties
-        if (platform == DatabasePlatform.POSTGRES) {
+        if (platform == DatabaseMetadataService.DatabasePlatform.POSTGRES) {
             String schema = Props.getProperty(destType + "-schema");
             if (schema != null) {
                 props.setProperty(OPTIONS_PROPERTY, 
@@ -269,7 +212,7 @@ public class DatabaseConnectionService {
     /**
      * Configures the connection with platform-specific settings.
      */
-    private static void configureConnection(Connection conn, DatabasePlatform platform) throws SQLException {
+    private static void configureConnection(Connection conn, DatabaseMetadataService.DatabasePlatform platform) throws SQLException {
         // Set auto-commit based on platform requirements
         conn.setAutoCommit(platform.isAutoCommit());
         

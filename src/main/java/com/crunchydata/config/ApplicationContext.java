@@ -21,7 +21,7 @@ import java.sql.Connection;
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 import static com.crunchydata.config.Settings.*;
 
-import com.crunchydata.service.RepositoryManagementService;
+import com.crunchydata.service.RepositoryInitializationService;
 import com.crunchydata.util.LoggingUtils;
 import com.crunchydata.util.ValidationUtils;
 
@@ -33,7 +33,6 @@ import org.apache.commons.cli.CommandLine;
  * execution, and cleanup.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class ApplicationContext {
     
@@ -82,7 +81,7 @@ public class ApplicationContext {
      */
     public void initialize() throws Exception {
         // Set check property based on action
-        Props.setProperty("isCheck", Boolean.toString(ACTION_CHECK.equals(action)));
+        Props.setProperty("isCheck", Boolean.toString(action.equals(ACTION_CHECK)));
 
         // Initialize logging
         LoggingUtils.initialize();
@@ -98,7 +97,7 @@ public class ApplicationContext {
         connectToRepository();
         
         // Load project configuration (skip for init action)
-        if (!ACTION_INIT.equals(action)) {
+        if (!action.equals(ACTION_INIT)) {
             setProjectConfig(connRepo, pid);
         }
 
@@ -111,7 +110,7 @@ public class ApplicationContext {
         logConfigurationParameters();
         
         // Handle initialization action
-        if (ACTION_INIT.equals(action)) {
+        if (action.equals(ACTION_INIT)) {
             handleInitialization();
         }
     }
@@ -122,7 +121,7 @@ public class ApplicationContext {
      */
     public void executeAction() {
         // Connect to source and target databases (skip for init action)
-        if (!ACTION_INIT.equals(action)) {
+        if (!action.equals(ACTION_INIT)) {
             connectToSourceAndTarget();
         }
 
@@ -192,7 +191,7 @@ public class ApplicationContext {
      */
     private void handleInitialization() throws Exception {
         LoggingUtils.write("info", THREAD_NAME, "Initializing pgCompare repository");
-        RepositoryManagementService.createRepository(Props, connRepo);
+        RepositoryInitializationService.createRepository(Props, connRepo);
         LoggingUtils.write("info", THREAD_NAME, "Repository initialization completed successfully");
         System.exit(0);
     }

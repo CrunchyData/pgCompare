@@ -36,7 +36,6 @@ import static com.crunchydata.config.Settings.Props;
  * SQL expressions for database operations.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class ColumnMetadataBuilder {
     

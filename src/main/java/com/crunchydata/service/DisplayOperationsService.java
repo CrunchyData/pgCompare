@@ -16,6 +16,7 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.controller.ReportController;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -28,7 +29,6 @@ import java.text.DecimalFormat;
  * formatting output, and managing console display operations.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class DisplayOperationsService {
     
@@ -62,7 +62,7 @@ public class DisplayOperationsService {
      * @param tablesProcessed Number of tables processed
      * @param stats Summary statistics
      */
-    public static void displayJobSummary(int tablesProcessed, ReportGenerationService.SummaryStatistics stats) {
+    public static void displayJobSummary(int tablesProcessed, ReportController.SummaryStatistics stats) {
         validateDisplayJobSummaryInputs(tablesProcessed, stats);
         
         printSummary("Job Summary:", SUMMARY_INDENT);
@@ -106,14 +106,14 @@ public class DisplayOperationsService {
         long throughput = elapsedTime > 0 ? totalRows / elapsedTime : totalRows;
         
         printSummary(String.format("Table: %s", tableName), indent);
-        printSummary(String.format("  Status: %s", status), indent + 2);
-        printSummary(String.format("  Elapsed Time: %d seconds", elapsedTime), indent + 2);
-        printSummary(String.format("  Total Rows: %s", NUMBER_FORMATTER.format(totalRows)), indent + 2);
-        printSummary(String.format("  Equal Rows: %s", NUMBER_FORMATTER.format(equal)), indent + 2);
-        printSummary(String.format("  Not Equal Rows: %s", NUMBER_FORMATTER.format(notEqual)), indent + 2);
-        printSummary(String.format("  Missing Source: %s", NUMBER_FORMATTER.format(missingSource)), indent + 2);
-        printSummary(String.format("  Missing Target: %s", NUMBER_FORMATTER.format(missingTarget)), indent + 2);
-        printSummary(String.format("  Throughput: %s rows/second", NUMBER_FORMATTER.format(throughput)), indent + 2);
+        printSummary(String.format("  Status:          %s", status), indent + 2);
+        printSummary(String.format("  Elapsed Time:    %d seconds", elapsedTime), indent + 2);
+        printSummary(String.format("  Total Rows:      %s", NUMBER_FORMATTER.format(totalRows)), indent + 2);
+        printSummary(String.format("  Equal Rows:      %s", NUMBER_FORMATTER.format(equal)), indent + 2);
+        printSummary(String.format("  Not Equal Rows:  %s", NUMBER_FORMATTER.format(notEqual)), indent + 2);
+        printSummary(String.format("  Missing Source:  %s", NUMBER_FORMATTER.format(missingSource)), indent + 2);
+        printSummary(String.format("  Missing Target:  %s", NUMBER_FORMATTER.format(missingTarget)), indent + 2);
+        printSummary(String.format("  Throughput:      %s rows/second", NUMBER_FORMATTER.format(throughput)), indent + 2);
     }
     
     /**
@@ -144,7 +144,7 @@ public class DisplayOperationsService {
      * @param tablesProcessed Number of tables processed
      * @param stats Summary statistics
      */
-    private static void validateDisplayJobSummaryInputs(int tablesProcessed, ReportGenerationService.SummaryStatistics stats) {
+    private static void validateDisplayJobSummaryInputs(int tablesProcessed, ReportController.SummaryStatistics stats) {
         if (tablesProcessed < 0) {
             throw new IllegalArgumentException("Tables processed cannot be negative");
         }

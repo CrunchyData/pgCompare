@@ -37,7 +37,6 @@ import static com.crunchydata.config.sql.RepoSQLConstants.*;
  * database columns from source and target databases.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class ColumnDiscoveryService {
     

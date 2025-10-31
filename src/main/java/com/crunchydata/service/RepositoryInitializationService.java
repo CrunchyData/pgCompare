@@ -34,7 +34,7 @@ import static com.crunchydata.config.sql.RepoSQLConstants.*;
  *
  * @author Brian Pace
  */
-public class RepositoryManagementService {
+public class RepositoryInitializationService {
 
     private static final String THREAD_NAME = "db-repository";
     
@@ -52,6 +52,8 @@ public class RepositoryManagementService {
         DATA_INSERTION,
         FUNCTION_CREATION
     }
+
+
 
     /**
      * Creates the repository schema, tables, indexes, and constraints in the specified database connection.

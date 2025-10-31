@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.crunchydata.util;
+package com.crunchydata.config;
 
-import com.crunchydata.config.Settings;
 import org.apache.commons.cli.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +28,6 @@ import static com.crunchydata.config.Settings.*;
  * Utility class for parsing command line arguments and handling help/version display.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class CommandLineParser {
     

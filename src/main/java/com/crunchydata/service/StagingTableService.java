@@ -33,7 +33,7 @@ import static com.crunchydata.config.Settings.Props;
  * @author Brian Pace
  * @version 1.0
  */
-public class StagingOperationsService {
+public class StagingTableService {
     
     private static final String THREAD_NAME = "staging-operations";
     

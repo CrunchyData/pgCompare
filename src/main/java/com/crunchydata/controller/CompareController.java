@@ -17,93 +17,301 @@
 package com.crunchydata.controller;
 
 import com.crunchydata.config.ApplicationContext;
+import com.crunchydata.core.comparison.ResultProcessor;
+import com.crunchydata.core.threading.DataValidationThread;
+import com.crunchydata.core.threading.ThreadManager;
+import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
-import com.crunchydata.service.DataReconciliationService;
+import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
 
 import static com.crunchydata.config.Settings.Props;
+import static com.crunchydata.controller.RepoController.createCompareId;
+import static com.crunchydata.service.ColumnManagementService.*;
+import static com.crunchydata.service.SQLSyntaxService.generateCompareSQL;
 
 import org.json.JSONObject;
 
 /**
  * CompareController class that provides a simplified interface for data reconciliation.
- * This class has been refactored to use specialized services for better separation
- * of concerns and improved maintainability.
  *
  * @author Brian Pace
- * @version 1.0
  */
 public class CompareController {
 
     private static final String THREAD_NAME = "compare-ctrl";
 
+
     /**
-     * Reconciles data between source and target databases using the optimized DataReconciliationService.
+     * Perform database comparison operation using optimized services.
+     * This method handles both regular comparison and recheck operations.
      *
-     * @param connRepo       Connection to the repository database
-     * @param connSource     Connection to the source database
-     * @param connTarget     Connection to the target database
-     * @param rid            Reconciliation ID
-     * @param check          Whether to perform a check
-     * @param dct            Table information
-     * @param dctmSource     Source table map
-     * @param dctmTarget     Target table map
+     * @param context Application context
+     */
+    public static void performCompare(ApplicationContext context) {
+        boolean isCheck = Props.getProperty("isCheck").equals("true");
+        String tableFilter = context.getCmd().hasOption("table") ? context.getCmd().getOptionValue("table").toLowerCase() : "";
+
+        LoggingUtils.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s", isCheck));
+
+        try {
+            // Validate context
+            validatePerformCompareInputs(context);
+
+            // Get tables to process
+            RepoController repoController = new RepoController();
+            CachedRowSet tablesResultSet = repoController.getTables(context.getPid(), context.getConnRepo(), context.getBatchParameter(), tableFilter, isCheck);
+
+            // Process tables and collect results
+            TableController.ComparisonResults results = TableController.processTables(tablesResultSet, isCheck, repoController, context);
+
+            // Close result set
+            if (tablesResultSet != null) {
+                tablesResultSet.close();
+            }
+
+            // Generate summary and reports
+            ReportController.createSummary(context, results.tablesProcessed(), results.runResults(), isCheck);
+
+            LoggingUtils.write("info", THREAD_NAME, "Comparison operation completed successfully");
+
+        } catch (Exception e) {
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s", e.getMessage()));
+            throw new RuntimeException("Comparison operation failed", e);
+        }
+    }
+
+    /**
+     * Reconcile data between source and target databases.
+     *
+     * @param connRepo Repository connection
+     * @param connSource Source database connection
+     * @param connTarget Target database connection
+     * @param rid Reconciliation ID
+     * @param check Whether to perform a check operation
+     * @param dct Table information
+     * @param dctmSource Source table map
+     * @param dctmTarget Target table map
      * @return JSON object with reconciliation results
      */
     public static JSONObject reconcileData(Connection connRepo, Connection connSource, Connection connTarget,
                                            long rid, Boolean check, DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget) {
+
+        long startTime = System.currentTimeMillis();
+        JSONObject result = initializeResult(dct);
+
         try {
-            // Validate inputs
-            validateReconcileInputs(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget);
-            
-            // Use the optimized reconciliation service
-            return DataReconciliationService.reconcileData(connRepo, connSource, connTarget, rid, check, dct, dctmSource, dctmTarget);
-            
+            // Get column mapping
+            String columnMapping = getColumnMapping(connRepo, dct.getTid());
+
+            // Perform preflight checks
+            if (!performPreflightChecks(dct, dctmSource, dctmTarget, columnMapping)) {
+                return createFailedResult(result);
+            }
+
+            // Get column metadata
+            JSONObject columnMap = new JSONObject(columnMapping);
+            ColumnMetadata ciSource = getSourceColumnMetadata(columnMap, dctmSource);
+            ColumnMetadata ciTarget = getTargetColumnMetadata(columnMap, dctmTarget, check);
+
+            logColumnMetadata(ciSource, ciTarget);
+
+            // Create compare ID
+            Integer cid = createCompareId(connRepo, dctmTarget, rid);
+
+            // Generate compare SQL
+            generateCompareSQL(dctmSource, dctmTarget, ciSource, ciTarget);
+
+            // Execute reconciliation
+            if (check) {
+                executeRecheck(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid, result);
+            } else {
+                executeReconciliation(connRepo, dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, result);
+            }
+
+            // Process results
+            processResults(connRepo, dct.getTid(), result, cid, startTime);
+
+            result.put("status", "success");
+
+        } catch (SQLException e) {
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Database error during reconciliation: %s", e.getMessage()));
+            result.put("status", "failed");
+            result.put("compareStatus", "failed");
         } catch (Exception e) {
-            LoggingUtils.write("severe", THREAD_NAME, String.format("Error during data reconciliation: %s", e.getMessage()));
-            return createErrorResult(dct.getTableAlias(), e.getMessage());
+            LoggingUtils.write("severe", THREAD_NAME, String.format("Unexpected error during reconciliation: %s", e.getMessage()));
+            result.put("status", "failed");
+            result.put("compareStatus", "failed");
         }
+
+        return result;
     }
-    
+
     /**
-     * Validate inputs for reconciliation.
-     * 
+     * Perform preflight checks before reconciliation.
+     *
+     * @param dct Table information
+     * @param dctmSource Source table map
+     * @param dctmTarget Target table map
+     * @param columnMapping Column mapping string
+     * @return true if checks pass, false otherwise
+     */
+    private static boolean performPreflightChecks(DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget, String columnMapping) {
+        // Check parallel degree and mod column
+        if (dct.getParallelDegree() > 1 && dctmSource.getModColumn().isEmpty() && dctmTarget.getModColumn().isEmpty()) {
+            LoggingUtils.write("severe", THREAD_NAME,
+                    String.format("Parallel degree is greater than 1 for table %s, but no value specified for mod_column on source and/or target.",
+                            dct.getTableAlias()));
+            return false;
+        }
+
+        // Verify column mapping exists
+        if (columnMapping == null) {
+            LoggingUtils.write("severe", THREAD_NAME,
+                    String.format("No column map found for table %s. Consider running with maponly option to create mappings.",
+                            dct.getTableAlias()));
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Execute recheck operation.
+     *
      * @param connRepo Repository connection
      * @param connSource Source connection
      * @param connTarget Target connection
      * @param dct Table information
      * @param dctmSource Source table map
      * @param dctmTarget Target table map
+     * @param ciSource Source column metadata
+     * @param ciTarget Target column metadata
+     * @param cid Compare ID
+     * @param result Result object to update
+     * @throws SQLException if database operations fail
      */
-    private static void validateReconcileInputs(Connection connRepo, Connection connSource, Connection connTarget,
-                                                DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget) {
-        if (connRepo == null) {
-            throw new IllegalArgumentException("Repository connection cannot be null");
-        }
-        if (connSource == null) {
-            throw new IllegalArgumentException("Source connection cannot be null");
-        }
-        if (connTarget == null) {
-            throw new IllegalArgumentException("Target connection cannot be null");
-        }
-        if (dct == null) {
-            throw new IllegalArgumentException("Table information cannot be null");
-        }
-        if (dctmSource == null) {
-            throw new IllegalArgumentException("Source table map cannot be null");
-        }
-        if (dctmTarget == null) {
-            throw new IllegalArgumentException("Target table map cannot be null");
+    private static void executeRecheck(Connection connRepo, Connection connSource, Connection connTarget,
+                                       DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                       ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid, JSONObject result)
+            throws SQLException {
+        JSONObject checkResult = DataValidationThread.checkRows(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid);
+        result.put("checkResult", checkResult);
+    }
+
+    /**
+     * Execute reconciliation operation.
+     *
+     * @param connRepo Repository connection
+     * @param dct Table information
+     * @param cid Compare ID
+     * @param dctmSource Source table map
+     * @param dctmTarget Target table map
+     * @param ciSource Source column metadata
+     * @param ciTarget Target column metadata
+     * @param result Result object to update
+     * @throws SQLException if database operations fail
+     */
+    private static void executeReconciliation(Connection connRepo, DataComparisonTable dct, Integer cid,
+                                              DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
+                                              ColumnMetadata ciSource, ColumnMetadata ciTarget, JSONObject result)
+            throws SQLException {
+        if (hasNoPrimaryKeys(ciSource, ciTarget)) {
+            skipReconciliation(connRepo, result, dctmTarget.getTableName(), cid);
+        } else {
+            try {
+                // Use ThreadManager for complex thread coordination
+                ThreadManager.executeReconciliation(dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, connRepo);
+            } catch (InterruptedException e) {
+                LoggingUtils.write("severe", THREAD_NAME, String.format("Thread execution interrupted: %s", e.getMessage()));
+                Thread.currentThread().interrupt();
+                throw new SQLException("Thread execution interrupted", e);
+            }
         }
     }
-    
+
+    /**
+     * Check if tables have no primary keys.
+     *
+     * @param ciSource Source column metadata
+     * @param ciTarget Target column metadata
+     * @return true if no primary keys found
+     */
+    private static boolean hasNoPrimaryKeys(ColumnMetadata ciSource, ColumnMetadata ciTarget) {
+        return ciTarget.pkList.isBlank() || ciTarget.pkList.isEmpty() ||
+                ciSource.pkList.isBlank() || ciSource.pkList.isEmpty();
+    }
+
+    /**
+     * Skip reconciliation for tables without primary keys.
+     *
+     * @param connRepo Repository connection
+     * @param result Result object to update
+     * @param tableName Table name
+     * @param cid Compare ID
+     */
+    private static void skipReconciliation(Connection connRepo, JSONObject result, String tableName, Integer cid)  {
+        LoggingUtils.write("warning", THREAD_NAME,
+                String.format("Table %s has no Primary Key, skipping reconciliation", tableName));
+        result.put("status", "skipped");
+        result.put("compareStatus", "skipped");
+
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(cid);
+        SQLExecutionService.simpleUpdate(connRepo,
+                "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?",
+                binds, true);
+    }
+
+    /**
+     * Process reconciliation results.
+     *
+     * @param connRepo Repository connection
+     * @param tid Table ID
+     * @param result Result object to update
+     * @param cid Compare ID
+     * @param startTime Start time of operation
+     * @throws SQLException if database operations fail
+     */
+    private static void processResults(Connection connRepo, long tid, JSONObject result, Integer cid, long startTime)
+            throws SQLException {
+        ResultProcessor.summarizeResults(connRepo, tid, result, cid);
+
+        long elapsedTime = (System.currentTimeMillis() - startTime) / 1000;
+        result.put("elapsedTime", elapsedTime);
+        result.put("rowsPerSecond", (elapsedTime > 0) ? result.getInt("totalRows") / elapsedTime : result.getInt("totalRows"));
+
+        logFinalResult(result, result.getString("tableName"));
+    }
+
+    /**
+     * Initialize result object with default values.
+     *
+     * @param dct Table information
+     * @return Initialized result object
+     */
+    private static JSONObject initializeResult(DataComparisonTable dct) {
+        JSONObject result = new JSONObject();
+        result.put("tableName", dct.getTableAlias());
+        result.put("status", "processing");
+        result.put("compareStatus", "processing");
+        result.put("missingSource", 0);
+        result.put("missingTarget", 0);
+        result.put("notEqual", 0);
+        result.put("equal", 0);
+        return result;
+    }
+
+
     /**
      * Create error result object.
-     * 
+     *
      * @param tableAlias Table alias
      * @param errorMessage Error message
      * @return Error result object
@@ -121,46 +329,50 @@ public class CompareController {
         return result;
     }
 
-    
-    /**
-     * Perform database comparison operation using optimized services.
-     * This method handles both regular comparison and recheck operations.
-     * 
-     * @param context Application context
-     */
-    public static void performCompare(ApplicationContext context) {
-        boolean isCheck = Props.getProperty("isCheck").equals("true");
-        String tableFilter = context.getCmd().hasOption("table") ? context.getCmd().getOptionValue("table").toLowerCase() : "";
-        
-        LoggingUtils.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s", isCheck));
 
-        try {
-            // Validate context
-            validatePerformCompareInputs(context);
-            
-            // Get tables to process
-            RepoController repoController = new RepoController();
-            CachedRowSet tablesResultSet = repoController.getTables(context.getPid(), context.getConnRepo(), context.getBatchParameter(), tableFilter, isCheck);
-            
-            // Process tables and collect results
-            TableController.ComparisonResults results = TableController.processTables(tablesResultSet, isCheck, repoController, context);
-            
-            // Close result set
-            if (tablesResultSet != null) {
-                tablesResultSet.close();
-            }
-            
-            // Generate summary and reports
-            ReportController.createSummary(context, results.tablesProcessed(), results.runResults(), isCheck);
-            
-            LoggingUtils.write("info", THREAD_NAME, "Comparison operation completed successfully");
-            
-        } catch (Exception e) {
-            LoggingUtils.write("severe", THREAD_NAME, String.format("Error performing data reconciliation: %s", e.getMessage()));
-            throw new RuntimeException("Comparison operation failed", e);
-        }
+    /**
+     * Create failed result object.
+     *
+     * @param result Base result object
+     * @return Failed result object
+     */
+    private static JSONObject createFailedResult(JSONObject result) {
+        result.put("status", "failed");
+        result.put("compareStatus", "failed");
+        return result;
     }
-    
+
+    /**
+     * Log column metadata information.
+     *
+     * @param source Source column metadata
+     * @param target Target column metadata
+     */
+    private static void logColumnMetadata(ColumnMetadata source, ColumnMetadata target) {
+        LoggingUtils.write("info", THREAD_NAME, "(source) Columns: " + source.columnList);
+        LoggingUtils.write("info", THREAD_NAME, "(target) Columns: " + target.columnList);
+        LoggingUtils.write("info", THREAD_NAME, "(source) PK Columns: " + source.pkList);
+        LoggingUtils.write("info", THREAD_NAME, "(target) PK Columns: " + target.pkList);
+    }
+
+    /**
+     * Log final reconciliation result.
+     *
+     * @param result Result object
+     * @param tableAlias Table alias
+     */
+    private static void logFinalResult(JSONObject result, String tableAlias) {
+        java.text.DecimalFormat formatter = new java.text.DecimalFormat("#,###");
+        LoggingUtils.write("info", THREAD_NAME, String.format(
+                "Reconciliation Complete: Table = %s; Status = %s; Equal = %s; Not Equal = %s; Missing Source = %s; Missing Target = %s",
+                tableAlias, result.getString("compareStatus"),
+                formatter.format(result.getInt("equal")),
+                formatter.format(result.getInt("notEqual")),
+                formatter.format(result.getInt("missingSource")),
+                formatter.format(result.getInt("missingTarget"))
+        ));
+    }
+
     /**
      * Validate inputs for performCompare method.
      * 

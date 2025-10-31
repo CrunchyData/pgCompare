@@ -58,32 +58,66 @@ public class DatabaseMetadataService {
     private static final String OWNER_FIELD = "owner";
     private static final String TABLE_NAME_COLUMN = "table_name";
 
+    // Platform-specific constants
+    private static final String ORACLE_URL_TEMPLATE = "jdbc:oracle:thin:@//%s:%s/%s";
+    private static final String MARIADB_URL_TEMPLATE = "jdbc:mariadb://%s:%s/%s";
+    private static final String MYSQL_URL_TEMPLATE = "jdbc:mysql://%s:%s/%s";
+    private static final String MSSQL_URL_TEMPLATE = "jdbc:sqlserver://%s:%s";
+    private static final String DB2_URL_TEMPLATE = "jdbc:db2://%s:%s/%s";
+    private static final String POSTGRES_URL_TEMPLATE = "jdbc:postgresql://%s:%s/%s";
+    private static final String SNOWFLAKE_URL_TEMPLATE = "jdbc:snowflake://%s%s/?db=%s";
+
     /**
      * Enum representing different database platforms and their specific configurations.
      */
     public enum DatabasePlatform {
-        DB2("upper", "\"", "LOWER(HASH(%s,'MD5')) AS %s", "||", "replace(%s, '\"', '\\\"')"),
-        ORACLE("upper", "\"", "LOWER(STANDARD_HASH(%s,'MD5')) AS %s", "||", "replace(%s, '\"', '\\\"')"),
-        MARIADB("lower", "`", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')"),
-        MYSQL("lower", "`", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')"),
-        MSSQL("lower", "\"", "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s", "+", "replace(%s, '\"', '\\\"')"),
-        POSTGRES("lower", "\"", "lower(md5(%s)) AS %s", "||", "replace(%s,'\"', '\\\"')"),
-        SNOWFLAKE("upper", "\"", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')");
-        
+        DB2("db2", DB2_URL_TEMPLATE, true, false, false, "upper",
+                "\"", "LOWER(HASH(%s,'MD5')) AS %s", "||", "replace(%s, '\"', '\\\"')"),
+        ORACLE("oracle", ORACLE_URL_TEMPLATE, true, false, false, "upper",
+                "\"", "LOWER(STANDARD_HASH(%s,'MD5')) AS %s", "||", "replace(%s, '\"', '\\\"')"),
+        MARIADB("mariadb", MARIADB_URL_TEMPLATE, false, true, true, "lower",
+                "`", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')"),
+        MYSQL("mysql", MYSQL_URL_TEMPLATE, false, true, true, "lower",
+                "`", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')"),
+        MSSQL("mssql", MSSQL_URL_TEMPLATE, false, false, false, "lower",
+                "\"", "lower(convert(varchar, hashbytes('MD5',%s),2)) AS %s", "+", "replace(%s, '\"', '\\\"')"),
+        POSTGRES("postgres", POSTGRES_URL_TEMPLATE, false, false, true, "lower",
+                "\"", "lower(md5(%s)) AS %s", "||", "replace(%s,'\"', '\\\"')"),
+        SNOWFLAKE("snowflake", SNOWFLAKE_URL_TEMPLATE, false, false, true, "upper",
+                "\"", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')");
+
+        private final String name;
+        private final String urlTemplate;
+        private final boolean autoCommit;
+        private final boolean requiresAnsiMode;
+        private final boolean supportsSSL;
+
         private final String nativeCase;
         private final String quoteChar;
         private final String columnHashTemplate;
         private final String concatOperator;
         private final String replacePKSyntax;
         
-        DatabasePlatform(String nativeCase, String quoteChar, String columnHashTemplate, String concatOperator, String replacePKSyntax) {
+        DatabasePlatform(String name, String urlTemplate, boolean autoCommit,
+                         boolean requiresAnsiMode, boolean supportsSSL, String nativeCase,
+                         String quoteChar, String columnHashTemplate, String concatOperator, String replacePKSyntax) {
+            this.name = name;
+            this.urlTemplate = urlTemplate;
+            this.autoCommit = autoCommit;
+            this.requiresAnsiMode = requiresAnsiMode;
+            this.supportsSSL = supportsSSL;
             this.nativeCase = nativeCase;
             this.quoteChar = quoteChar;
             this.columnHashTemplate = columnHashTemplate;
             this.concatOperator = concatOperator;
             this.replacePKSyntax = replacePKSyntax;
         }
-        
+
+        public String getName() { return name; }
+        public String getUrlTemplate() { return urlTemplate; }
+        public boolean isAutoCommit() { return autoCommit; }
+        public boolean requiresAnsiMode() { return requiresAnsiMode; }
+
         public String getNativeCase() { return nativeCase; }
         public String getQuoteChar() { return quoteChar; }
         public String getColumnHashTemplate() { return columnHashTemplate; }

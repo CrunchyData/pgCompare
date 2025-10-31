@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.core.database;
+package com.crunchydata.core.comparison;
 
 import com.crunchydata.service.SQLExecutionService;
 import com.crunchydata.util.LoggingUtils;
@@ -32,7 +32,6 @@ import static com.crunchydata.config.sql.RepoSQLConstants.*;
  * calculating statistics, and updating the database with final results.
  * 
  * @author Brian Pace
- * @version 1.0
  */
 public class ResultProcessor {
     
