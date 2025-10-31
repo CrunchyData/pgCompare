@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model dc_project {
+  pid            BigInt      @id @default(autoincrement())
+  project_name   String      @default("default")
+  project_config Json?
+  dc_table       dc_table[]
+  dc_result      dc_result[]
+}
+
+model dc_result {
+  cid                  Int       @id @default(autoincrement())
+  rid                  Decimal?
+  tid                  BigInt?
+  table_name           String?
+  status               String?
+  compare_start        DateTime?
+  equal_cnt            Int?
+  missing_source_cnt   Int?
+  missing_target_cnt   Int?
+  not_equal_cnt        Int?
+  source_cnt           Int?
+  target_cnt           Int?
+  compare_end          DateTime?
+  dc_project           dc_project? @relation(fields: [tid], references: [pid])
+}
+
+model dc_table {
+  pid              BigInt                @default(1)
+  tid              BigInt                @id @default(autoincrement())
+  table_alias      String?
+  enabled          Boolean               @default(true)
+  batch_nbr        Int?                  @default(1)
+  parallel_degree  Int?                  @default(1)
+  dc_project       dc_project            @relation(fields: [pid], references: [pid])
+  dc_table_map     dc_table_map[]
+  dc_table_column  dc_table_column[]
+}
+
+model dc_table_column {
+  tid                  BigInt                 
+  column_id            BigInt                 @id @default(autoincrement())
+  column_alias         String
+  enabled              Boolean                @default(true)
+  dc_table             dc_table               @relation(fields: [tid], references: [tid], onDelete: Cascade)
+  dc_table_column_map  dc_table_column_map[]
+}
+
+model dc_table_column_map {
+  tid                  BigInt
+  column_id            BigInt
+  column_origin        String                 @default("source")
+  column_name          String
+  data_type            String
+  data_class           String?                @default("string")
+  data_length          Int?
+  number_precision     Int?
+  number_scale         Int?
+  column_nullable      Boolean?               @default(true)
+  column_primarykey    Boolean?               @default(false)
+  map_expression       String?
+  supported            Boolean?               @default(true)
+  preserve_case        Boolean?               @default(false)
+  map_type             String                 @default("column")
+  dc_table_column      dc_table_column        @relation(fields: [column_id], references: [column_id], onDelete: Cascade)
+
+  @@id([column_id, column_origin, column_name])
+}
+
+model dc_table_map {
+  tid                    BigInt
+  dest_type              String                 @default("target")
+  schema_name            String
+  table_name             String
+  mod_column             String?
+  table_filter           String?
+  schema_preserve_case   Boolean?               @default(false)
+  table_preserve_case    Boolean?               @default(false)
+  dc_table               dc_table               @relation(fields: [tid], references: [tid], onDelete: Cascade)
+
+  @@id([tid, dest_type, schema_name, table_name])
+}
+
+model dc_source {
+  tid            BigInt?
+  table_name     String?
+  batch_nbr      Int?
+  pk             Json?
+  pk_hash        String?  @db.VarChar(100)
+  column_hash    String?  @db.VarChar(100)
+  compare_result String?  @db.Char(1)
+  thread_nbr     Int?
+
+  @@map("dc_source")
+}
+
+model dc_target {
+  tid            BigInt?
+  table_name     String?
+  batch_nbr      Int?
+  pk             Json?
+  pk_hash        String?  @db.VarChar(100)
+  column_hash    String?  @db.VarChar(100)
+  compare_result String?  @db.Char(1)
+  thread_nbr     Int?
+
+  @@map("dc_target")
+}
