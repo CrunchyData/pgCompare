@@ -31,6 +31,7 @@ import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.service.SQLFixGenerationService;
 import com.crunchydata.util.DataProcessingUtils;
 import com.crunchydata.util.LoggingUtils;
 
@@ -248,6 +249,24 @@ public class DataValidationThread {
                 removeInSyncRow(repoConn, dcRow);
             } else {
                 LoggingUtils.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
+
+                if ( Props.getProperty("fix").equals("true") ) {
+                    // Generate SQL to fix out of sync
+                    String fixSQL = SQLFixGenerationService.generateFixSQL(
+                            sourceConn,
+                            targetConn,
+                            dctmSource,
+                            dctmTarget,
+                            binds,
+                            dcRow,
+                            rowResult
+                    );
+
+                    if (fixSQL != null) {
+                        // Execute the SQL or write to file
+                        LoggingUtils.write("info", THREAD_NAME, "Fix SQL: " + fixSQL);
+                    }
+                }
             }
 
             // Update result counts

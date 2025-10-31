@@ -84,6 +84,8 @@ public class CommandLineParser {
                 Props.setProperty("table", cmd.getOptionValue("table"));
             }
 
+            Props.setProperty("fix", String.valueOf(cmd.hasOption("fix")));
+
             Integer batchParameter = (cmd.hasOption("batch")) ?
                     Integer.parseInt(cmd.getOptionValue("batch")) :
                     (System.getenv(DEFAULT_BATCH_ENV_VAR) == null) ? 0 : Integer.parseInt(System.getenv(DEFAULT_BATCH_ENV_VAR));
@@ -111,6 +113,7 @@ public class CommandLineParser {
         // Define all valid options
         options.addOption(Option.builder("b").longOpt("batch").hasArg().desc("Batch Number").build());
         options.addOption(Option.builder("h").longOpt("help").hasArg(false).desc("Usage and help").build());
+        //options.addOption(Option.builder("f").longOpt("fix").hasArg(false).desc("Generate SQL to fix out of sync issue (experimental, use with caution)").build());
         options.addOption(Option.builder("p").longOpt("project").hasArg().desc("Project ID").build());
         options.addOption(Option.builder("r").longOpt("report").hasArg().desc("Generate report").build());
         options.addOption(Option.builder("t").longOpt("table").hasArg().desc("Limit to specified table").build());
