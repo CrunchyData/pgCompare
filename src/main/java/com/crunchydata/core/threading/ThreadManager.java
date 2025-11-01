@@ -47,7 +47,7 @@ public class ThreadManager {
     // Thread collections
     private static final List<DataComparisonThread> compareList = new ArrayList<>();
     private static final List<DataLoaderThread> loaderList = new ArrayList<>();
-    private static final List<ReconciliationObserverThread> observerList = new ArrayList<>();
+    private static final List<ObserverThread> observerList = new ArrayList<>();
     
     /**
      * Execute reconciliation using coordinated thread management.
@@ -128,7 +128,7 @@ public class ThreadManager {
             String stagingTarget = rpc.createStagingTable(connRepo, "target", dct.getTid(), i);
             
             // Create and start observer thread
-            ReconciliationObserverThread observer = new ReconciliationObserverThread(dct, cid, ts, i, stagingSource, stagingTarget);
+            ObserverThread observer = new ObserverThread(dct, cid, ts, i, stagingSource, stagingTarget);
             observer.start();
             observerList.add(observer);
             

@@ -98,6 +98,7 @@ model dc_source {
   compare_result String?  @db.Char(1)
   thread_nbr     Int?
 
+  @@ignore
   @@map("dc_source")
 }
 
@@ -111,5 +112,6 @@ model dc_target {
   compare_result String?  @db.Char(1)
   thread_nbr     Int?
 
+  @@ignore
   @@map("dc_target")
 }

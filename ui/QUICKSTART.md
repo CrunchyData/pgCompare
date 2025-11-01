@@ -9,7 +9,7 @@
 
 1. Navigate to the UI directory:
 ```bash
-cd /Users/bpace/app/gitecto/pgCompare/ui
+cd pgCompare/ui
 ```
 
 2. Dependencies are already installed. If needed, run:
@@ -41,6 +41,7 @@ npm start
    - Host: `localhost` (or your PostgreSQL host)
    - Port: `5432` (default PostgreSQL port)
    - Database: Your pgCompare database name
+   - Schema: Schema that owns the pgCompare repository (default pgcompare)
    - User: Your PostgreSQL username
    - Password: Your PostgreSQL password
 

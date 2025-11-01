@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Save, TrendingUp, BarChart3, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Save, TrendingUp, BarChart3, AlertTriangle, CheckCircle, XCircle, Upload } from 'lucide-react';
 import { Project, Result } from '@/lib/types';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import CompareDetailsModal from './CompareDetailsModal';
+import ProjectCurrentRunPanel from './ProjectCurrentRunPanel';
 
 interface ProjectViewProps {
   projectId: number;
@@ -21,6 +22,7 @@ export default function ProjectView({ projectId }: ProjectViewProps) {
   const [projectName, setProjectName] = useState('');
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadProject();
@@ -122,6 +124,59 @@ export default function ProjectView({ projectId }: ProjectViewProps) {
     }
   };
 
+  const handleImportProperties = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n');
+      const newConfigData: Array<{ key: string; value: string }> = [];
+
+      lines.forEach(line => {
+        // Skip empty lines and comments
+        const trimmedLine = line.trim();
+        if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('!')) {
+          return;
+        }
+
+        // Parse key=value
+        const separatorIndex = trimmedLine.indexOf('=');
+        if (separatorIndex > 0) {
+          const key = trimmedLine.substring(0, separatorIndex).trim();
+          const value = trimmedLine.substring(separatorIndex + 1).trim();
+          newConfigData.push({ key, value });
+        }
+      });
+
+      // Merge with existing config data
+      const mergedConfig = [...configData];
+      newConfigData.forEach(({ key, value }) => {
+        const existingIndex = mergedConfig.findIndex(item => item.key === key);
+        if (existingIndex >= 0) {
+          mergedConfig[existingIndex].value = value;
+        } else {
+          mergedConfig.push({ key, value });
+        }
+      });
+
+      setConfigData(mergedConfig);
+      alert(`Imported ${newConfigData.length} properties. Click Save to persist changes.`);
+    } catch (error) {
+      console.error('Failed to import properties file:', error);
+      alert('Failed to import properties file');
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   if (loading) {
     return <div className="p-4">Loading...</div>;
   }
@@ -200,14 +255,30 @@ export default function ProjectView({ projectId }: ProjectViewProps) {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Configuration</h3>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : 'Save'}
-          </button>
+          <div className="flex gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".properties,.txt"
+              className="hidden"
+            />
+            <button
+              onClick={handleImportProperties}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              <Upload className="h-4 w-4" />
+              Import Properties
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -259,6 +330,9 @@ export default function ProjectView({ projectId }: ProjectViewProps) {
           + Add Row
         </button>
       </div>
+
+      {/* Current/Last Run Panel */}
+      <ProjectCurrentRunPanel projectId={projectId} />
 
       {/* Last Run Summary */}
       {lastResult && (

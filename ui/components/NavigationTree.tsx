@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, ChevronDown, Folder, Table, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, Table, X, Plus } from 'lucide-react';
 import { Project, Table as TableType, Result } from '@/lib/types';
 
 interface NavigationTreeProps {
@@ -22,6 +22,8 @@ export default function NavigationTree({
   const [projectTables, setProjectTables] = useState<Map<number, TableType[]>>(new Map());
   const [tableStatuses, setTableStatuses] = useState<Map<number, boolean>>(new Map()); // tid -> hasIssues
   const [loading, setLoading] = useState(true);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
 
   useEffect(() => {
     loadProjects();
@@ -98,6 +100,36 @@ export default function NavigationTree({
     }
   };
 
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) {
+      alert('Please enter a project name');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_name: newProjectName.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create project');
+      }
+
+      const newProject = await response.json();
+      setProjects([...projects, newProject]);
+      setNewProjectName('');
+      setCreatingProject(false);
+      
+      // Select the newly created project
+      onProjectSelect(newProject.pid);
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      alert('Failed to create project');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4">
@@ -122,6 +154,54 @@ export default function NavigationTree({
 
   return (
     <div className="p-4 space-y-1">
+      {/* Add New Project Button */}
+      {!creatingProject ? (
+        <button
+          onClick={() => setCreatingProject(true)}
+          className="w-full flex items-center gap-2 px-2 py-2 mb-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+        >
+          <Plus className="h-4 w-4" />
+          New Project
+        </button>
+      ) : (
+        <div className="mb-2 p-2 border border-blue-500 rounded bg-blue-50 dark:bg-blue-900/20">
+          <input
+            type="text"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleCreateProject();
+              } else if (e.key === 'Escape') {
+                setCreatingProject(false);
+                setNewProjectName('');
+              }
+            }}
+            placeholder="Project name..."
+            autoFocus
+            className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded mb-2 dark:bg-gray-700 dark:text-white"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreateProject}
+              className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create
+            </button>
+            <button
+              onClick={() => {
+                setCreatingProject(false);
+                setNewProjectName('');
+              }}
+              className="flex-1 px-2 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Projects List */}
       {projects.map((project) => {
         const isExpanded = expandedProjects.has(project.pid);
         const tables = projectTables.get(project.pid) || [];
@@ -149,7 +229,7 @@ export default function NavigationTree({
                 onClick={() => onProjectSelect(project.pid)}
                 className="flex-1 text-sm"
               >
-                {project.project_name}
+                {project.project_name} <span className="text-xs text-gray-500 dark:text-gray-400">({project.pid})</span>
               </span>
             </div>
 

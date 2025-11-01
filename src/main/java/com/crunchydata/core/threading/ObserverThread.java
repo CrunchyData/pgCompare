@@ -46,7 +46,7 @@ import static com.crunchydata.config.Settings.Props;
  *
  * @author Brian Pace
  */
-public class ReconciliationObserverThread extends Thread  {
+public class ObserverThread extends Thread  {
 
     private final Integer tid;
     private final String tableAlias;
@@ -79,7 +79,7 @@ public class ReconciliationObserverThread extends Thread  {
      *
      * @author Brian Pace
      */
-    public ReconciliationObserverThread(DataComparisonTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
+    public ObserverThread(DataComparisonTable dct, Integer cid, ThreadSync ts, Integer threadNbr, String stagingTableSource, String stagingTableTarget) {
         this.tid = dct.getTid();
         this.tableAlias = dct.getTableAlias();
         this.cid = cid;
@@ -186,6 +186,7 @@ public class ReconciliationObserverThread extends Thread  {
                     LoggingUtils.write("info", threadName, String.format("Matched %s rows", formatter.format(tmpRowCount)));
                 } else {
                     handleNoMatches(cntEqual, deltaCount, binds, rpc, repoConn, stmtSUS);
+                    deltaCount = 0;
                 }
 
                 // Update and check status
@@ -216,7 +217,6 @@ public class ReconciliationObserverThread extends Thread  {
             stmtSUS.setInt(2, cid);
             stmtSUS.executeUpdate();
             repoConn.commit();
-            deltaCount = 0;
             ts.observerNotify();
             
             // Handle vacuum if enabled
