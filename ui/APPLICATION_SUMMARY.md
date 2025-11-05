@@ -1,7 +1,7 @@
 # pgCompare UI - Application Summary
 
 ## Overview
-A modern Next.js-based web application for viewing and editing pgCompare configuration data with an intuitive interface, real-time data editing, and comprehensive visualization capabilities.
+A Next.js-based web application for viewing and editing pgCompare configuration data with an intuitive interface, real-time data editing, and comprehensive visualization capabilities.
 
 ## Created Files Structure
 

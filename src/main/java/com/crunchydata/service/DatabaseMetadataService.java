@@ -16,9 +16,8 @@
 
 package com.crunchydata.service;
 
-import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.util.LoggingUtils;
+import lombok.Getter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -28,8 +27,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 
-import static com.crunchydata.util.DataProcessingUtils.ShouldQuoteString;
-import static com.crunchydata.config.Settings.Props;
 
 /**
  * Service class for database operations and platform-specific SQL generation.
@@ -41,17 +38,7 @@ import static com.crunchydata.config.Settings.Props;
 public class DatabaseMetadataService {
 
     private static final String THREAD_NAME = "database-metadata";
-    
-    // SQL query constants
-    private static final String SELECT_CLAUSE = "SELECT ";
-    private static final String FROM_CLAUSE = " FROM ";
-    private static final String WHERE_CLAUSE = " WHERE 1=1";
-    private static final String AND_CLAUSE = " AND ";
-    
-    // Column hash method constants
-    private static final String HASH_METHOD_RAW = "raw";
-    private static final String HASH_METHOD_HYBRID = "hybrid";
-    
+
     // JSON field names
     private static final String SCHEMA_NAME_FIELD = "schemaName";
     private static final String TABLE_NAME_FIELD = "tableName";
@@ -86,16 +73,24 @@ public class DatabaseMetadataService {
         SNOWFLAKE("snowflake", SNOWFLAKE_URL_TEMPLATE, false, false, true, "upper",
                 "\"", "lower(md5(%s)) AS %s", "||", "replace(%s, '\"', '\\\\\"')");
 
+        @Getter
         private final String name;
+        @Getter
         private final String urlTemplate;
+        @Getter
         private final boolean autoCommit;
         private final boolean requiresAnsiMode;
         private final boolean supportsSSL;
 
+        @Getter
         private final String nativeCase;
+        @Getter
         private final String quoteChar;
+        @Getter
         private final String columnHashTemplate;
+        @Getter
         private final String concatOperator;
+        @Getter
         private final String replacePKSyntax;
         
         DatabasePlatform(String name, String urlTemplate, boolean autoCommit,
@@ -113,17 +108,8 @@ public class DatabaseMetadataService {
             this.replacePKSyntax = replacePKSyntax;
         }
 
-        public String getName() { return name; }
-        public String getUrlTemplate() { return urlTemplate; }
-        public boolean isAutoCommit() { return autoCommit; }
         public boolean requiresAnsiMode() { return requiresAnsiMode; }
 
-        public String getNativeCase() { return nativeCase; }
-        public String getQuoteChar() { return quoteChar; }
-        public String getColumnHashTemplate() { return columnHashTemplate; }
-        public String getConcatOperator() { return concatOperator; }
-        public String getReplacePKSyntax() { return replacePKSyntax; }
-        
         /**
          * Get platform configuration by name, with fallback to POSTGRES for unknown platforms.
          */
@@ -176,65 +162,6 @@ public class DatabaseMetadataService {
      */
     public static String getReplacePKSyntax(String platform) {
         return DatabasePlatform.fromString(platform).getReplacePKSyntax();
-    }
-
-    /**
-     * Builds a SQL query for retrieving data from source or target.
-     * 
-     * @param columnHashMethod The database hash method to use (database, hybrid, raw)
-     * @param tableMap Metadata information on table
-     * @param columnMetadata Metadata on columns
-     * @return SQL query string for loading data from the specified table
-     * @throws IllegalArgumentException if required parameters are null or invalid
-     */
-    public static String buildLoadSQL(String columnHashMethod, DataComparisonTableMap tableMap, ColumnMetadata columnMetadata) {
-        // Input validation
-        Objects.requireNonNull(tableMap, "tableMap cannot be null");
-        Objects.requireNonNull(columnMetadata, "columnMetadata cannot be null");
-        Objects.requireNonNull(columnHashMethod, "columnHashMethod cannot be null");
-        
-        if (tableMap.getDestType() == null || tableMap.getDestType().trim().isEmpty()) {
-            throw new IllegalArgumentException("tableMap.destType cannot be null or empty");
-        }
-        
-        String platform = Props.getProperty(String.format("%s-type", tableMap.getDestType()));
-        DatabasePlatform dbPlatform = DatabasePlatform.fromString(platform);
-        
-        StringBuilder sql = new StringBuilder(SELECT_CLAUSE);
-        
-        // Build column selection based on hash method
-        switch (columnHashMethod.toLowerCase()) {
-            case HASH_METHOD_RAW:
-            case HASH_METHOD_HYBRID:
-                sql.append(String.format("%s AS pk_hash, %s AS pk, %s ", 
-                    columnMetadata.getPkExpressionList(), 
-                    columnMetadata.getPkJSON(), 
-                    columnMetadata.getColumnExpressionList()));
-                break;
-            default:
-                // Database hash method
-                sql.append(String.format(dbPlatform.getColumnHashTemplate(), 
-                    columnMetadata.getPkExpressionList(), "pk_hash, "));
-                sql.append(String.format("%s as pk,", columnMetadata.getPkJSON()));
-                sql.append(String.format(dbPlatform.getColumnHashTemplate(), 
-                    columnMetadata.getColumnExpressionList(), "column_hash"));
-                break;
-        }
-        
-        // Build FROM clause with proper quoting
-        String schemaName = ShouldQuoteString(tableMap.isSchemaPreserveCase(), 
-            tableMap.getSchemaName(), dbPlatform.getQuoteChar());
-        String tableName = ShouldQuoteString(tableMap.isTablePreserveCase(), 
-            tableMap.getTableName(), dbPlatform.getQuoteChar());
-        
-        sql.append(FROM_CLAUSE).append(schemaName).append(".").append(tableName).append(WHERE_CLAUSE);
-        
-        // Add table filter if present
-        if (tableMap.getTableFilter() != null && !tableMap.getTableFilter().trim().isEmpty()) {
-            sql.append(AND_CLAUSE).append(tableMap.getTableFilter());
-        }
-        
-        return sql.toString();
     }
 
     /**

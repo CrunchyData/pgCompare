@@ -16,7 +16,7 @@
 
 package com.crunchydata.util;
 
-import com.crunchydata.service.*;
+import com.crunchydata.core.database.SQLExecutionHelper;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -148,7 +148,7 @@ public class ColumnMetadataUtils {
         binds.add(1, columnAlias);
         binds.add(2, destRole);
 
-        CachedRowSet crs = SQLExecutionService.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
+        CachedRowSet crs = SQLExecutionHelper.simpleSelect(repoConn, SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS, binds);
 
         try {
             while (crs.next()) {

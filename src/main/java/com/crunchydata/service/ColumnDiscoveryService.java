@@ -16,6 +16,7 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.model.DataComparisonTableColumn;
 import com.crunchydata.model.DataComparisonTableColumnMap;
 import com.crunchydata.util.LoggingUtils;
@@ -87,7 +88,7 @@ public class ColumnDiscoveryService {
             ? SQL_REPO_DCTABLECOLUMN_DELETEBYPID 
             : SQL_REPO_DCTABLECOLUMN_DELETEBYPIDTABLE;
             
-        SQLExecutionService.simpleUpdate(connRepo, sql, binds, true);
+        SQLExecutionHelper.simpleUpdate(connRepo, sql, binds, true);
     }
     
     /**
@@ -116,7 +117,7 @@ public class ColumnDiscoveryService {
             binds.add(table);
         }
         
-        try (CachedRowSet crs = SQLExecutionService.simpleSelect(connRepo, sql, binds)) {
+        try (CachedRowSet crs = SQLExecutionHelper.simpleSelect(connRepo, sql, binds)) {
             while (crs.next()) {
                 loadColumns(props, crs.getInt("tid"), 
                     crs.getString("schema_name"), crs.getString("table_name"), 
@@ -187,7 +188,7 @@ public class ColumnDiscoveryService {
         binds.add(tid);
         binds.add(columnName);
         
-        return SQLExecutionService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
+        return SQLExecutionHelper.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLECOLUMN_SELECTBYTIDALIAS, binds);
     }
     
     /**

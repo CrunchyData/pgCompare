@@ -79,6 +79,7 @@ public class DataComparisonThread extends Thread {
 
         // Configuration variables
         int totalRows = 0;
+        int reportedRows = 0; // Track rows already reported to database
         int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
         int fetchSize = Integer.parseInt(Props.getProperty("batch-fetch-size"));
         boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
@@ -177,7 +178,9 @@ public class DataComparisonThread extends Thread {
 
                 // Handle observer coordination
                 if (totalRows % ((firstPass) ? PROGRESS_REPORT_INTERVAL : observerRowCount) == 0) {
-                    handleObserverCoordination(threadName, firstPass, observerThrottle, rpc, connRepo, cntRecord);
+                    int rowsToReport = totalRows - reportedRows;
+                    handleObserverCoordination(threadName, firstPass, observerThrottle, rpc, connRepo, rowsToReport);
+                    reportedRows = totalRows;
                     if (firstPass) {
                         firstPass = false;
                     }
@@ -187,7 +190,9 @@ public class DataComparisonThread extends Thread {
 
             // Process remaining records
             if (cntRecord > 0) {
-                processRemainingRecords(useLoaderThreads, dc, stmtLoad, rpc, connRepo, cntRecord);
+                int rowsToReport = totalRows - reportedRows;
+                processRemainingRecords(useLoaderThreads, dc, stmtLoad, rpc, connRepo, rowsToReport);
+                reportedRows = totalRows;
             }
 
             LoggingUtils.write("info", threadName, String.format("(%s) Complete. Total rows loaded: %s", targetType, formatter.format(totalRows)));

@@ -16,6 +16,7 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.util.LoggingUtils;
@@ -172,7 +173,7 @@ public class SQLFixGenerationService {
             
             // Fetch the complete row from source
             String selectSQL = dctmSource.getCompareSQL() + dctmSource.getTableFilter();
-            CachedRowSet sourceRow = SQLExecutionService.simpleSelect(sourceConn, selectSQL, binds);
+            CachedRowSet sourceRow = SQLExecutionHelper.simpleSelect(sourceConn, selectSQL, binds);
             
             if (sourceRow == null || sourceRow.size() == 0) {
                 LoggingUtils.write("warning", THREAD_NAME, 
@@ -243,7 +244,7 @@ public class SQLFixGenerationService {
             
             // Fetch the complete row from source
             String selectSQL = dctmSource.getCompareSQL() + dctmSource.getTableFilter();
-            CachedRowSet sourceRow = SQLExecutionService.simpleSelect(sourceConn, selectSQL, binds);
+            CachedRowSet sourceRow = SQLExecutionHelper.simpleSelect(sourceConn, selectSQL, binds);
             
             if (sourceRow == null || sourceRow.size() == 0) {
                 LoggingUtils.write("warning", THREAD_NAME, 

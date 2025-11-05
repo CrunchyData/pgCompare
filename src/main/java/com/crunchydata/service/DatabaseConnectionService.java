@@ -16,6 +16,7 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
@@ -218,7 +219,7 @@ public class DatabaseConnectionService {
         
         // Apply platform-specific SQL configurations
         if (platform.requiresAnsiMode()) {
-            SQLExecutionService.simpleUpdate(conn, ANSI_SQL_MODE, new ArrayList<>(), false);
+            SQLExecutionHelper.simpleUpdate(conn, ANSI_SQL_MODE, new ArrayList<>(), false);
         }
     }
 

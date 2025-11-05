@@ -16,6 +16,7 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
@@ -190,7 +191,7 @@ public class RepositoryInitializationService {
      */
     private static void executeDDL(Connection conn, String ddl, DDLPhase phase) throws SQLException {
         ArrayList<Object> binds = new ArrayList<>();
-        int result = SQLExecutionService.simpleUpdate(conn, ddl, binds, true);
+        int result = SQLExecutionHelper.simpleUpdate(conn, ddl, binds, true);
         
         if (result < 0) {
             String errorMsg = String.format("DDL execution failed in phase %s", phase);

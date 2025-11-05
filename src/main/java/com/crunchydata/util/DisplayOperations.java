@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.crunchydata.service;
+package com.crunchydata.util;
 
 import com.crunchydata.controller.ReportController;
-import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -30,7 +29,7 @@ import java.text.DecimalFormat;
  * 
  * @author Brian Pace
  */
-public class DisplayOperationsService {
+public class DisplayOperations {
     
     private static final String THREAD_NAME = "display-operations";
     private static final DecimalFormat NUMBER_FORMATTER = new DecimalFormat("###,###,###,###,###");
@@ -63,8 +62,7 @@ public class DisplayOperationsService {
      * @param stats Summary statistics
      */
     public static void displayJobSummary(int tablesProcessed, ReportController.SummaryStatistics stats) {
-        validateDisplayJobSummaryInputs(tablesProcessed, stats);
-        
+
         printSummary("Job Summary:", SUMMARY_INDENT);
         printSummary(String.format("Tables Processed: %s", NUMBER_FORMATTER.format(tablesProcessed)), DETAIL_INDENT);
         printSummary(String.format("Total Rows: %s", NUMBER_FORMATTER.format(stats.totalRows())), DETAIL_INDENT);
@@ -92,8 +90,7 @@ public class DisplayOperationsService {
      * @param indent Indentation level
      */
     public static void displayIndividualTableSummary(JSONObject tableResult, int indent) {
-        validateDisplayIndividualTableSummaryInputs(tableResult, indent);
-        
+
         String tableName = tableResult.optString("tableName", "Unknown");
         String status = tableResult.optString("compareStatus", "Unknown");
         long elapsedTime = tableResult.optLong("elapsedTime", 0);
@@ -123,7 +120,6 @@ public class DisplayOperationsService {
      * @param indent Number of spaces to indent
      */
     public static void printSummary(String message, int indent) {
-        validatePrintSummaryInputs(message, indent);
         LoggingUtils.write("info", THREAD_NAME, " ".repeat(indent) + message);
     }
 
@@ -138,50 +134,6 @@ public class DisplayOperationsService {
         }
     }
     
-    /**
-     * Validate inputs for displayJobSummary method.
-     * 
-     * @param tablesProcessed Number of tables processed
-     * @param stats Summary statistics
-     */
-    private static void validateDisplayJobSummaryInputs(int tablesProcessed, ReportController.SummaryStatistics stats) {
-        if (tablesProcessed < 0) {
-            throw new IllegalArgumentException("Tables processed cannot be negative");
-        }
-        if (stats == null) {
-            throw new IllegalArgumentException("Summary statistics cannot be null");
-        }
-    }
-    
-    /**
-     * Validate inputs for displayIndividualTableSummary method.
-     * 
-     * @param tableResult Table result
-     * @param indent Indentation level
-     */
-    private static void validateDisplayIndividualTableSummaryInputs(JSONObject tableResult, int indent) {
-        if (tableResult == null) {
-            throw new IllegalArgumentException("Table result cannot be null");
-        }
-        if (indent < 0) {
-            throw new IllegalArgumentException("Indent cannot be negative");
-        }
-    }
-    
-    /**
-     * Validate inputs for printSummary method.
-     * 
-     * @param message Message to print
-     * @param indent Indentation level
-     */
-    private static void validatePrintSummaryInputs(String message, int indent) {
-        if (message == null) {
-            throw new IllegalArgumentException("Message cannot be null");
-        }
-        if (indent < 0) {
-            throw new IllegalArgumentException("Indent cannot be negative");
-        }
-    }
 
 
 }

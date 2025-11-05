@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.crunchydata.service;
+package com.crunchydata.util;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -30,7 +30,7 @@ import java.text.DecimalFormat;
  * 
  * @author Brian Pace
  */
-public class HTMLWriterService {
+public class HTMLWriterUtils {
     
     private static final DecimalFormat NUMBER_FORMATTER = new DecimalFormat("###,###,###,###,###");
     

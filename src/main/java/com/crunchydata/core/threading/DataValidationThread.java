@@ -30,7 +30,7 @@ import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
-import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.service.SQLFixGenerationService;
 import com.crunchydata.util.DataProcessingUtils;
 import com.crunchydata.util.LoggingUtils;
@@ -103,7 +103,7 @@ public class DataValidationThread {
                 // Get Column Info and Mapping
                 binds.clear();
                 binds.addFirst(dct.getTid());
-                JSONObject columnMapping = new JSONObject(SQLExecutionService.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
+                JSONObject columnMapping = new JSONObject(SQLExecutionHelper.simpleSelectReturnString(repoConn, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds));
 
                 int pkColumnCount = 0;
                 binds.clear();
@@ -189,8 +189,8 @@ public class DataValidationThread {
         rowResult.put("missingSource", 0);
         rowResult.put("missingTarget", 0);
 
-        CachedRowSet sourceRow = SQLExecutionService.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
-        CachedRowSet targetRow = SQLExecutionService.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
+        CachedRowSet sourceRow = SQLExecutionHelper.simpleSelect(sourceConn, dctmSource.getCompareSQL() + dctmSource.getTableFilter(), binds);
+        CachedRowSet targetRow = SQLExecutionHelper.simpleSelect(targetConn, dctmTarget.getCompareSQL() + dctmTarget.getTableFilter(), binds);
 
         try {
             rowResult.put("pk", dcRow.getPk());
@@ -304,8 +304,8 @@ public class DataValidationThread {
         binds.add(1, dcRow.getPkHash());
         binds.add(2, dcRow.getBatchNbr());
         
-        SQLExecutionService.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
-        SQLExecutionService.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
+        SQLExecutionHelper.simpleUpdate(repoConn, SQL_REPO_DCSOURCE_DELETE, binds, true);
+        SQLExecutionHelper.simpleUpdate(repoConn, SQL_REPO_DCTARGET_DELETE, binds, true);
     }
     
     /**
@@ -318,7 +318,7 @@ public class DataValidationThread {
         binds.add(2, targetRow.size());
         binds.add(3, cid);
         
-        SQLExecutionService.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
+        SQLExecutionHelper.simpleUpdate(repoConn, SQL_REPO_DCRESULT_UPDATE_ALLCOUNTS, binds, true);
     }
 
 }

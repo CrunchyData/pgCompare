@@ -18,12 +18,14 @@ package com.crunchydata.core.threading;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import com.crunchydata.controller.RepoController;
 import com.crunchydata.model.DataComparisonTable;
-import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.core.database.SQLExecutionHelper;
+import com.crunchydata.service.StagingTableService;
 import com.crunchydata.util.LoggingUtils;
 
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
@@ -150,9 +152,9 @@ public class ObserverThread extends Thread  {
 
         // Apply Postgres optimizations
         try {
-            SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_NESTLOOP);
-            SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_WORK_MEM);
-            SQLExecutionService.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_MAINTENANCE_WORK_MEM);
+            SQLExecutionHelper.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_NESTLOOP);
+            SQLExecutionHelper.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_WORK_MEM);
+            SQLExecutionHelper.simpleExecute(repoConn, POSTGRES_OPTIMIZATION_MAINTENANCE_WORK_MEM);
         } catch (Exception e) {
             // Optimizations are not critical, continue
         }
@@ -232,7 +234,7 @@ public class ObserverThread extends Thread  {
     private void performVacuum(ArrayList<Object> binds, Connection repoConn) throws Exception {
         repoConn.setAutoCommit(true);
         binds.clear();
-        SQLExecutionService.simpleUpdate(repoConn,
+        SQLExecutionHelper.simpleUpdate(repoConn,
             String.format("vacuum %s,%s", stagingTableSource, stagingTableTarget), binds, false);
         repoConn.setAutoCommit(false);
     }
@@ -273,8 +275,15 @@ public class ObserverThread extends Thread  {
         rpc.loadFindings(repoConn, "target", tid, tableAlias, stagingTableTarget, batchNbr, threadNbr);
 
         // Drop staging tables
-        rpc.dropStagingTable(repoConn, stagingTableSource);
-        rpc.dropStagingTable(repoConn, stagingTableTarget);
+        try {
+            StagingTableService.dropStagingTable(repoConn, stagingTableSource);
+            StagingTableService.dropStagingTable(repoConn, stagingTableTarget);
+        } catch (SQLException e) {
+            LoggingUtils.write("severe", threadName,
+                    String.format("Error dropping staging table: %s", e.getMessage()));
+            throw new RuntimeException("Failed to drop staging table", e);
+        }
+
     }
     
     /**

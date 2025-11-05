@@ -25,6 +25,7 @@ import com.crunchydata.service.RepositoryInitializationService;
 import com.crunchydata.util.LoggingUtils;
 import com.crunchydata.util.ValidationUtils;
 
+import lombok.Getter;
 import org.apache.commons.cli.CommandLine;
 
 /**
@@ -44,19 +45,29 @@ public class ApplicationContext {
     private static final String CONN_TYPE_REPO = "repo";
     private static final String CONN_TYPE_SOURCE = "source";
     private static final String CONN_TYPE_TARGET = "target";
-    
+
+    // Getters for application state
     // Application state
+    @Getter
     private final CommandLine cmd;
     private final String action;
+    @Getter
     private final Integer batchParameter;
+    @Getter
     private final Integer pid;
+    @Getter
     private final boolean genReport;
+    @Getter
     private final String reportFileName;
+    @Getter
     private final long startStopWatch;
     
     // Database connections
+    @Getter
     private Connection connRepo;
+    @Getter
     private Connection connSource;
+    @Getter
     private Connection connTarget;
     
     /**
@@ -111,7 +122,7 @@ public class ApplicationContext {
         
         // Handle initialization action
         if (action.equals(ACTION_INIT)) {
-            handleInitialization();
+            handleRepoInitialization();
         }
     }
     
@@ -142,17 +153,6 @@ public class ApplicationContext {
         }
     }
 
-    // Getters for application state
-    public CommandLine getCmd() { return cmd; }
-    public Integer getBatchParameter() { return batchParameter; }
-    public Integer getPid() { return pid; }
-    public boolean isGenReport() { return genReport; }
-    public String getReportFileName() { return reportFileName; }
-    public long getStartStopWatch() { return startStopWatch; }
-    public Connection getConnRepo() { return connRepo; }
-    public Connection getConnSource() { return connSource; }
-    public Connection getConnTarget() { return connTarget; }
-    
     /**
      * Log startup information including run ID, version, and batch number.
      */
@@ -189,7 +189,7 @@ public class ApplicationContext {
      * 
      * @throws Exception if initialization fails
      */
-    private void handleInitialization() throws Exception {
+    private void handleRepoInitialization() throws Exception {
         LoggingUtils.write("info", THREAD_NAME, "Initializing pgCompare repository");
         RepositoryInitializationService.createRepository(Props, connRepo);
         LoggingUtils.write("info", THREAD_NAME, "Repository initialization completed successfully");
@@ -215,10 +215,10 @@ public class ApplicationContext {
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
 
         // Discover Tables
-        com.crunchydata.controller.TableController.discoverTables(Props, pid, table, connRepo, connSource, connTarget);
+        com.crunchydata.controller.DiscoverController.discoverTables(Props, pid, table, connRepo, connSource, connTarget);
 
         // Discover Columns
-        com.crunchydata.controller.ColumnController.discoverColumns(Props, pid, table, connRepo, connSource, connTarget);
+        com.crunchydata.controller.DiscoverController.discoverColumns(Props, pid, table, connRepo, connSource, connTarget);
     }
     
     /**

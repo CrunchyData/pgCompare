@@ -16,7 +16,7 @@
 
 package com.crunchydata.core.comparison;
 
-import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
 
@@ -77,7 +77,7 @@ public class ResultProcessor {
      * @throws SQLException if database operations fail
      */
     private static void optimizeDatabaseForResults(Connection connRepo) throws SQLException {
-        SQLExecutionService.simpleExecute(connRepo, "set enable_nestloop='off'");
+        SQLExecutionHelper.simpleExecute(connRepo, "set enable_nestloop='off'");
     }
     
     /**
@@ -94,14 +94,14 @@ public class ResultProcessor {
         binds.add(tid);
         
         // Calculate missing source records
-        int missingSource = SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
+        int missingSource = SQLExecutionHelper.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKMISSING, binds, true);
         
         // Calculate missing target records
-        int missingTarget = SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
+        int missingTarget = SQLExecutionHelper.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKMISSING, binds, true);
         
         // Calculate not equal records
-        int notEqual = SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
-        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
+        int notEqual = SQLExecutionHelper.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_MARKNOTEQUAL, binds, true);
+        SQLExecutionHelper.simpleUpdate(connRepo, SQL_REPO_DCTARGET_MARKNOTEQUAL, binds, true);
         
         return new ReconciliationStats(missingSource, missingTarget, notEqual);
     }
@@ -140,7 +140,7 @@ public class ResultProcessor {
         binds.add(result.getString("compareStatus"));
         binds.add(cid);
         
-        try (var crs = SQLExecutionService.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds)) {
+        try (var crs = SQLExecutionHelper.simpleUpdateReturning(connRepo, SQL_REPO_DCRESULT_UPDATE_STATUSANDCOUNT, binds)) {
             if (crs.next()) {
                 int equal = crs.getInt(1);
                 result.put("equal", equal);

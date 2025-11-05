@@ -17,7 +17,7 @@
 package com.crunchydata.controller;
 
 import com.crunchydata.config.ApplicationContext;
-import com.crunchydata.service.DisplayOperationsService;
+import com.crunchydata.util.DisplayOperations;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
 
-import static com.crunchydata.service.HTMLWriterService.*;
+import static com.crunchydata.util.HTMLWriterUtils.*;
 
 /**
  * Controller class that provides a simplified interface for report operations.
@@ -111,18 +111,18 @@ public class ReportController {
      */
     public static void createSummary(ApplicationContext context, int tablesProcessed, JSONArray runResult, boolean isCheck) {
         try {
-            DisplayOperationsService.printSummary("Summary: ", DEFAULT_INDENT);
+            DisplayOperations.printSummary("Summary: ", DEFAULT_INDENT);
 
             if (tablesProcessed > 0) {
                 SummaryStatistics stats = calculateSummaryStatistics(runResult, context.getStartStopWatch());
-                DisplayOperationsService.displayTableSummaries(runResult);
-                DisplayOperationsService.displayJobSummary(tablesProcessed, stats);
+                DisplayOperations.displayTableSummaries(runResult);
+                DisplayOperations.displayJobSummary(tablesProcessed, stats);
                 
                 if (context.isGenReport()) {
                     generateCompleteReport(context, tablesProcessed, runResult, stats, isCheck);
                 }
             } else {
-                DisplayOperationsService.displayNoTablesMessage(isCheck);
+                DisplayOperations.displayNoTablesMessage(isCheck);
             }
         } catch (Exception e) {
             LoggingUtils.write("severe", THREAD_NAME,

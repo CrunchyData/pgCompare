@@ -16,6 +16,7 @@
 
 package com.crunchydata.service;
 
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
@@ -60,7 +61,7 @@ public class StagingTableService {
         dropStagingTable(conn, stagingTable);
         
         // Create new staging table
-        SQLExecutionService.simpleExecute(conn, sql);
+        SQLExecutionHelper.simpleExecute(conn, sql);
         
         LoggingUtils.write("info", THREAD_NAME,
             String.format("Staging table created: %s for location: %s, table: %d, thread: %d", 
@@ -80,7 +81,7 @@ public class StagingTableService {
         validateDropStagingTableInputs(conn, stagingTable);
         
         String sql = String.format("DROP TABLE IF EXISTS %s", stagingTable);
-        SQLExecutionService.simpleExecute(conn, sql);
+        SQLExecutionHelper.simpleExecute(conn, sql);
         
         LoggingUtils.write("debug", THREAD_NAME,
             String.format("Staging table dropped: %s", stagingTable));
@@ -112,7 +113,7 @@ public class StagingTableService {
         binds.add(batchNbr);
         binds.add(tableAlias);
         
-        SQLExecutionService.simpleUpdate(conn, sqlFinal, binds, true);
+        SQLExecutionHelper.simpleUpdate(conn, sqlFinal, binds, true);
         
         LoggingUtils.write("info", THREAD_NAME,
             String.format("Findings loaded from staging table %s to main table for location: %s", 

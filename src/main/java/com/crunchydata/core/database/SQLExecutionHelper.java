@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.crunchydata.service;
+package com.crunchydata.core.database;
 
 import com.crunchydata.util.LoggingUtils;
 
@@ -35,7 +35,7 @@ import java.util.Objects;
  *
  * @author Brian Pace
  */
-public class SQLExecutionService {
+public class SQLExecutionHelper {
     private static final String THREAD_NAME = "sql-service";
     
     // Performance and configuration constants

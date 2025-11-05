@@ -17,9 +17,9 @@
 package com.crunchydata.controller;
 
 import com.crunchydata.config.ApplicationContext;
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
-import com.crunchydata.service.*;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -28,25 +28,7 @@ import javax.sql.rowset.CachedRowSet;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Properties;
 
-import static com.crunchydata.service.DatabaseMetadataService.getNativeCase;
-import static com.crunchydata.service.DatabaseMetadataService.getTables;
-import static com.crunchydata.util.DataProcessingUtils.preserveCase;
-import static com.crunchydata.config.sql.DB2SQLConstants.SQL_DB2_SELECT_TABLE;
-import static com.crunchydata.config.sql.DB2SQLConstants.SQL_DB2_SELECT_TABLES;
-import static com.crunchydata.config.sql.MSSQLSQLConstants.SQL_MSSQL_SELECT_TABLE;
-import static com.crunchydata.config.sql.MSSQLSQLConstants.SQL_MSSQL_SELECT_TABLES;
-import static com.crunchydata.config.sql.MYSQLSQLConstants.SQL_MYSQL_SELECT_TABLE;
-import static com.crunchydata.config.sql.MYSQLSQLConstants.SQL_MYSQL_SELECT_TABLES;
-import static com.crunchydata.config.sql.MariaDBSQLConstants.SQL_MARIADB_SELECT_TABLE;
-import static com.crunchydata.config.sql.MariaDBSQLConstants.SQL_MARIADB_SELECT_TABLES;
-import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_TABLE;
-import static com.crunchydata.config.sql.OracleSQLConstants.SQL_ORACLE_SELECT_TABLES;
-import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_TABLE;
-import static com.crunchydata.config.sql.PostgresSQLConstants.SQL_POSTGRES_SELECT_TABLES;
-import static com.crunchydata.config.sql.SnowflakeSQLConstants.SQL_SNOWFLAKE_SELECT_TABLE;
-import static com.crunchydata.config.sql.SnowflakeSQLConstants.SQL_SNOWFLAKE_SELECT_TABLES;
 import static com.crunchydata.config.sql.RepoSQLConstants.*;
 
 public class TableController {
@@ -63,49 +45,6 @@ public class TableController {
     private static final String STATUS_ERROR = "error";
     private static final String STATUS_FAILED = "failed";
 
-    /**
-     * Discover Tables in Specified Schema.
-     *
-     * @param Props           Properties configuration
-     * @param pid             Project ID
-     * @param table           Table name filter
-     * @param connRepo        Repository database connection
-     * @param connSource      Source database connection
-     * @param connTarget      Target database connection
-     */
-    public static void discoverTables(Properties Props, Integer pid, String table, Connection connRepo, Connection connSource, Connection connTarget) {
-        // Basic input validation
-        if (Props == null) {
-            throw new IllegalArgumentException("Properties cannot be null");
-        }
-        if (pid == null || pid <= 0) {
-            throw new IllegalArgumentException("Project ID must be positive");
-        }
-        if (connRepo == null || connSource == null || connTarget == null) {
-            throw new IllegalArgumentException("Database connections cannot be null");
-        }
-
-        ArrayList<Object> binds = new ArrayList<>();
-        binds.add(0,pid);
-
-        if (! table.isEmpty()) {
-            binds.add(1,table);
-        }
-
-        String sql = (table.isEmpty()) ? SQL_REPO_DCTABLE_DELETEBYPROJECT : SQL_REPO_DCTABLE_DELETEBYPROJECTTABLE;
-
-        // Clean previous Discovery
-        cleanupPreviousDiscovery(connRepo, sql, binds);
-
-        // Target Table Discovery
-        loadTables(Props, pid, table, connRepo, connTarget, "target",true);
-
-        // Source Table Discovery
-        loadTables(Props, pid, table, connRepo, connSource, "source",false);
-
-        // Clear Incomplete Map
-        clearIncompleteMappings(connRepo, pid);
-    }
 
     public static DataComparisonTableMap getTableMap (Connection conn, Integer tid, String tableOrigin) {
         ArrayList<Object> binds = new ArrayList<>();
@@ -116,7 +55,7 @@ public class TableController {
 
         try {
 
-            CachedRowSet crs = SQLExecutionService.simpleSelect(conn, SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN, binds);
+            CachedRowSet crs = SQLExecutionHelper.simpleSelect(conn, SQL_REPO_DCTABLEMAP_SELECTBYTIDORIGIN, binds);
 
             while (crs.next()) {
                 result.setTid(crs.getInt("tid"));
@@ -138,80 +77,6 @@ public class TableController {
 
     }
 
-    public static JSONArray getDatabaseTables (String databasePlatform, Connection conn, String schema, String table) {
-
-        return switch (databasePlatform) {
-            case "oracle" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_ORACLE_SELECT_TABLES : SQL_ORACLE_SELECT_TABLE );
-            case "mariadb" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_MARIADB_SELECT_TABLES : SQL_MARIADB_SELECT_TABLE);
-            case "mysql" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_MYSQL_SELECT_TABLES : SQL_MYSQL_SELECT_TABLE);
-            case "mssql" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_MSSQL_SELECT_TABLES : SQL_MSSQL_SELECT_TABLE);
-            case "db2" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_DB2_SELECT_TABLES : SQL_DB2_SELECT_TABLE);
-            case "snowflake" -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_SNOWFLAKE_SELECT_TABLES : SQL_SNOWFLAKE_SELECT_TABLE);
-            default -> getTables(conn, schema, table, (table.isEmpty()) ? SQL_POSTGRES_SELECT_TABLES : SQL_POSTGRES_SELECT_TABLE);
-        };
-
-    }
-
-    public static void loadTables(Properties Props, Integer pid, String table, Connection connRepo, Connection connDest, String destRole, Boolean populateDCTable) {
-        String platform=Props.getProperty(destRole+"-type");
-        String schema=Props.getProperty(destRole+"-schema");
-        ArrayList<Object> binds = new ArrayList<>();
-        Integer tableCount = 0;
-
-        LoggingUtils.write("info", THREAD_NAME, String.format("(%s) Performing table discovery on %s for schema %s",destRole, platform,schema));
-
-        // Get Tables based on Platform
-        JSONArray tables = getDatabaseTables(platform,connDest,schema, table);
-
-        // Get Default Case for Platform
-        String nativeCase = getNativeCase(platform);
-
-        // Populate dc_table and target table map
-        for (int i = 0; i < tables.length(); i++) {
-            String schemaName = tables.getJSONObject(i).getString("schemaName");
-            String tableName = tables.getJSONObject(i).getString("tableName");
-
-            binds.clear();
-            binds.add(0,tableName);
-            binds.add(1,pid);
-
-            Integer tid = SQLExecutionService.simpleSelectReturnInteger(connRepo, SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
-
-            DataComparisonTable dct = new DataComparisonTable();
-            dct.setPid(pid);
-            dct.setTableAlias(tableName.toLowerCase());
-
-            if (tid == null ) {
-                if ( populateDCTable ) {
-                    dct = RepoController.saveTable(connRepo, dct);
-                } else {
-                    LoggingUtils.write("warning", THREAD_NAME, String.format("(%s) Skipping, table %s not found on other destination", destRole, tableName));
-                }
-            } else {
-                dct.setTid(tid);
-            }
-
-            if ( dct.getTid() != null ) {
-                tableCount++;
-                DataComparisonTableMap dctm = new DataComparisonTableMap();
-                dctm.setTid(dct.getTid());
-                dctm.setDestType(destRole);
-                dctm.setSchemaName(schemaName);
-                dctm.setSchemaPreserveCase(preserveCase(nativeCase, schemaName));
-                dctm.setTableName(tableName);
-                dctm.setTablePreserveCase(preserveCase(nativeCase, tableName));
-
-                RepoController.saveTableMap(connRepo, dctm);
-
-                LoggingUtils.write("info", THREAD_NAME, String.format("(%s) Discovered Table: %s",destRole, tableName));
-
-            }
-        }
-
-        LoggingUtils.write("info", THREAD_NAME, String.format("(%s) Discovered %d tables on %s for for schema %s", destRole, tableCount, platform, schema));
-
-    }
-    
     /**
      * Perform copy table operation.
      * 
@@ -228,14 +93,14 @@ public class TableController {
         ArrayList<Object> binds = new ArrayList<>();
         binds.addFirst(tableName);
 
-        Integer tid = SQLExecutionService.simpleSelectReturnInteger(context.getConnRepo(), SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
+        Integer tid = SQLExecutionHelper.simpleSelectReturnInteger(context.getConnRepo(), SQL_REPO_DCTABLE_SELECT_BYNAME, binds);
 
         binds.clear();
         binds.add(0, context.getPid());
         binds.add(1, tid);
         binds.add(2, newTableName);
 
-        newTID = SQLExecutionService.simpleUpdateReturningInteger(context.getConnRepo(), SQL_REPO_DC_COPY_TABLE, binds);
+        newTID = SQLExecutionHelper.simpleUpdateReturningInteger(context.getConnRepo(), SQL_REPO_DC_COPY_TABLE, binds);
 
         return newTID;
     }
@@ -249,18 +114,8 @@ public class TableController {
      * @return ComparisonResults containing processed tables and results
      * @throws SQLException if database operations fail
      */
-    public static ComparisonResults processTables(CachedRowSet tablesResultSet, boolean isCheck, RepoController repoController, ApplicationContext context) throws SQLException {
-        // Basic input validation
-        if (tablesResultSet == null) {
-            throw new IllegalArgumentException("Tables result set cannot be null");
-        }
-        if (repoController == null) {
-            throw new IllegalArgumentException("Repository controller cannot be null");
-        }
-        if (context == null) {
-            throw new IllegalArgumentException("Application context cannot be null");
-        }
-        
+    public static ComparisonResults reconcileTables(CachedRowSet tablesResultSet, boolean isCheck, RepoController repoController, ApplicationContext context) throws SQLException {
+
         JSONArray runResults = new JSONArray();
         int tablesProcessed = 0;
         
@@ -269,9 +124,15 @@ public class TableController {
             
             // Create DCTable object from result set
             DataComparisonTable table = createDCTableFromResultSet(tablesResultSet, context.getPid());
-            
-            // Process the table and get results
-            JSONObject actionResult = processTable(table, isCheck, repoController, context);
+
+            JSONObject actionResult;
+
+            if (table.getEnabled()) {
+                actionResult = reconcileEnabledTable(table, isCheck, repoController, context);
+            } else {
+                actionResult = createSkippedTableResult(table);
+            }
+
             runResults.put(actionResult);
         }
         
@@ -296,9 +157,9 @@ public class TableController {
         dct.setTableAlias(resultSet.getString("table_alias"));
         return dct;
     }
-    
+
     /**
-     * Process a single table for comparison.
+     * Perform reconcilation an enabled table for comparison.
      * 
      * @param table The table to process
      * @param isCheck Whether this is a recheck operation
@@ -306,42 +167,11 @@ public class TableController {
      * @param context Application context
      * @return JSONObject containing the result of processing this table
      */
-    public static JSONObject processTable(DataComparisonTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
-        // Basic input validation
-        if (table == null) {
-            throw new IllegalArgumentException("Table cannot be null");
-        }
-        if (repoController == null) {
-            throw new IllegalArgumentException("Repository controller cannot be null");
-        }
-        if (context == null) {
-            throw new IllegalArgumentException("Application context cannot be null");
-        }
-        
-        if (table.getEnabled()) {
-            return processEnabledTable(table, isCheck, repoController, context);
-        } else {
-            return createSkippedTableResult(table);
-        }
-    }
-    
-    /**
-     * Process an enabled table for comparison.
-     * 
-     * @param table The table to process
-     * @param isCheck Whether this is a recheck operation
-     * @param repoController Repository controller instance
-     * @param context Application context
-     * @return JSONObject containing the result of processing this table
-     */
-    public static JSONObject processEnabledTable(DataComparisonTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
+    public static JSONObject reconcileEnabledTable(DataComparisonTable table, boolean isCheck, RepoController repoController, ApplicationContext context) {
         LoggingUtils.write("info", THREAD_NAME, String.format("--- START RECONCILIATION FOR TABLE: %s ---",
             table.getTableAlias().toUpperCase()));
 
         try {
-            // Validate table object
-            validateTableForProcessing(table);
-            
             // Create table maps for source and target
             DataComparisonTableMap sourceTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_SOURCE);
             DataComparisonTableMap targetTableMap = createTableMap(context.getConnRepo(), table.getTid(), CONN_TYPE_TARGET);
@@ -422,74 +252,11 @@ public class TableController {
         return result;
     }
     
-    /**
-     * Clean up previous discovery data and orphaned tables.
-     * 
-     * @param connRepo Repository connection
-     * @param sql SQL statement for cleanup
-     * @param binds Bind parameters
-     */
-    private static void cleanupPreviousDiscovery(Connection connRepo, String sql, ArrayList<Object> binds) {
-        LoggingUtils.write("info", THREAD_NAME, "Clearing previous discovery");
-        SQLExecutionService.simpleUpdate(connRepo, sql, binds, true);
-
-        // Clean up orphaned tables
-        binds.clear();
-        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCSOURCE_CLEAN, binds, true);
-        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTARGET_CLEAN, binds, true);
-        SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCRESULT_CLEAN, binds, true);
-        RepoController.vacuumRepo(connRepo);
-    }
-    
-    /**
-     * Clear incomplete table mappings.
-     * 
-     * @param connRepo Repository connection
-     * @param pid Project ID
-     */
-    private static void clearIncompleteMappings(Connection connRepo, Integer pid) {
-        ArrayList<Object> binds = new ArrayList<>();
-        binds.addFirst(pid);
-        CachedRowSet crs = SQLExecutionService.simpleSelect(connRepo, SQL_REPO_DCTABLE_INCOMPLETEMAP, binds);
-
-        try {
-            while (crs.next()) {
-                binds.clear();
-                binds.addFirst(crs.getInt("tid"));
-
-                LoggingUtils.write("warning", THREAD_NAME, String.format("Skipping table %s due to incomplete mapping (missing source or target)", crs.getString("table_alias")));
-
-                SQLExecutionService.simpleUpdate(connRepo, SQL_REPO_DCTABLE_DELETEBYTID, binds, true);
-            }
-
-            crs.close();
-        } catch (Exception e) {
-            LoggingUtils.write("warning", THREAD_NAME, String.format("Error clearing incomplete map: %s", e.getMessage()));
-        }
-    }
-    
-    /**
-     * Validate table object for processing.
-     * 
-     * @param table Table object to validate
-     */
-    private static void validateTableForProcessing(DataComparisonTable table) {
-        if (table == null) {
-            throw new IllegalArgumentException("Table cannot be null");
-        }
-        if (table.getTid() == null || table.getTid() <= 0) {
-            throw new IllegalArgumentException("Invalid table ID");
-        }
-        if (table.getTableAlias() == null || table.getTableAlias().trim().isEmpty()) {
-            throw new IllegalArgumentException("Table alias cannot be null or empty");
-        }
-    }
 
     /**
-         * Inner class to hold comparison results.
-         */
-        public record ComparisonResults(int tablesProcessed, JSONArray runResults) {
-    }
+     * Inner class to hold comparison results.
+    */
+    public record ComparisonResults(int tablesProcessed, JSONArray runResults) { }
     
     /**
      * Create a table map for the specified connection type.

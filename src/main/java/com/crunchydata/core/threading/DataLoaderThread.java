@@ -17,7 +17,7 @@
 package com.crunchydata.core.threading;
 
 import com.crunchydata.model.DataComparisonResult;
-import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
@@ -124,8 +124,8 @@ public class DataLoaderThread extends Thread  {
         }
 
         // Apply Postgres optimizations
-        SQLExecutionService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_SYNC_COMMIT);
-        SQLExecutionService.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_WORK_MEM);
+        SQLExecutionHelper.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_SYNC_COMMIT);
+        SQLExecutionHelper.simpleExecute(connRepo, POSTGRES_OPTIMIZATION_WORK_MEM);
         connRepo.setAutoCommit(false);
         
         return connRepo;

@@ -23,7 +23,7 @@ import com.crunchydata.core.threading.ThreadManager;
 import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
-import com.crunchydata.service.SQLExecutionService;
+import com.crunchydata.core.database.SQLExecutionHelper;
 import com.crunchydata.util.LoggingUtils;
 
 import javax.sql.rowset.CachedRowSet;
@@ -32,8 +32,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 import static com.crunchydata.config.Settings.Props;
+import static com.crunchydata.config.sql.RepoSQLConstants.SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID;
+import static com.crunchydata.controller.ColumnController.getColumnInfo;
 import static com.crunchydata.controller.RepoController.createCompareId;
-import static com.crunchydata.service.ColumnManagementService.*;
+import static com.crunchydata.service.SQLSyntaxService.buildGetTablesSQL;
 import static com.crunchydata.service.SQLSyntaxService.generateCompareSQL;
 
 import org.json.JSONObject;
@@ -66,10 +68,10 @@ public class CompareController {
 
             // Get tables to process
             RepoController repoController = new RepoController();
-            CachedRowSet tablesResultSet = repoController.getTables(context.getPid(), context.getConnRepo(), context.getBatchParameter(), tableFilter, isCheck);
+            CachedRowSet tablesResultSet = getTables(context.getPid(), context.getConnRepo(), context.getBatchParameter(), tableFilter, isCheck);
 
             // Process tables and collect results
-            TableController.ComparisonResults results = TableController.processTables(tablesResultSet, isCheck, repoController, context);
+            TableController.ComparisonResults results = TableController.reconcileTables(tablesResultSet, isCheck, repoController, context);
 
             // Close result set
             if (tablesResultSet != null) {
@@ -108,7 +110,9 @@ public class CompareController {
 
         try {
             // Get column mapping
-            String columnMapping = getColumnMapping(connRepo, dct.getTid());
+            ArrayList<Object> binds = new ArrayList<>();
+            binds.add(dct.getTid());
+            String columnMapping = SQLExecutionHelper.simpleSelectReturnString(connRepo, SQL_REPO_DCTABLECOLUMNMAP_FULLBYTID, binds);
 
             // Perform preflight checks
             if (!performPreflightChecks(dct, dctmSource, dctmTarget, columnMapping)) {
@@ -117,8 +121,16 @@ public class CompareController {
 
             // Get column metadata
             JSONObject columnMap = new JSONObject(columnMapping);
-            ColumnMetadata ciSource = getSourceColumnMetadata(columnMap, dctmSource);
-            ColumnMetadata ciTarget = getTargetColumnMetadata(columnMap, dctmTarget, check);
+            ColumnMetadata ciSource = getColumnInfo(columnMap, "source", Props.getProperty("source-type"),
+                    dctmSource.getSchemaName(), dctmSource.getTableName(),
+                    "database".equals(Props.getProperty("column-hash-method")));
+
+            ColumnMetadata ciTarget = getColumnInfo(columnMap, "target", Props.getProperty("target-type"),
+                    dctmTarget.getSchemaName(), dctmTarget.getTableName(),
+                    !check && "database".equals(Props.getProperty("column-hash-method")));
+
+
+
 
             logColumnMetadata(ciSource, ciTarget);
 
@@ -237,6 +249,38 @@ public class CompareController {
     }
 
     /**
+     * Retrieve table information from the database.
+     *
+     * @param pid Project ID
+     * @param conn Database connection
+     * @param batchNbr Batch number filter
+     * @param table Table name filter
+     * @param check Check flag for filtering results
+     * @return CachedRowSet containing table information
+     */
+    private static CachedRowSet getTables(Integer pid, Connection conn, Integer batchNbr, String table, Boolean check) {
+
+        String sql = buildGetTablesSQL(batchNbr, table, check);
+        ArrayList<Object> binds = new ArrayList<>();
+        binds.add(pid);
+
+        if (batchNbr > 0) {
+            binds.add(batchNbr);
+        }
+
+        if (!table.isEmpty()) {
+            binds.add(table);
+        }
+
+        LoggingUtils.write("info", THREAD_NAME,
+                String.format("Retrieving tables for project %d, batch %d, table filter: %s",
+                        pid, batchNbr, table));
+
+        return SQLExecutionHelper.simpleSelect(conn, sql, binds);
+    }
+
+
+    /**
      * Check if tables have no primary keys.
      *
      * @param ciSource Source column metadata
@@ -264,7 +308,7 @@ public class CompareController {
 
         ArrayList<Object> binds = new ArrayList<>();
         binds.add(cid);
-        SQLExecutionService.simpleUpdate(connRepo,
+        SQLExecutionHelper.simpleUpdate(connRepo,
                 "UPDATE dc_result SET equal_cnt=0,missing_source_cnt=0,missing_target_cnt=0,not_equal_cnt=0,source_cnt=0,target_cnt=0,status='skipped' WHERE cid=?",
                 binds, true);
     }

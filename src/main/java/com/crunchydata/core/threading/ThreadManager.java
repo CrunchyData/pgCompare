@@ -21,9 +21,11 @@ import com.crunchydata.model.ColumnMetadata;
 import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
+import com.crunchydata.service.StagingTableService;
 import com.crunchydata.util.LoggingUtils;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -124,8 +126,17 @@ public class ThreadManager {
             ThreadSync ts = new ThreadSync();
             
             // Create staging tables
-            String stagingSource = rpc.createStagingTable(connRepo, "source", dct.getTid(), i);
-            String stagingTarget = rpc.createStagingTable(connRepo, "target", dct.getTid(), i);
+            String stagingSource;
+            String stagingTarget;
+
+            try {
+                stagingSource = StagingTableService.createStagingTable(connRepo, "source", dct.getTid(), i);
+                stagingTarget = StagingTableService.createStagingTable(connRepo, "target", dct.getTid(), i);
+            } catch (SQLException e) {
+                LoggingUtils.write("severe", THREAD_NAME,
+                        String.format("Error creating staging table: %s", e.getMessage()));
+                throw new RuntimeException("Failed to create staging table", e);
+            }
             
             // Create and start observer thread
             ObserverThread observer = new ObserverThread(dct, cid, ts, i, stagingSource, stagingTarget);
