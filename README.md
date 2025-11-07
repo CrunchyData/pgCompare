@@ -37,7 +37,7 @@ Before initiating the build and installation process, ensure the following prere
 1. **Java** 21 or later.
 2. **Maven** 3.9 or later.
 3. **Postgres** 15 or later (for the repository).
-4. Supported JDBC drivers (DB2, Postgres, MySQL, MSSQL and Oracle currently supported).
+4. Supported JDBC drivers (Snowflake, DB2, Postgres, MySQL, MSSQL and Oracle currently supported).
 5. Direct Postgres connections (e.g., no pgBouncer).
 
 ## Limitations
@@ -46,7 +46,7 @@ Before initiating the build and installation process, ensure the following prere
 - Unsupported data types: blob, long, longraw, bytea.
 - Cross-platform comparison limitations with boolean type.
 - Low precission types (float, real) cannot be compared to high precission types (double).
-- All low precission types are cast using a scale of 3.  If a higher scale is required consider using the map-expression override option.
+- All low precission types are cast using a scale of 3 (1 for Snowflake).  If a higher scale is required consider using the map-expression override option.
 - Different databases cast float to different values.  Use float-cast option to switch between char and notation (scientific notation) if there are compare problems with float data types.
 
 # Getting Started
@@ -143,6 +143,18 @@ java -jar pgcompare.jar check --batch 0
 
 # Upgrading
 
+## Version 0.5.0 Enhacements
+
+- Snowflake Support - Full integration for Snowflake as source/target
+- SQL Fix Generation - Automatic generation of INSERT/UPDATE/DELETE statements (Preview, limited ability)
+- Web UI - Modern Next.js-based interface (preview)
+- Performance Improvements
+- Bug Fixes
+
+**Note:** Drop and recreate the repository to upgrade to 0.5.0.
+
+For more details review the [v0.5.0 Release Noes](RELEASE_NOTES_v0.5.0.md)
+
 ## Version 0.4.0 Enhancements
 
 - Improved casting of low precision data types.
@@ -224,52 +236,170 @@ Properties are categorized into four sections: system, repository, source, and t
 
 ### System
 
-- batch-fetch-size: Sets the fetch size for retrieving rows from the source or target database.
-- batch-commit-size:  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
-- batch-progress-report-size:  Defines the number of rows used in mod to report progress.
-- database-sort:  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
-- loader-threads: Sets the number of threads to load data into the temporary tables. Default is 4.  Set to 0 to disable loader threads.
-- log-level:   Level to determine the amount of log messages written to the log destination.
-- log-destination:  Location where log messages will be written.  Default is stdout.
-- message-queue-size:  Size of message queue used by loader threads (nbr messages).  Default is 100.
-- number-cast: Defines how numbers are cast for hash function (notation|standard).  Default is notation (for scientific notation).
-- observer-throttle:  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
-- observer-throttle-size:  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
-- observer-vacuum:  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
-- stage-table-parallel: Default parallel degree to set on staging table (default: 0)
-- standard-number-format: Format used to cast numbers (default:0000000000000000000000.0000000000000000000000)
+#### batch-fetch-size
+
+  Sets the fetch size for retrieving rows from the source or target database.
+
+  Default:  2000
+
+#### batch-commit-size
+
+  The commit size controls the array size and number of rows concurrently inserted into the dc_source/dc_target staging tables.
+
+  Default: 2000
+
+#### batch-progress-report-size
+
+  Defines the number of rows used in mod to report progress.
+
+  Default: 1000000
+
+#### column-hash-method
+
+  Determines how the hash is performed.  Valid values are `database` and `hybrid`.  When set to `database` the column value hash is performed on the source/target database.  For `hybrid` the hash is performed by the pgCompare thread.
+
+  Default:  database
+
+#### database-sort
+
+  Determines if the sorting of the rows based on primary key occurs on the source/target database.  If set to true, the default, the rows will be sorted before being compared.  If set to false, the sorting will take place in the repository database.
+
+  Default: true
+
+#### float-scale
+
+  Set the preferred scale used to cast low precision numbers.
+
+  Default: 3
+
+#### loader-threads
+
+  Sets the number of threads to load data into the temporary tables. Set to 0 to disable loader threads.
+
+  Default: 0
+
+#### log-level
+  
+  Level to determine the amount of log messages written to the log destination.
+
+  Default: INFO
+
+#### log-destination
+
+  Location where log messages will be written.
+
+  Default:  stdout
+
+#### message-queue-size
+
+  Size of message queue used by loader threads (nbr messages).
+  
+  Default: 100
+
+#### number-cast
+
+  Defines how numbers are cast for hash function (notation|standard).  Valid values are `notation` for scientific notation and `standard` for standard number casting.
+  
+  Default: notation
+
+#### observer-throttle
+
+  Set to true or false, instructs the loader threads to pause and wait for the observer thread to catch up before continuing to load more data into the staging tables.
+
+  Default: true
+
+#### observer-throttle-size
+
+  Number of rows loaded before the loader thread will sleep and wait for clearance from the observer thread.
+
+  Default: 2000000
+
+#### observer-vacuum
+
+  Set to true or false, instructs the observer whether to perform a vacuum on the staging tables during checkpoints.
+
+  Default: true
+
+#### stage-table-parallel
+
+  Default parallel degree to set on staging table.
+
+  Default: 0
+
+#### standard-number-format
+  
+  Format used to cast numbers 
+  
+  Default: 0000000000000000000000.0000000000000000000000
 
 ### Repository
 
-- repo-dbname:  Repository database name.
-- repo-host: Host name of server hosting the Postgres repository database.
-- repo-password:  Postgres database user password.
-- repo-port:  Repository Postgres instance port.
-- repo-schema:  Name of schema that owns the repository tables.
-- repo-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
-- repo-user:  Postgres database username.
+#### repo-dbname
 
-### Source
+  Repository database name.
 
-- source-dbname:  Database or service name.
-- source-host:  Database server name.
-- source-password:  Database password.
-- source-port:  Database port.
-- source-schema:  Name of schema that owns the tables.
-- source-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
-- source-type:  Database type: oracle, postgres
-- source-user:   Database username.
+#### repo-host
 
-### Target
+  Host name of server hosting the Postgres repository database.
+ 
+#### repo-password
 
-- target-dbname:  Database or service name.
-- target-host:  Database server name.
-- target-password:  Database password.
-- target-port:  Database port.
-- target-schema:  Name of schema that owns the tables.
-- target-sslmode: Set the SSL mode to use for the database connection (disable|prefer|require)
-- target-type:  Database type: oracle, postgres
-- target-user:  Database username.
+  Postgres database user password.
+ 
+#### repo-port
+
+  Repository Postgres instance port.
+
+#### repo-schema
+
+  Name of schema that owns the repository tables.
+
+#### repo-sslmode
+
+  Set the SSL mode to use for the database connection (disable|prefer|require)
+
+#### repo-user
+
+  Postgres database username.
+
+### Source|Target
+
+#### source|target-dbname
+
+  Database or service name.
+
+#### source|target-host
+
+  Database server name.
+
+
+#### source|target-password
+
+  Database password.
+
+#### source|target-port
+
+  Database port.
+
+#### source|target-schema
+
+  Name of schema that owns the tables.
+
+#### source|target-sslmode
+
+  Set the SSL mode to use for the database connection (disable|prefer|require)
+
+#### source|target-type
+
+  Database type: oracle, postgres, mariadb, mssql, mysql, snowflake, db2
+
+#### source|target-user
+
+  Database username.
+
+#### source|target-warehouse
+
+  Used only for Snowflake, sets the virtual warehouse to be used for the compare operations.
 
 ## Property Precedence
 

@@ -1,0 +1,226 @@
+/*
+ * Copyright 2012-2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.crunchydata.service;
+
+import com.crunchydata.core.database.SQLExecutionHelper;
+import com.crunchydata.util.LoggingUtils;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.Properties;
+
+import static com.crunchydata.config.Settings.Props;
+
+/**
+ * Service class for managing database connections across different platforms.
+ * Provides utilities for establishing, configuring, and managing database connections
+ * with platform-specific optimizations and error handling.
+ * 
+ * @author Brian Pace
+ */
+public class DatabaseConnectionService {
+
+    private static final String THREAD_NAME = "connection";
+    
+    // Connection property constants
+    private static final String USER_PROPERTY = "user";
+    private static final String PASSWORD_PROPERTY = "password";
+    private static final String OPTIONS_PROPERTY = "options";
+    private static final String REWRITE_BATCHED_INSERTS = "reWriteBatchedInserts";
+    private static final String PREPARED_STATEMENT_CACHE = "preparedStatementCacheQueries";
+    private static final String APPLICATION_NAME = "ApplicationName";
+    private static final String SYNCHRONOUS_COMMIT = "synchronous_commit";
+    
+    // Platform-specific constants
+    private static final String POSTGRES_APP_NAME = "pgcompare";
+    private static final String POSTGRES_SEARCH_PATH_TEMPLATE = "-c search_path=%s,public,pg_catalog";
+    private static final String POSTGRES_SSL_MODE_TEMPLATE = "?sslmode=%s";
+    private static final String MYSQL_SSL_TEMPLATE = "?allowPublicKeyRetrieval=true&useSSL=%s";
+    private static final String MSSQL_ENCRYPT_TEMPLATE = ";databaseName=%s;encrypt=%s";
+    private static final String SNOWFLAKE_CONTEXT_TEMPLATE = "&warehouse=%s&schema=%s";
+
+    // SQL mode constants
+    private static final String ANSI_SQL_MODE = "set session sql_mode='ANSI'";
+
+    /**
+     * Validates that a database connection is open and valid.
+     *
+     * @param conn Database connection to validate
+     * @return true if connection is valid and open, false otherwise
+     */
+    public static boolean isConnectionValid(Connection conn) {
+        if (conn == null) {
+            return false;
+        }
+        
+        try {
+            return !conn.isClosed() && conn.isValid(5); // 5 second timeout
+        } catch (SQLException e) {
+            LoggingUtils.write("warning", THREAD_NAME,
+                String.format("Error validating connection: %s", e.getMessage()));
+            return false;
+        }
+    }
+
+    /**
+     * Establishes a database connection using platform-specific configuration.
+     *
+     * @param platform The database platform (oracle, mariadb, mysql, mssql, db2, postgres, snowflake)
+     * @param destType Type of destination (e.g., source, target)
+     * @return Connection object to the database, null if connection fails
+     * @throws IllegalArgumentException if required parameters are null or invalid
+     */
+    public static Connection getConnection(String platform, String destType) {
+        // Input validation
+        Objects.requireNonNull(platform, "Platform cannot be null");
+        Objects.requireNonNull(destType, "Destination type cannot be null");
+        
+        if (platform.trim().isEmpty() || destType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Platform and destination type cannot be empty");
+        }
+        
+        DatabaseMetadataService.DatabasePlatform dbPlatform = DatabaseMetadataService.DatabasePlatform.fromString(platform);
+        
+        try {
+            // Build connection URL
+            String url = buildConnectionUrl(dbPlatform, destType);
+            
+            // Build connection properties
+            Properties dbProps = buildConnectionProperties(dbPlatform, destType);
+            
+            // Establish connection
+            Connection conn = DriverManager.getConnection(url, dbProps);
+            
+            // Configure platform-specific settings
+            configureConnection(conn, dbPlatform);
+            
+            LoggingUtils.write("info", THREAD_NAME,
+                String.format("Successfully connected to %s database (%s)", platform, destType));
+            
+            return conn;
+            
+        } catch (SQLException e) {
+            LoggingUtils.write("severe", THREAD_NAME,
+                String.format("SQL error connecting to %s (%s): %s", platform, destType, e.getMessage()));
+        } catch (Exception e) {
+            LoggingUtils.write("severe", THREAD_NAME,
+                String.format("Unexpected error connecting to %s (%s): %s", platform, destType, e.getMessage()));
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Builds the connection URL for the specified platform and destination.
+     */
+    private static String buildConnectionUrl(DatabaseMetadataService.DatabasePlatform platform, String destType) {
+        String host = Props.getProperty(destType + "-host");
+        String port = Props.getProperty(destType + "-port");
+        String dbname = Props.getProperty(destType + "-dbname");
+        
+        if (host == null || port == null || dbname == null) {
+            throw new IllegalArgumentException(
+                String.format("Missing required connection properties for %s", destType));
+        }
+        
+        StringBuilder url = new StringBuilder();
+        url.append(String.format(platform.getUrlTemplate(), host, port, dbname));
+        
+        // Add platform-specific URL parameters
+        switch (platform) {
+            case MARIADB:
+            case MYSQL:
+                String sslMode = Props.getProperty(destType + "-sslmode");
+                boolean useSSL = sslMode != null && !sslMode.equals("disable");
+                url.append(String.format(MYSQL_SSL_TEMPLATE, useSSL));
+                break;
+            case MSSQL:
+                String sslModeMssql = Props.getProperty(destType + "-sslmode");
+                boolean encryptMssql = sslModeMssql != null && !sslModeMssql.equals("disable");
+                url.append(String.format(MSSQL_ENCRYPT_TEMPLATE, dbname, encryptMssql));
+                break;
+            case POSTGRES:
+                String sslModePg = Props.getProperty(destType + "-sslmode");
+                if (sslModePg != null) {
+                    url.append(String.format(POSTGRES_SSL_MODE_TEMPLATE, sslModePg));
+                }
+                break;
+            case SNOWFLAKE:
+                    String warehouse = Props.getProperty(destType + "-warehouse");
+                    String schema = Props.getProperty(destType + "-schema");
+                    url.append(String.format(SNOWFLAKE_CONTEXT_TEMPLATE, warehouse, schema));
+                    break;
+            case ORACLE:
+            case DB2:
+                // No additional URL parameters needed for Oracle, DB2, and Snowflake
+                break;
+        }
+        
+        return url.toString();
+    }
+    
+    /**
+     * Builds connection properties for the specified platform and destination.
+     */
+    private static Properties buildConnectionProperties(DatabaseMetadataService.DatabasePlatform platform, String destType) {
+        Properties props = new Properties();
+        
+        // Basic authentication
+        String user = Props.getProperty(destType + "-user");
+        String password = Props.getProperty(destType + "-password");
+        
+        if (user == null || password == null) {
+            throw new IllegalArgumentException(
+                String.format("Missing authentication properties for %s", destType));
+        }
+        
+        props.setProperty(USER_PROPERTY, user);
+        props.setProperty(PASSWORD_PROPERTY, password);
+        
+        // Platform-specific properties
+        if (platform == DatabaseMetadataService.DatabasePlatform.POSTGRES) {
+            String schema = Props.getProperty(destType + "-schema");
+            if (schema != null) {
+                props.setProperty(OPTIONS_PROPERTY, 
+                    String.format(POSTGRES_SEARCH_PATH_TEMPLATE, schema));
+            }
+            props.setProperty(REWRITE_BATCHED_INSERTS, "true");
+            props.setProperty(PREPARED_STATEMENT_CACHE, "5");
+            props.setProperty(APPLICATION_NAME, POSTGRES_APP_NAME);
+            props.setProperty(SYNCHRONOUS_COMMIT, "off");
+        }
+        
+        return props;
+    }
+    
+    /**
+     * Configures the connection with platform-specific settings.
+     */
+    private static void configureConnection(Connection conn, DatabaseMetadataService.DatabasePlatform platform) throws SQLException {
+        // Set auto-commit based on platform requirements
+        conn.setAutoCommit(platform.isAutoCommit());
+        
+        // Apply platform-specific SQL configurations
+        if (platform.requiresAnsiMode()) {
+            SQLExecutionHelper.simpleUpdate(conn, ANSI_SQL_MODE, new ArrayList<>(), false);
+        }
+    }
+
+}
