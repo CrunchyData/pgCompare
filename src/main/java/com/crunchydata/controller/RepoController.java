@@ -64,8 +64,8 @@ public class RepoController {
         SQLExecutionHelper.simpleUpdate(conn, SQL_REPO_DCTABLEHISTORY_UPDATE, binds, true);
 
         LoggingUtils.write("info", THREAD_NAME,
-                String.format("Table history completed for table %d, batch %d, rows: %d",
-                        tid, batchNbr, rowCount));
+                String.format("Table history completed for table %d, batch %d",
+                        tid, batchNbr));
     }
 
     /**
