@@ -50,8 +50,7 @@ public class StagingTableService {
      */
     public static String createStagingTable(Connection conn, String location, Integer tid, Integer threadNbr) 
             throws SQLException {
-        validateCreateStagingTableInputs(conn, location, tid, threadNbr);
-        
+
         String sql = String.format(REPO_DDL_STAGE_TABLE, Props.getProperty("stage-table-parallel"));
         String stagingTable = String.format("dc_%s_%s_%s", location, tid, threadNbr);
         
@@ -78,8 +77,7 @@ public class StagingTableService {
      * @throws SQLException if database operations fail
      */
     public static void dropStagingTable(Connection conn, String stagingTable) throws SQLException {
-        validateDropStagingTableInputs(conn, stagingTable);
-        
+
         String sql = String.format("DROP TABLE IF EXISTS %s", stagingTable);
         SQLExecutionHelper.simpleExecute(conn, sql);
         
@@ -101,8 +99,7 @@ public class StagingTableService {
      */
     public static void loadFindings(Connection conn, String location, Integer tid, String stagingTable, 
                                   Integer batchNbr, Integer threadNbr, String tableAlias) throws SQLException {
-        validateLoadFindingsInputs(conn, location, tid, stagingTable, batchNbr, threadNbr, tableAlias);
-        
+
         String sqlFinal = SQL_REPO_DCSOURCE_INSERT
             .replaceAll("dc_source", String.format("dc_%s", location))
             .replaceAll("stagingtable", stagingTable);
@@ -118,80 +115,6 @@ public class StagingTableService {
         LoggingUtils.write("info", THREAD_NAME,
             String.format("Findings loaded from staging table %s to main table for location: %s", 
                 stagingTable, location));
-    }
-
-    /**
-     * Validate inputs for createStagingTable method.
-     * 
-     * @param conn Database connection
-     * @param location Location identifier
-     * @param tid Table ID
-     * @param threadNbr Thread number
-     */
-    private static void validateCreateStagingTableInputs(Connection conn, String location, Integer tid, Integer threadNbr) {
-        if (conn == null) {
-            throw new IllegalArgumentException("Database connection cannot be null");
-        }
-        if (location == null || location.trim().isEmpty()) {
-            throw new IllegalArgumentException("Location cannot be null or empty");
-        }
-        if (tid == null || tid <= 0) {
-            throw new IllegalArgumentException("Table ID must be a positive integer");
-        }
-        if (threadNbr == null || threadNbr < 0) {
-            throw new IllegalArgumentException("Thread number must be non-negative");
-        }
-    }
-    
-    /**
-     * Validate inputs for dropStagingTable method.
-     * 
-     * @param conn Database connection
-     * @param stagingTable Staging table name
-     */
-    private static void validateDropStagingTableInputs(Connection conn, String stagingTable) {
-        if (conn == null) {
-            throw new IllegalArgumentException("Database connection cannot be null");
-        }
-        if (stagingTable == null || stagingTable.trim().isEmpty()) {
-            throw new IllegalArgumentException("Staging table name cannot be null or empty");
-        }
-    }
-    
-    /**
-     * Validate inputs for loadFindings method.
-     * 
-     * @param conn Database connection
-     * @param location Location identifier
-     * @param tid Table ID
-     * @param stagingTable Staging table name
-     * @param batchNbr Batch number
-     * @param threadNbr Thread number
-     * @param tableAlias Table alias
-     */
-    private static void validateLoadFindingsInputs(Connection conn, String location, Integer tid, String stagingTable, 
-                                                  Integer batchNbr, Integer threadNbr, String tableAlias) {
-        if (conn == null) {
-            throw new IllegalArgumentException("Database connection cannot be null");
-        }
-        if (location == null || location.trim().isEmpty()) {
-            throw new IllegalArgumentException("Location cannot be null or empty");
-        }
-        if (tid == null || tid <= 0) {
-            throw new IllegalArgumentException("Table ID must be a positive integer");
-        }
-        if (stagingTable == null || stagingTable.trim().isEmpty()) {
-            throw new IllegalArgumentException("Staging table name cannot be null or empty");
-        }
-        if (batchNbr == null || batchNbr < 0) {
-            throw new IllegalArgumentException("Batch number must be non-negative");
-        }
-        if (threadNbr == null || threadNbr < 0) {
-            throw new IllegalArgumentException("Thread number must be non-negative");
-        }
-        if (tableAlias == null || tableAlias.trim().isEmpty()) {
-            throw new IllegalArgumentException("Table alias cannot be null or empty");
-        }
     }
 
 }
