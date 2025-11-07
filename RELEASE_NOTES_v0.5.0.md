@@ -12,10 +12,13 @@
 - Implemented Snowflake SQL constants and query patterns
 - Platform-specific metadata handling for Snowflake
 
-### 2. **SQL Fix Generation**
+### 2. **SQL Fix Generation (Preview, limited ability)**
 - **NEW**: Automatic generation of SQL statements to fix data discrepancies
 - Generate INSERT, UPDATE, and DELETE statements for out-of-sync rows
 - Support for complex primary key scenarios with proper escaping
+- Corrective SQL generation is new, limited in abiliies, and experimental.
+- SQL generated should be considered examples and reviewed closely.
+
 
 ### 3. **Web UI (Preview)**
 - **NEW**: Modern web-based user interface built with Next.js and React

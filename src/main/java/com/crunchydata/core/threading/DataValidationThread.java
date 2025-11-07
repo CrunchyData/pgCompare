@@ -129,7 +129,7 @@ public class DataValidationThread {
 
                 LoggingUtils.write("info", THREAD_NAME, String.format("Primary Key:  %s (WHERE = '%s')", pk, dctmSource.getTableFilter()));
 
-                JSONObject recheckResult = reCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid);
+                JSONObject recheckResult = compareRowforCheck(repoConn, sourceConn, targetConn, dctmSource, dctmTarget, ciTarget.pkList, binds, dcRow, cid, columnMapping);
 
                 if ( rows.length() < MAX_ROWS_TO_PROCESS ) {
                     rows.put(recheckResult);
@@ -140,6 +140,31 @@ public class DataValidationThread {
             
             LoggingUtils.write("info", THREAD_NAME, String.format("Processed %d out-of-sync rows for table %s", processedRows, dct.getTableAlias()));
             result.put("data", rows);
+            
+            // Collect all fix SQL statements into a separate array for easy access
+            if (Props.getProperty("fix").equals("true")) {
+                JSONArray fixSQLStatements = new JSONArray();
+                int fixSQLCount = 0;
+                
+                for (int i = 0; i < rows.length(); i++) {
+                    JSONObject row = rows.getJSONObject(i);
+                    if (row.has("fixSQL")) {
+                        JSONObject fixSQLEntry = new JSONObject();
+                        fixSQLEntry.put("pk", row.get("pk"));
+                        fixSQLEntry.put("sql", row.getString("fixSQL"));
+                        fixSQLStatements.put(fixSQLEntry);
+                        fixSQLCount++;
+                    }
+                }
+                
+                if (fixSQLCount > 0) {
+                    result.put("fixSQL", fixSQLStatements);
+                    result.put("fixSQLCount", fixSQLCount);
+                    LoggingUtils.write("info", THREAD_NAME, 
+                        String.format("Generated %d fix SQL statements for table %s", 
+                                     fixSQLCount, dct.getTableAlias()));
+                }
+            }
 
         } catch (SQLException e) {
             result.put("status", FAILED_STATUS);
@@ -176,7 +201,7 @@ public class DataValidationThread {
      * @param dcRow              DataCompare object with row to be compared.
      * @param cid                Identifier for the reconciliation process.
      */
-    public static JSONObject reCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataComparisonResult dcRow, Integer cid) {
+    public static JSONObject compareRowforCheck (Connection repoConn, Connection sourceConn, Connection targetConn, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget, String pkList, ArrayList<Object> binds, DataComparisonResult dcRow, Integer cid, JSONObject columnMapping) {
         JSONArray arr = new JSONArray();
         int columnOutofSync = 0;
         JSONObject rowResult = new JSONObject();
@@ -248,6 +273,7 @@ public class DataValidationThread {
                 rowResult.put("equal", 1);
                 removeInSyncRow(repoConn, dcRow);
             } else {
+                // Handle out-of-sync rows
                 LoggingUtils.write("warning", THREAD_NAME, String.format("Out-of-Sync:  PK = %s; Differences = %s", dcRow.getPk(), rowResult.getJSONArray("result").toString()));
 
                 if ( Props.getProperty("fix").equals("true") ) {
@@ -259,12 +285,15 @@ public class DataValidationThread {
                             dctmTarget,
                             binds,
                             dcRow,
-                            rowResult
+                            rowResult,
+                            sourceRow,
+                            targetRow,
+                            columnMapping
                     );
 
                     if (fixSQL != null) {
-                        // Execute the SQL or write to file
-                        LoggingUtils.write("info", THREAD_NAME, "Fix SQL: " + fixSQL);
+                        // Add fix SQL to the row result for output with other results
+                        rowResult.put("fixSQL", fixSQL);                        
                     }
                 }
             }

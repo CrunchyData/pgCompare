@@ -110,14 +110,14 @@ public class CommandLineParser {
     private static Options createOptions() {
         Options options = new Options();
 
-        // Define all valid options
-        options.addOption(Option.builder("b").longOpt("batch").hasArg().desc("Batch Number").build());
-        options.addOption(Option.builder("h").longOpt("help").hasArg(false).desc("Usage and help").build());
-        //options.addOption(Option.builder("f").longOpt("fix").hasArg(false).desc("Generate SQL to fix out of sync issue (experimental, use with caution)").build());
-        options.addOption(Option.builder("p").longOpt("project").hasArg().desc("Project ID").build());
-        options.addOption(Option.builder("r").longOpt("report").hasArg().desc("Generate report").build());
-        options.addOption(Option.builder("t").longOpt("table").hasArg().desc("Limit to specified table").build());
-        options.addOption(Option.builder("v").longOpt("version").hasArg(false).desc("Version").build());
+        // Define all valid options - using builder pattern without deprecated Option.builder()
+        options.addOption(new Option("b", "batch", true, "Batch Number"));
+        options.addOption(new Option("h", "help", false, "Usage and help"));
+        options.addOption(new Option("f", "fix", false, "Generate SQL to fix out of sync issue (experimental, use with caution)"));
+        options.addOption(new Option("p", "project", true, "Project ID"));
+        options.addOption(new Option("r", "report", true, "Generate report"));
+        options.addOption(new Option("t", "table", true, "Limit to specified table"));
+        options.addOption(new Option("v", "version", false, "Version"));
 
         return options;
     }

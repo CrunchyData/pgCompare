@@ -65,7 +65,7 @@ public class SQLFixGenerationService {
     public static String generateFixSQL(Connection sourceConn, Connection targetConn, 
                                        DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
                                        ArrayList<Object> binds, DataComparisonResult dcRow, 
-                                       JSONObject rowResult) {
+                                       JSONObject rowResult, CachedRowSet sourceRow, CachedRowSet targetRow, JSONObject columnMapping) {
         // Validate inputs
         Objects.requireNonNull(dctmTarget, "Target table map cannot be null");
         Objects.requireNonNull(dcRow, "Data comparison row cannot be null");
@@ -82,7 +82,7 @@ public class SQLFixGenerationService {
                 
             } else if (isMissingTarget(rowResult)) {
                 // Row exists on source but not on target -> INSERT into target
-                return generateInsertSQL(sourceConn, dctmSource, dctmTarget, binds, pk);
+                return generateInsertSQL(sourceConn, dctmSource, dctmTarget, binds, pk, sourceRow, columnMapping);
                 
             } else if (isNotEqual(rowResult)) {
                 // Row exists on both but columns don't match -> UPDATE target
@@ -167,14 +167,10 @@ public class SQLFixGenerationService {
      */
     private static String generateInsertSQL(Connection sourceConn, DataComparisonTableMap dctmSource,
                                            DataComparisonTableMap dctmTarget, ArrayList<Object> binds, 
-                                           JSONObject pk) {
+                                           JSONObject pk, CachedRowSet sourceRow, JSONObject columnMapping) {
         try {
             String targetQuoteChar = getQuoteChar(Props.getProperty("target-type"));
-            
-            // Fetch the complete row from source
-            String selectSQL = dctmSource.getCompareSQL() + dctmSource.getTableFilter();
-            CachedRowSet sourceRow = SQLExecutionHelper.simpleSelect(sourceConn, selectSQL, binds);
-            
+
             if (sourceRow == null || sourceRow.size() == 0) {
                 LoggingUtils.write("warning", THREAD_NAME, 
                     String.format("No source row found for INSERT, pk: %s", pk.toString()));
@@ -183,28 +179,104 @@ public class SQLFixGenerationService {
             
             sourceRow.next();
             
-            // Build column list and values
+            // Parse column mapping to get source and target column information
+            JSONArray columns = columnMapping.getJSONArray("columns");
+            
+            // Build column list and values using the mapping
             List<String> columnNames = new ArrayList<>();
             List<String> columnValues = new ArrayList<>();
             
-            int columnCount = sourceRow.getMetaData().getColumnCount();
-            
-            // Start from column 3 (skip pk_hash and pk columns from compare SQL)
-            for (int i = 3; i <= columnCount; i++) {
-                String columnName = sourceRow.getMetaData().getColumnName(i);
-                String quotedColumnName = ShouldQuoteString(false, columnName, targetQuoteChar);
-                columnNames.add(quotedColumnName);
+            // Build INSERT statement
+            String schemaName = ShouldQuoteString(dctmTarget.isSchemaPreserveCase(),
+                    dctmTarget.getSchemaName(), targetQuoteChar);
+            String tableName = ShouldQuoteString(dctmTarget.isTablePreserveCase(),
+                    dctmTarget.getTableName(), targetQuoteChar);
+
+            // First, add primary key columns from the pk JSONObject
+            Iterator<String> pkKeys = pk.keys();
+            while (pkKeys.hasNext()) {
+                String sourcePKColumnName = pkKeys.next();
                 
-                Object value = sourceRow.getObject(i);
-                columnValues.add(formatValue(value));
+                // Find this source column in the mapping to get the target column name
+                String targetPKColumnName = null;
+                boolean targetPreserveCase = false;
+                
+                for (int i = 0; i < columns.length(); i++) {
+                    JSONObject columnDef = columns.getJSONObject(i);
+                    JSONObject sourceCol = columnDef.getJSONObject("source");
+                    
+                    if (sourceCol.getString("columnName").equalsIgnoreCase(sourcePKColumnName)) {
+                        JSONObject targetCol = columnDef.getJSONObject("target");
+                        targetPKColumnName = targetCol.getString("columnName");
+                        targetPreserveCase = targetCol.getBoolean("preserveCase");
+                        break;
+                    }
+                }
+                
+                if (targetPKColumnName != null) {
+                    // Quote target column name for INSERT statement
+                    String quotedTargetColumnName = ShouldQuoteString(targetPreserveCase, 
+                                                                       targetPKColumnName, 
+                                                                       targetQuoteChar);
+                    columnNames.add(quotedTargetColumnName);
+                    
+                    // Get value from pk JSONObject
+                    Object pkValue = pk.get(sourcePKColumnName);
+                    columnValues.add(formatValue(pkValue));
+                } else {
+                    LoggingUtils.write("warning", THREAD_NAME, 
+                        String.format("Could not find PK column '%s' in column mapping for pk %s", 
+                                     sourcePKColumnName, pk));
+                }
+            }
+
+            // Then, add non-primary key columns from column mapping
+            for (int i = 0; i < columns.length(); i++) {
+                JSONObject columnDef = columns.getJSONObject(i);
+                
+                // Skip disabled columns
+                if (!columnDef.getBoolean("enabled")) {
+                    continue;
+                }
+                
+                // Get source and target column information
+                JSONObject sourceCol = columnDef.getJSONObject("source");
+                JSONObject targetCol = columnDef.getJSONObject("target");
+                
+                // Skip primary key columns - they were already added above
+                if (sourceCol.getBoolean("primaryKey")) {
+                    continue;
+                }
+                
+                String sourceColumnName = sourceCol.getString("columnName");
+                String targetColumnName = targetCol.getString("columnName");
+                boolean targetPreserveCase = targetCol.getBoolean("preserveCase");
+                
+                // Quote target column name for INSERT statement based on target's preserveCase
+                String quotedTargetColumnName = ShouldQuoteString(targetPreserveCase, 
+                                                                   targetColumnName, 
+                                                                   targetQuoteChar);
+                columnNames.add(quotedTargetColumnName);
+                
+                // Get value from source row using source column name
+                try {
+                    Object value = sourceRow.getObject(sourceColumnName);
+                    columnValues.add(formatValue(value));
+                } catch (SQLException e) {
+                    // Try with different case if the column name doesn't match exactly
+                    try {
+                        Object value = sourceRow.getObject(sourceColumnName.toLowerCase());
+                        columnValues.add(formatValue(value));
+                    } catch (SQLException e2) {
+                        LoggingUtils.write("warning", THREAD_NAME, 
+                            String.format("Could not find column '%s' in source result set for pk %s", 
+                                         sourceColumnName, pk));
+                        columnValues.add("NULL");
+                    }
+                }
             }
             
-            // Build INSERT statement
-            String schemaName = ShouldQuoteString(dctmTarget.isSchemaPreserveCase(), 
-                                                 dctmTarget.getSchemaName(), targetQuoteChar);
-            String tableName = ShouldQuoteString(dctmTarget.isTablePreserveCase(), 
-                                                dctmTarget.getTableName(), targetQuoteChar);
-            
+            // Build final INSERT statement
             StringBuilder sql = new StringBuilder("INSERT INTO ");
             sql.append(schemaName).append(".").append(tableName);
             sql.append(" (").append(String.join(", ", columnNames)).append(")");
@@ -327,111 +399,31 @@ public class SQLFixGenerationService {
      * @return Formatted value string
      */
     private static String formatValue(Object value) {
-        if (value == null) {
-            return "NULL";
+        switch (value) {
+            case null -> {
+                return "NULL";
+            }
+            case String s -> {
+                // Escape single quotes by doubling them
+                String stringValue = s;
+                stringValue = stringValue.replace("'", "''");
+                return "'" + stringValue + "'";
+            }
+            case Number number -> {
+                return value.toString();
+            }
+            case Boolean b -> {
+                return value.toString();
+            }
+            default -> {
+            }
         }
-        
-        if (value instanceof String) {
-            // Escape single quotes by doubling them
-            String stringValue = (String) value;
-            stringValue = stringValue.replace("'", "''");
-            return "'" + stringValue + "'";
-        }
-        
-        if (value instanceof Number) {
-            return value.toString();
-        }
-        
-        if (value instanceof Boolean) {
-            return value.toString();
-        }
-        
+
         // For other types, convert to string and quote
         String stringValue = value.toString();
         stringValue = stringValue.replace("'", "''");
         return "'" + stringValue + "'";
     }
     
-    /**
-     * Generates fix SQL for multiple rows.
-     * 
-     * @param sourceConn Source database connection
-     * @param targetConn Target database connection
-     * @param dctmSource Source table mapping
-     * @param dctmTarget Target table mapping
-     * @param checkResults JSONArray of check results from DataValidationThread.checkRows
-     * @return List of SQL statements to fix all discrepancies
-     */
-    public static List<String> generateFixSQLForMultipleRows(Connection sourceConn, Connection targetConn,
-                                                             DataComparisonTableMap dctmSource, 
-                                                             DataComparisonTableMap dctmTarget,
-                                                             JSONArray checkResults) {
-        List<String> sqlStatements = new ArrayList<>();
-        
-        for (int i = 0; i < checkResults.length(); i++) {
-            JSONObject rowResult = checkResults.getJSONObject(i);
-            
-            try {
-                // Extract primary key
-                String pkString = rowResult.getString("pk");
-                JSONObject pk = new JSONObject(pkString);
-                
-                // Build binds for WHERE clause
-                ArrayList<Object> binds = new ArrayList<>();
-                Iterator<String> keys = pk.keys();
-                while (keys.hasNext()) {
-                    String key = keys.next();
-                    binds.add(pk.get(key));
-                }
-                
-                // Create a DataComparisonResult object
-                DataComparisonResult dcRow = new DataComparisonResult();
-                dcRow.setPk(pkString);
-                
-                // Build table filter from primary key
-                dctmSource.setTableFilter(buildFilterFromPK(sourceConn, pk, 
-                    getQuoteChar(Props.getProperty("source-type"))));
-                dctmTarget.setTableFilter(buildFilterFromPK(targetConn, pk, 
-                    getQuoteChar(Props.getProperty("target-type"))));
-                
-                // Generate SQL
-                String sql = generateFixSQL(sourceConn, targetConn, dctmSource, dctmTarget, 
-                                          binds, dcRow, rowResult);
-                
-                if (sql != null && !sql.trim().isEmpty()) {
-                    sqlStatements.add(sql);
-                }
-                
-            } catch (Exception e) {
-                LoggingUtils.write("severe", THREAD_NAME, 
-                    String.format("Error processing row %d: %s", i, e.getMessage()));
-            }
-        }
-        
-        return sqlStatements;
-    }
-    
-    /**
-     * Builds a table filter string from a primary key JSONObject.
-     * 
-     * @param conn Database connection
-     * @param pk Primary key JSONObject
-     * @param quoteChar Quote character for identifiers
-     * @return Filter string for WHERE clause
-     */
-    private static String buildFilterFromPK(Connection conn, JSONObject pk, String quoteChar) {
-        List<String> filterItems = new ArrayList<>();
-        
-        Iterator<String> keys = pk.keys();
-        while (keys.hasNext()) {
-            String key = keys.next();
-            String cleanKey = key.replace("`", "").replace("\"", "");
-            String quotedKey = ShouldQuoteString(false, cleanKey, quoteChar);
-            
-            filterItems.add(quotedKey + " = ?");
-        }
-        
-        return " AND " + String.join(" AND ", filterItems);
-    }
 }
 

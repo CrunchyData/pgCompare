@@ -18,13 +18,8 @@ package com.crunchydata.controller;
 
 import com.crunchydata.core.database.ColumnMetadataBuilder;
 import com.crunchydata.model.ColumnMetadata;
-import com.crunchydata.service.ColumnDiscoveryService;
 import com.crunchydata.util.LoggingUtils;
 import org.json.JSONObject;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Properties;
 
 import static com.crunchydata.service.DatabaseMetadataService.*;
 

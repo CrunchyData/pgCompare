@@ -96,6 +96,11 @@ public class ReportController {
         // Add check results if this was a recheck operation
         if (isCheck) {
             addCheckResultsToReport(reportArray, runResult);
+            
+            // Add fix SQL results if fix mode is enabled
+            if ("true".equals(com.crunchydata.config.Settings.Props.getProperty("fix"))) {
+                addFixSQLToReport(reportArray, runResult);
+            }
         }
 
         generateHtmlReport(reportArray, context.getReportFileName(), "pgCompare Summary");
@@ -117,6 +122,11 @@ public class ReportController {
                 SummaryStatistics stats = calculateSummaryStatistics(runResult, context.getStartStopWatch());
                 DisplayOperations.displayTableSummaries(runResult);
                 DisplayOperations.displayJobSummary(tablesProcessed, stats);
+                
+                // Display fix SQL if fix mode is enabled
+                if (isCheck && "true".equals(com.crunchydata.config.Settings.Props.getProperty("fix"))) {
+                    displayFixSQLSummary(runResult);
+                }
                 
                 if (context.isGenReport()) {
                     generateCompleteReport(context, tablesProcessed, runResult, stats, isCheck);
@@ -164,22 +174,6 @@ public class ReportController {
 
         return new SummaryStatistics(totalRows, outOfSyncRows, elapsedTime);
     }
-
-    /**
-     * Validate inputs for calculateSummaryStatistics method.
-     *
-     * @param runResult Run results
-     * @param startStopWatch Start time
-     */
-    private static void validateCalculateSummaryStatisticsInputs(JSONArray runResult, long startStopWatch) {
-        if (runResult == null) {
-            throw new IllegalArgumentException("Run result cannot be null");
-        }
-        if (startStopWatch <= 0) {
-            throw new IllegalArgumentException("Start stop watch must be positive");
-        }
-    }
-
 
     /**
      * Create a report section with title, data, and layout.
@@ -293,6 +287,95 @@ public class ReportController {
                 .put("columnClass", align)
                 .put("columnKey", key)
                 .put("commaFormat", commaFormat);
+    }
+
+    /**
+     * Display fix SQL summary to console.
+     *
+     * @param runResult JSON array containing results for each table
+     */
+    private static void displayFixSQLSummary(JSONArray runResult) {
+        int totalFixSQL = 0;
+        
+        DisplayOperations.printSummary("", 0);
+        DisplayOperations.printSummary("Fix SQL Statements:", 0);
+        DisplayOperations.printSummary("===================", 0);
+        
+        for (int i = 0; i < runResult.length(); i++) {
+            JSONObject tableResult = runResult.getJSONObject(i);
+            if (tableResult.has("checkResult")) {
+                JSONObject checkResult = tableResult.getJSONObject("checkResult");
+                if (checkResult.has("fixSQL")) {
+                    String tableName = tableResult.getString("tableName");
+                    JSONArray fixSQLArray = checkResult.getJSONArray("fixSQL");
+                    int count = checkResult.optInt("fixSQLCount", 0);
+                    
+                    if (count > 0) {
+                        DisplayOperations.printSummary("", 0);
+                        DisplayOperations.printSummary(String.format("Table: %s (%d statements)", 
+                                                                    tableName, count), 2);
+                        
+                        for (int j = 0; j < fixSQLArray.length(); j++) {
+                            JSONObject fixEntry = fixSQLArray.getJSONObject(j);
+                            DisplayOperations.printSummary(String.format("PK: %s", fixEntry.getString("pk")), 4);
+                            DisplayOperations.printSummary(fixEntry.getString("sql"), 6);
+                            DisplayOperations.printSummary("", 0);
+                        }
+                        
+                        totalFixSQL += count;
+                    }
+                }
+            }
+        }
+        
+        if (totalFixSQL > 0) {
+            DisplayOperations.printSummary("", 0);
+            DisplayOperations.printSummary(String.format("Total Fix SQL Statements: %d", totalFixSQL), 2);
+            DisplayOperations.printSummary("===================", 0);
+        } else {
+            DisplayOperations.printSummary("No fix SQL statements generated.", 2);
+        }
+    }
+
+    /**
+     * Add fix SQL statements to the HTML report.
+     *
+     * @param reportArray The report array to add results to
+     * @param runResult JSON array containing results for each table
+     */
+    private static void addFixSQLToReport(JSONArray reportArray, JSONArray runResult) {
+        JSONArray fixSQLLayout = createFixSQLLayout();
+        
+        for (int i = 0; i < runResult.length(); i++) {
+            JSONObject tableResult = runResult.getJSONObject(i);
+            if (tableResult.has("checkResult")) {
+                JSONObject checkResult = tableResult.getJSONObject("checkResult");
+                if (checkResult.has("fixSQL")) {
+                    String tableName = tableResult.getString("tableName");
+                    JSONArray fixSQLData = checkResult.getJSONArray("fixSQL");
+                    int count = checkResult.optInt("fixSQLCount", 0);
+                    
+                    if (count > 0) {
+                        reportArray.put(createSection(
+                            String.format("Fix SQL for Table: %s (%d statements)", tableName, count), 
+                            fixSQLData, 
+                            fixSQLLayout));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Create fix SQL layout for the report.
+     *
+     * @return JSONArray containing column definitions
+     */
+    public static JSONArray createFixSQLLayout() {
+        return new JSONArray(List.of(
+                createReportColumn("Primary Key", "pk", "left-align", false),
+                createReportColumn("SQL Statement", "sql", "left-align", false)
+        ));
     }
 
     /**

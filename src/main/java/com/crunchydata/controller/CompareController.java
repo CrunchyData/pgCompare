@@ -63,8 +63,6 @@ public class CompareController {
         LoggingUtils.write("info", THREAD_NAME, String.format("Recheck Out of Sync: %s", isCheck));
 
         try {
-            // Validate context
-            validatePerformCompareInputs(context);
 
             // Get tables to process
             RepoController repoController = new RepoController();
@@ -129,9 +127,6 @@ public class CompareController {
                     dctmTarget.getSchemaName(), dctmTarget.getTableName(),
                     !check && "database".equals(Props.getProperty("column-hash-method")));
 
-
-
-
             logColumnMetadata(ciSource, ciTarget);
 
             // Create compare ID
@@ -142,9 +137,9 @@ public class CompareController {
 
             // Execute reconciliation
             if (check) {
-                executeRecheck(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid, result);
+                performCheck(connRepo, connSource, connTarget, dct, dctmSource, dctmTarget, ciSource, ciTarget, cid, result);
             } else {
-                executeReconciliation(connRepo, dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, result);
+                performReconciliation(connRepo, dct, cid, dctmSource, dctmTarget, ciSource, ciTarget, result);
             }
 
             // Process results
@@ -209,7 +204,7 @@ public class CompareController {
      * @param result Result object to update
      * @throws SQLException if database operations fail
      */
-    private static void executeRecheck(Connection connRepo, Connection connSource, Connection connTarget,
+    private static void performCheck(Connection connRepo, Connection connSource, Connection connTarget,
                                        DataComparisonTable dct, DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
                                        ColumnMetadata ciSource, ColumnMetadata ciTarget, Integer cid, JSONObject result)
             throws SQLException {
@@ -230,7 +225,7 @@ public class CompareController {
      * @param result Result object to update
      * @throws SQLException if database operations fail
      */
-    private static void executeReconciliation(Connection connRepo, DataComparisonTable dct, Integer cid,
+    private static void performReconciliation(Connection connRepo, DataComparisonTable dct, Integer cid,
                                               DataComparisonTableMap dctmSource, DataComparisonTableMap dctmTarget,
                                               ColumnMetadata ciSource, ColumnMetadata ciTarget, JSONObject result)
             throws SQLException {
@@ -352,28 +347,6 @@ public class CompareController {
         return result;
     }
 
-
-    /**
-     * Create error result object.
-     *
-     * @param tableAlias Table alias
-     * @param errorMessage Error message
-     * @return Error result object
-     */
-    private static JSONObject createErrorResult(String tableAlias, String errorMessage) {
-        JSONObject result = new JSONObject();
-        result.put("tableName", tableAlias);
-        result.put("status", "failed");
-        result.put("compareStatus", "failed");
-        result.put("error", errorMessage);
-        result.put("missingSource", 0);
-        result.put("missingTarget", 0);
-        result.put("notEqual", 0);
-        result.put("equal", 0);
-        return result;
-    }
-
-
     /**
      * Create failed result object.
      *
@@ -415,26 +388,6 @@ public class CompareController {
                 formatter.format(result.getInt("missingSource")),
                 formatter.format(result.getInt("missingTarget"))
         ));
-    }
-
-    /**
-     * Validate inputs for performCompare method.
-     * 
-     * @param context Application context
-     */
-    private static void validatePerformCompareInputs(ApplicationContext context) {
-        if (context == null) {
-            throw new IllegalArgumentException("Application context cannot be null");
-        }
-        if (context.getConnRepo() == null) {
-            throw new IllegalArgumentException("Repository connection cannot be null");
-        }
-        if (context.getConnSource() == null) {
-            throw new IllegalArgumentException("Source connection cannot be null");
-        }
-        if (context.getConnTarget() == null) {
-            throw new IllegalArgumentException("Target connection cannot be null");
-        }
     }
 
 }

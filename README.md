@@ -143,6 +143,18 @@ java -jar pgcompare.jar check --batch 0
 
 # Upgrading
 
+## Version 0.5.0 Enhacements
+
+- Snowflake Support - Full integration for Snowflake as source/target
+- SQL Fix Generation - Automatic generation of INSERT/UPDATE/DELETE statements (Preview, limited ability)
+- Web UI - Modern Next.js-based interface (preview)
+- Performance Improvements
+- Bug Fixes
+
+**Note:** Drop and recreate the repository to upgrade to 0.5.0.
+
+For more details review the [v0.5.0 Release Noes](RELEASE_NOTES_v0.5.0.md)
+
 ## Version 0.4.0 Enhancements
 
 - Improved casting of low precision data types.

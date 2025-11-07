@@ -50,7 +50,6 @@ CREATE TABLE dc_table (
 	tid int8 GENERATED ALWAYS AS IDENTITY( INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 1 CACHE 1 NO CYCLE) NOT NULL,
 	table_alias text NULL,
     enabled boolean default true,
-	--status varchar(10) DEFAULT 'disabled'::character varying NULL,
 	batch_nbr int4 DEFAULT 1 NULL,
 	parallel_degree int4 DEFAULT 1 NULL,
 	CONSTRAINT dc_table_pk PRIMARY KEY (tid)

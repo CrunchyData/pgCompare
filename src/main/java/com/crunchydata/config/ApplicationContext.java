@@ -47,7 +47,6 @@ public class ApplicationContext {
     private static final String CONN_TYPE_TARGET = "target";
 
     // Getters for application state
-    // Application state
     @Getter
     private final CommandLine cmd;
     private final String action;
@@ -183,10 +182,10 @@ public class ApplicationContext {
         connSource = getConnection(Props.getProperty("source-type"), CONN_TYPE_SOURCE);
         connTarget = getConnection(Props.getProperty("target-type"), CONN_TYPE_TARGET);
     }
-    
+
     /**
      * Handle the initialization action.
-     * 
+     *
      * @throws Exception if initialization fails
      */
     private void handleRepoInitialization() throws Exception {
@@ -215,10 +214,10 @@ public class ApplicationContext {
         String table = (cmd.hasOption("table")) ? cmd.getOptionValue("table").toLowerCase() : "";
 
         // Discover Tables
-        com.crunchydata.controller.DiscoverController.discoverTables(Props, pid, table, connRepo, connSource, connTarget);
+        com.crunchydata.controller.DiscoverController.performTableDiscovery(Props, pid, table, connRepo, connSource, connTarget);
 
         // Discover Columns
-        com.crunchydata.controller.DiscoverController.discoverColumns(Props, pid, table, connRepo, connSource, connTarget);
+        com.crunchydata.controller.DiscoverController.performColumnDiscovery(Props, pid, table, connRepo, connSource, connTarget);
     }
     
     /**
