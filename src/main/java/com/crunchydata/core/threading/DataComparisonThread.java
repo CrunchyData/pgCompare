@@ -136,6 +136,7 @@ public class DataComparisonThread extends Thread {
                         break;
                     case "mysql":
                     case "postgres":
+                    case "snowflake":
                         sql += " LIMIT " + batchCompareSize + " OFFSET " + batchOffsetSize;
                         break;
                     default:
