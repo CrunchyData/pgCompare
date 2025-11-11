@@ -336,7 +336,7 @@ Properties are categorized into four sections: system, repository, source, and t
   
   This configuration indicates from which data line the hash value comparison begins to be generated. 
   
-  batch-offset-size Default: 0
+  Default: 0
   
 #### batch-compare-size
   
