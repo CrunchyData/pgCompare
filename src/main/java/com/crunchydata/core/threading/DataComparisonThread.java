@@ -29,6 +29,7 @@ import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.util.*;
+import org.apache.commons.lang3.StringUtils;
 
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 import static com.crunchydata.util.HashingUtils.getMd5;
@@ -81,6 +82,8 @@ public class DataComparisonThread extends Thread {
         int totalRows = 0;
         int reportedRows = 0; // Track rows already reported to database
         int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
+        int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
+        int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
         int fetchSize = Integer.parseInt(Props.getProperty("batch-fetch-size"));
         boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
         boolean observerThrottle = Boolean.parseBoolean(Props.getProperty("observer-throttle"));
@@ -117,6 +120,27 @@ public class DataComparisonThread extends Thread {
 
             if (!pkList.isEmpty() && Props.getProperty("database-sort").equals("true")) {
                 sql += " ORDER BY " + pkList;
+            }
+
+            String batchCompareSize = Props.getProperty("batch-compare-size");
+            String batchOffsetSize = Props.getProperty("batch-offset-size");
+
+            if (StringUtils.isNotEmpty(batchCompareSize) && StringUtils.isNotEmpty(batchOffsetSize)) {
+                String dbType = Props.getProperty(targetType + "-type");
+
+                switch (dbType.toLowerCase()) {
+                    case "oracle":
+                    case "db2":
+                    case "mssql":
+                        sql += " OFFSET " + batchOffsetSize + " ROWS FETCH NEXT " + batchCompareSize + " ROWS ONLY";
+                        break;
+                    case "mysql":
+                    case "postgres":
+                        sql += " LIMIT " + batchCompareSize + " OFFSET " + batchOffsetSize;
+                        break;
+                    default:
+                        sql += " LIMIT " + batchCompareSize;
+                }
             }
 
             //conn.setAutoCommit(false);

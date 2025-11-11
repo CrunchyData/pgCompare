@@ -35,6 +35,7 @@ import com.crunchydata.service.SQLFixGenerationService;
 import com.crunchydata.util.DataProcessingUtils;
 import com.crunchydata.util.LoggingUtils;
 
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -83,9 +84,16 @@ public class DataValidationThread {
 
         PreparedStatement stmt = null;
         ResultSet rs = null;
+        String SQL_REPO_SELECT_OUTOFSYNC_ROWS_LIMIT;
+        String batchCheckSize = Props.getProperty("batch-check-size");
         
         try {
-            stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
+            if (StringUtils.isNotEmpty(batchCheckSize)) {
+                SQL_REPO_SELECT_OUTOFSYNC_ROWS_LIMIT = SQL_REPO_SELECT_OUTOFSYNC_ROWS + " LIMIT " + batchCheckSize;
+                stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS_LIMIT);
+            } else {
+                stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
+            }
             stmt.setObject(1, dct.getTid());
             stmt.setObject(2, dct.getTid());
             rs = stmt.executeQuery();
