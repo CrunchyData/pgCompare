@@ -334,7 +334,7 @@ Properties are categorized into four sections: system, repository, source, and t
 
 #### batch-offset-size
   
-  This configuration indicates from which data line the hash value comparison begins to be generated. 
+  This configuration indicates that the first n data entries will be skipped, and the hash values will be generated starting from the (n + 1)th data entry for comparison. 
   
   Default: 0
   
@@ -344,7 +344,7 @@ Properties are categorized into four sections: system, repository, source, and t
   
   Default: 2000
   
-These two configurations are used to paginate the data for querying when generating "hash comparison". For instance, only compare the data ranging from 1000 to 2000 or from 5000 to 10000.
+"batch-offset-size" & "batch-compare-size": These two configurations are used to paginate the data for querying when generating "hash comparison". For instance, only compare the data ranging from 1001 to 2000 or from 5001 to 10000.
 
 #### batch-check-size
   
