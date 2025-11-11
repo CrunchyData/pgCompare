@@ -82,8 +82,6 @@ public class DataComparisonThread extends Thread {
         int totalRows = 0;
         int reportedRows = 0; // Track rows already reported to database
         int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
-        int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
-        int batchCommitSize = Integer.parseInt(Props.getProperty("batch-commit-size"));
         int fetchSize = Integer.parseInt(Props.getProperty("batch-fetch-size"));
         boolean useLoaderThreads = Integer.parseInt(Props.getProperty("loader-threads")) > 0;
         boolean observerThrottle = Boolean.parseBoolean(Props.getProperty("observer-throttle"));
