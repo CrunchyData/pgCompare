@@ -29,7 +29,6 @@ import com.crunchydata.model.DataComparisonTable;
 import com.crunchydata.model.DataComparisonTableMap;
 import com.crunchydata.model.DataComparisonResult;
 import com.crunchydata.util.*;
-import org.apache.commons.lang3.StringUtils;
 
 import static com.crunchydata.service.DatabaseConnectionService.getConnection;
 import static com.crunchydata.util.HashingUtils.getMd5;

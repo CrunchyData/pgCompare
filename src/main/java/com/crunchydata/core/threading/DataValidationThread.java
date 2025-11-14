@@ -35,7 +35,6 @@ import com.crunchydata.service.SQLFixGenerationService;
 import com.crunchydata.util.DataProcessingUtils;
 import com.crunchydata.util.LoggingUtils;
 
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
