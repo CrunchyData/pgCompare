@@ -83,9 +83,16 @@ public class DataValidationThread {
 
         PreparedStatement stmt = null;
         ResultSet rs = null;
+        String SQL_REPO_SELECT_OUTOFSYNC_ROWS_LIMIT;
+        int batchCheckSize = Integer.parseInt(Props.getProperty("batch-check-size"));
         
         try {
-            stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
+            if (batchCheckSize > 0) {
+                SQL_REPO_SELECT_OUTOFSYNC_ROWS_LIMIT = SQL_REPO_SELECT_OUTOFSYNC_ROWS + " LIMIT " + batchCheckSize;
+                stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS_LIMIT);
+            } else {
+                stmt = repoConn.prepareStatement(SQL_REPO_SELECT_OUTOFSYNC_ROWS);
+            }
             stmt.setObject(1, dct.getTid());
             stmt.setObject(2, dct.getTid());
             rs = stmt.executeQuery();

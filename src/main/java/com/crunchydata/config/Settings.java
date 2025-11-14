@@ -123,6 +123,9 @@ public class Settings {
         defaultProps.setProperty("observer-vacuum","true");
         defaultProps.setProperty("stage-table-parallel","0");
         defaultProps.setProperty("standard-number-format","0000000000000000000000.0000000000000000000000");
+        defaultProps.setProperty("batch-start-size","0");
+        defaultProps.setProperty("batch-compare-size","2000");
+        defaultProps.setProperty("batch-check-size","1000");
 
 
         // Repository

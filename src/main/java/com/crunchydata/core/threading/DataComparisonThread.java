@@ -89,6 +89,9 @@ public class DataComparisonThread extends Thread {
         DecimalFormat formatter = new DecimalFormat("#,###");
         int loadRowCount = Integer.parseInt(Props.getProperty("batch-progress-report-size"));
         int observerRowCount = Integer.parseInt(Props.getProperty("observer-throttle-size"));
+
+        int batchCompareSize = Integer.parseInt(Props.getProperty("batch-compare-size"));
+        int batchStartSize = Integer.parseInt(Props.getProperty("batch-start-size"));
         
         // Database resources
         Connection conn = null;
@@ -116,7 +119,31 @@ public class DataComparisonThread extends Thread {
             }
 
             if (!pkList.isEmpty() && Props.getProperty("database-sort").equals("true")) {
+                if (batchStartSize >= 0) {
+                    sql += " AND " + pkList + ">" + batchStartSize;
+                }
                 sql += " ORDER BY " + pkList;
+            }
+
+
+            if (batchCompareSize > 0) {
+                String dbType = Props.getProperty(targetType + "-type");
+
+                switch (dbType.toLowerCase()) {
+                    case "oracle":
+                    case "db2":
+                    case "mssql":
+                        sql += " OFFSET 0 ROWS FETCH NEXT " + batchCompareSize + " ROWS ONLY";
+                        break;
+                    case "mysql":
+                    case "mariadb":
+                    case "postgres":
+                    case "snowflake":
+                        sql += " LIMIT " + batchCompareSize;
+                        break;
+                    default:
+                        sql += " LIMIT " + batchCompareSize;
+                }
             }
 
             //conn.setAutoCommit(false);
