@@ -137,10 +137,11 @@ public class ColumnMetadataUtils {
      * @param tid Table identifier
      * @param columnAlias Column alias to filter by
      * @param destRole Destination role (source/target)
+     * @param platform Database platform of the destination
      * @param quoteChar Quote character for the database platform
      * @return SQL filter clause string
      */
-    public static String createColumnFilterClause(Connection repoConn, Integer tid, String columnAlias, String destRole, String quoteChar) {
+    public static String createColumnFilterClause(Connection repoConn, Integer tid, String columnAlias, String destRole, String platform, String quoteChar) {
         String columnFilter = "";
         ArrayList<Object> binds = new ArrayList<>();
 
@@ -152,7 +153,8 @@ public class ColumnMetadataUtils {
 
         try {
             while (crs.next()) {
-                columnFilter = " AND " + ShouldQuoteString(crs.getBoolean("preserve_case"), crs.getString("column_name"), quoteChar) + " = ?";
+                columnFilter = buildColumnFilter(platform, crs.getString("data_type"),
+                        ShouldQuoteString(crs.getBoolean("preserve_case"), crs.getString("column_name"), quoteChar));
             }
 
             crs.close();
@@ -162,6 +164,25 @@ public class ColumnMetadataUtils {
         }
 
         return columnFilter;
+    }
+
+    /**
+     * Builds the check filter for one primary-key column.
+     *
+     * <p>Temporal keys arrive as canonical text (see {@link TemporalKeyUtils}) that may have
+     * been written by the other platform, so the bind parameter is parsed explicitly instead
+     * of relying on an implicit text-to-temporal conversion, which PostgreSQL rejects and
+     * which other platforms resolve with session settings.</p>
+     *
+     * @param platform Database platform
+     * @param dataType Column data type
+     * @param quotedColumn Column name, already quoted if needed
+     * @return Filter clause with one bind parameter
+     */
+    static String buildColumnFilter(String platform, String dataType, String quotedColumn) {
+        return TemporalKeyUtils.isTemporalKey(platform, dataType)
+                ? " AND " + quotedColumn + " = " + TemporalKeyUtils.keyParameter(platform, dataType)
+                : " AND " + quotedColumn + " = ?";
     }
 
     /**

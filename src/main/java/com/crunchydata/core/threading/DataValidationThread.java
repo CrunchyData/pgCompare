@@ -129,8 +129,8 @@ public class DataValidationThread {
                         Integer value = pk.getInt(key);
                         binds.add(pkColumnCount,value);
                     }
-                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteChar(Props.getProperty("source-type"))));
-                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteChar(Props.getProperty("target-type"))));
+                    dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", Props.getProperty("source-type"), getQuoteChar(Props.getProperty("source-type"))));
+                    dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", Props.getProperty("target-type"), getQuoteChar(Props.getProperty("target-type"))));
                     pkColumnCount++;
                 }
 
