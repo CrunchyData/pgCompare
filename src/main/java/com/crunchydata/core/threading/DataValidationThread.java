@@ -22,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Objects;
 import javax.sql.RowSetMetaData;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.serial.SerialClob;
@@ -266,11 +267,8 @@ public class DataValidationThread {
                         String sourceValue = extractColumnValue(sourceRow, i);
                         String targetValue = extractColumnValue(targetRow, i);
 
-                        if (!sourceValue.equals(targetValue)) {
-                            JSONObject col = new JSONObject();
-                            String jsonString = "{ source: " + ((sourceValue.equals(" ")) ? "\" \"" : sourceValue) + ", target: " + ((targetValue.equals(" ")) ? "\" \"" : targetValue) + "}";
-                            col.put(column, new JSONObject(jsonString));
-                            arr.put(columnOutofSync, col);
+                        if (!Objects.equals(sourceValue, targetValue)) {
+                            arr.put(columnOutofSync, new JSONObject().put(column, columnDifference(sourceValue, targetValue)));
                             columnOutofSync++;
                         }
                     } catch (Exception e) {
@@ -279,6 +277,10 @@ public class DataValidationThread {
                         LoggingUtils.write("severe", THREAD_NAME, String.format("Error on column %s",column));
                         LoggingUtils.write("severe", THREAD_NAME, String.format("Source values:  %s", sourceRow.getString(i)));
                         LoggingUtils.write("severe", THREAD_NAME, String.format("Target values:  %s", targetRow.getString(i)));
+                        // A column that cannot be compared is not proof that it is equal: report it
+                        // as out of sync so the finding is kept instead of being cleared as in sync.
+                        arr.put(columnOutofSync, new JSONObject().put(column, "comparison failed: " + e.getMessage()));
+                        columnOutofSync++;
                     }
                 }
 
@@ -334,6 +336,25 @@ public class DataValidationThread {
         return rowResult;
     }
     
+    /**
+     * Builds the detail of a column whose value differs between source and target.
+     *
+     * <p>The values are put through the org.json API, which quotes and escapes them. The
+     * previous code concatenated the raw values into a JSON-like string and parsed it,
+     * which threw for any value containing a JSON syntax character ({@code , : " / { }},
+     * a tab or a line break, e.g. {@code 'a, b'}, a date or an xml document); the
+     * exception was only logged and the row was reported as in sync.</p>
+     *
+     * @param sourceValue Value read from the source (may be null)
+     * @param targetValue Value read from the target (may be null)
+     * @return JSON object with "source" and "target" keys
+     */
+    static JSONObject columnDifference(String sourceValue, String targetValue) {
+        return new JSONObject()
+                .put("source", sourceValue == null ? JSONObject.NULL : sourceValue)
+                .put("target", targetValue == null ? JSONObject.NULL : targetValue);
+    }
+
     /**
      * Extracts a column value, handling CLOB types properly.
      */
