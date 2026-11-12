@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Golden-master tests for the temporal primary-key SQL (issue #107). No database.
  *
  * <p>The key text and filter expressions were validated against PostgreSQL 16, SQL Server
- * 2022, MySQL 8.4, MariaDB 11.4 and Oracle 23 Free: each row is found by its own key text,
+ * 2022, MySQL 8.4, MariaDB 11.4, Oracle 21/23 and Db2 12.1: each row is found by its own key text,
  * under non-default session settings (DateStyle, SET LANGUAGE/DATEFORMAT, NLS), and the
  * filter keeps the primary-key index. Re-validate on real databases before changing them.</p>
  *
@@ -92,7 +92,7 @@ class TemporalKeyUtilsTest {
                 "mysql     | time                          | time_format(col,'%H:%i:%s.%f')",
                 "mariadb   | datetime                      | date_format(col,'%Y-%m-%d %H:%i:%s.%f')",
                 "mariadb   | time                          | time_format(col,'%H:%i:%s.%f')",
-                "db2       | timestamp                     | to_char(col,'YYYY-MM-DD HH24:MI:SS.FF9')",
+                "db2       | timestamp                     | to_char(col,'YYYY-MM-DD HH24:MI:SS.FF12')",
                 "db2       | date                          | to_char(col,'YYYY-MM-DD HH24:MI:SS')",
                 "db2       | time                          | char(col, JIS)",
                 "snowflake | timestamp_ntz                 | to_char(col,'YYYY-MM-DD HH24:MI:SS.FF9')",
@@ -129,9 +129,10 @@ class TemporalKeyUtilsTest {
                 "mysql     | time                          | cast(? as time(6))",
                 "mariadb   | datetime                      | cast(? as datetime(6))",
                 "mariadb   | date                          | cast(? as date)",
-                "db2       | timestamp                     | timestamp(cast(? as varchar(40)))",
+                "db2       | timestamp                     | cast(cast(? as varchar(40)) as timestamp(12))",
+                "db2       | time                          | time(substr(cast(? as varchar(40)), 1, 8))",
                 "db2       | date                          | date(cast(? as varchar(40)))",
-                "snowflake | timestamp_ntz                 | to_timestamp_ntz(?)",
+                "snowflake | timestamp_ntz                 | to_timestamp_ntz(substr(?, 1, 29))",
                 "snowflake | date                          | to_date(substr(?, 1, 10))"
         })
         void keyParameter(String platform, String dataType, String expected) {
@@ -140,7 +141,7 @@ class TemporalKeyUtilsTest {
 
         @Test
         void snowflakeTimestampTz() {
-            assertEquals("to_timestamp_tz(? || ' +00:00')", TemporalKeyUtils.keyParameter("snowflake", "timestamp_tz"));
+            assertEquals("to_timestamp_tz(substr(?, 1, 29) || ' +00:00')", TemporalKeyUtils.keyParameter("snowflake", "timestamp_tz"));
         }
     }
 

@@ -33,8 +33,8 @@ import static com.crunchydata.util.ColumnMetadataUtils.TIMESTAMP_TYPES;
  *
  * <p>Canonical key text: {@code YYYY-MM-DD HH24:MI:SS[.fraction]} for date and timestamp
  * types (date types carry {@code 00:00:00}) and {@code HH24:MI:SS[.fraction]} for time.
- * The fraction carries the platform's full precision (up to 9 digits); the filter trims it
- * to what the platform can parse. Values are normalized to UTC exactly where
+ * The fraction carries the platform's full precision (up to 12 digits on Db2); the filter
+ * trims it to what the platform can parse. Values are normalized to UTC exactly where
  * {@link DataTypeCastingUtils#castTimestamp} normalizes them for the pk_hash, so a key
  * names the same instant the pairing used.</p>
  *
@@ -118,7 +118,8 @@ public final class TemporalKeyUtils {
                 } else if (isDate) {
                     yield String.format("to_char(%s,'YYYY-MM-DD HH24:MI:SS')", column);
                 }
-                yield String.format("to_char(%s,'YYYY-MM-DD HH24:MI:SS.FF9')", column);
+                // Db2 timestamps carry up to 12 fractional digits.
+                yield String.format("to_char(%s,'YYYY-MM-DD HH24:MI:SS.FF12')", column);
             }
             case "snowflake" -> {
                 if (isTime) {
@@ -187,18 +188,20 @@ public final class TemporalKeyUtils {
                 yield "cast(? as datetime(6))";
             }
             case "mariadb" -> isTime ? "cast(? as time(6))" : isDate ? "cast(? as date)" : "cast(? as datetime(6))";
-            case "db2" -> isTime ? "time(cast(? as varchar(40)))"
+            // Db2 TIME has no fraction; timestamp() would return precision 6, so cast to timestamp(12).
+            case "db2" -> isTime ? "time(substr(cast(? as varchar(40)), 1, 8))"
                     : isDate ? "date(cast(? as varchar(40)))"
-                    : "timestamp(cast(? as varchar(40)))";
+                    : "cast(cast(? as varchar(40)) as timestamp(12))";
+            // Snowflake keeps at most 9 fractional digits; Db2 keys can carry 12.
             case "snowflake" -> {
                 if (isTime) {
-                    yield "to_time(?)";
+                    yield "to_time(substr(?, 1, 18))";
                 } else if (isDate) {
                     yield "to_date(substr(?, 1, 10))";
                 } else if (hasTimeZone(platform, type)) {
-                    yield "to_timestamp_tz(? || ' +00:00')";
+                    yield "to_timestamp_tz(substr(?, 1, 29) || ' +00:00')";
                 }
-                yield "to_timestamp_ntz(?)";
+                yield "to_timestamp_ntz(substr(?, 1, 29))";
             }
             default -> {
                 if (isTime) {
