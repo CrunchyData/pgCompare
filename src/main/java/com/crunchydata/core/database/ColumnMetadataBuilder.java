@@ -168,7 +168,7 @@ public class ColumnMetadataBuilder {
         // Add to primary key collections
         pkHash.add(joColumn.getString("valueExpression"));
         pkList.add(columnName);
-        pkJSON.add(buildJsonExpression(platform, columnName, dataClass, concatOperator, replaceSyntax));
+        pkJSON.add(buildJsonExpression(platform, columnName, joColumn.getString("dataType").toLowerCase(), dataClass, concatOperator, replaceSyntax));
     }
     
     /**

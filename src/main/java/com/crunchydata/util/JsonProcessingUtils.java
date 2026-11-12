@@ -47,14 +47,22 @@ public class JsonProcessingUtils {
      *
      * @param platform          Database platform
      * @param column            Column name
+     * @param dataType          Data type of the column
      * @param dataClass         Class of the data type
      * @param concatOperator    Operator to use for concatenation
      * @return                  Expression for SQL statement
      */
-    public static String buildJsonExpression(String platform, String column, String dataClass, String concatOperator, String replaceSyntax) {
+    public static String buildJsonExpression(String platform, String column, String dataType, String dataClass, String concatOperator, String replaceSyntax) {
         String cleanColumn = column.replace("\"", QUOTE_REPLACEMENT);
         String stringColumnQuotes = String.format(replaceSyntax, cleanColumn);
-        
+
+        // Temporal keys are written as canonical text that check can bind on either side.
+        // Applying replaceSyntax to the raw column fails on PostgreSQL and goes through a
+        // session-dependent implicit conversion elsewhere.
+        if (TemporalKeyUtils.isTemporalKey(platform, dataType)) {
+            return String.format(JSON_KEY_FORMAT, cleanColumn, concatOperator, TemporalKeyUtils.keyText(platform, dataType, column), concatOperator);
+        }
+
         if (CHAR_DATA_CLASS.equals(dataClass)) {
             return String.format(JSON_KEY_FORMAT, cleanColumn, concatOperator, stringColumnQuotes, concatOperator);
         } else if (MSSQL_PLATFORM.equals(platform)) {

@@ -481,7 +481,7 @@ public interface RepoSQLConstants {
             """;
 
     String SQL_REPO_DCTABLECOLUMNMAP_BYORIGINALIAS = """
-            SELECT c.tid, c.column_id, m.column_name, m.preserve_case
+            SELECT c.tid, c.column_id, m.column_name, m.preserve_case, m.data_type
             FROM dc_table_column c
                  JOIN dc_table_column_map m ON (c.tid = m.tid AND c.column_id = m.column_id)
             WHERE c.tid = ?
