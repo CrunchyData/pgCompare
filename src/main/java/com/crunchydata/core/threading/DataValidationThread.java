@@ -16,6 +16,8 @@
 
 package com.crunchydata.core.threading;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -122,13 +124,7 @@ public class DataValidationThread {
                 while (keys.hasNext()) {
                     String key = keys.next();
                     String columnAlias = findColumnAlias(columnMapping.getJSONArray("columns"),  key.replace("`","").replace("\"",""),  "source");
-                    if (pk.get(key) instanceof String) {
-                        String value = pk.getString(key);
-                        binds.add(pkColumnCount,value);
-                    } else {
-                        Integer value = pk.getInt(key);
-                        binds.add(pkColumnCount,value);
-                    }
+                    binds.add(pkColumnCount, toPkBindValue(pk.get(key)));
                     dctmSource.setTableFilter(dctmSource.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "source", getQuoteChar(Props.getProperty("source-type"))));
                     dctmTarget.setTableFilter(dctmTarget.getTableFilter() + createColumnFilterClause(repoConn, dct.getTid(), columnAlias, "target", getQuoteChar(Props.getProperty("target-type"))));
                     pkColumnCount++;
@@ -205,6 +201,31 @@ public class DataValidationThread {
         }
 
         return result;
+    }
+
+    /**
+     * Converts a primary key value parsed from the pk JSON into the value bound to the
+     * check query.
+     *
+     * <p>org.json parses numbers as Integer, Long, BigInteger or BigDecimal depending on
+     * their size and notation. They are bound unchanged so the full value reaches the
+     * database: the previous getInt() call truncated any key above 2,147,483,647 to its
+     * low 32 bits and dropped the fraction of decimal keys, so check looked up a different
+     * row on both sides and cleared real drift as in sync. BigInteger (keys wider than 64
+     * bits, e.g. decimal(38,0)) is converted to BigDecimal, which every supported JDBC
+     * driver accepts in setObject().</p>
+     *
+     * @param value Value from the pk JSON
+     * @return Value to bind for the primary key column
+     */
+    static Object toPkBindValue(Object value) {
+        if (value == null || JSONObject.NULL.equals(value)) {
+            return null;
+        }
+        if (value instanceof BigInteger bigInteger) {
+            return new BigDecimal(bigInteger);
+        }
+        return value;
     }
 
     /**
