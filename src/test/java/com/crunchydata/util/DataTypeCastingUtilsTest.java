@@ -167,12 +167,29 @@ class DataTypeCastingUtilsTest {
         }
 
         @Test
-        @DisplayName("mssql FORMAT() pins en-US culture (issue #102 - non-English locale drift)")
+        @DisplayName("mssql FORMAT() pins en-US culture (issue #102) and normalizes both exponent signs (issue #106)")
         void mssqlNumericNotationInvariantCulture() {
+            // FORMAT 'E10' always writes three exponent digits (E+001, E-001); PostgreSQL's
+            // to_char EEEE writes two (e+01, e-01). Both signs must be normalized, otherwise
+            // every value with 0 < |v| < 1 is reported as not equal.
             assertEquals(
-                "lower(replace(coalesce(trim(format(col,'E10','en-US')),' '),'E+0','e+'))",
+                "lower(replace(replace(coalesce(trim(format(col,'E10','en-US')),' '),'E+0','e+'),'E-0','e-'))",
                 DataTypeCastingUtils.castNumber("numeric", COL, "mssql"));
         }
+
+        @Test
+        @DisplayName("mysql/mariadb notation writes the exponent from abs(floor(log10)) (issue #106)")
+        void mysqlMariadbNumericNotationExponent() {
+            // The previous exponent expression (FORMAT(e,2)/100 cast to char, '0.' and '-' removed)
+            // lost the trailing zero of exponents 10, 20 and 30 (1e10 rendered as e+01, 1e-10 as
+            // e-01), so values in those decades never matched the other platforms.
+            String expected = "case when col is null then ' ' else coalesce(if(col=0,'0.0000000000e+00',"
+                    + "concat(if(col<0, '-', ''),format(abs(col)/pow(10, floor(log10(abs(col)))), 10),'e',"
+                    + "if(floor(log10(abs(col)))>=0,'+','-'),lpad(cast(abs(floor(log10(abs(col)))) as char),2,'0'))),' ') end";
+            assertEquals(expected, DataTypeCastingUtils.castNumber("decimal", COL, "mysql"));
+            assertEquals(expected, DataTypeCastingUtils.castNumber("decimal", COL, "mariadb"));
+        }
+
 
         @Test
         @DisplayName("mssql standard FORMAT() also pins en-US culture (issue #102)")
